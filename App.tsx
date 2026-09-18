@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Home, Compass, MessageCircle, User, Plus, LogOut, Loader2, Search, Radio, Image as ImageIcon, Video } from 'lucide-react';
+import { Home, Compass, MessageCircle, User, Plus, LogOut, Loader2, Search, Radio, Image as ImageIcon, Video, Eye } from 'lucide-react';
 import { JixAuthModal } from './JixAuthModal';
 import { JixStreamStudio } from './JixStreamStudio';
 import { supabase } from './supabaseClient';
@@ -8,6 +8,14 @@ interface CurrentUser {
   name: string;
   email: string;
   avatar: string;
+}
+
+interface LiveStreamRow {
+  id: string;
+  user_id: string;
+  username: string;
+  channel_name: string;
+  started_at: string;
 }
 
 type ScreenName = 'Home' | 'Discover' | 'Messages' | 'Profile';
@@ -21,6 +29,8 @@ function App() {
   const [isStudioOpen, setIsStudioOpen] = useState(false);
   const [user, setUser] = useState<CurrentUser | null>(null);
   const [isCheckingSession, setIsCheckingSession] = useState(true);
+  const [liveStreams, setLiveStreams] = useState<LiveStreamRow[]>([]);
+  const [isLoadingLive, setIsLoadingLive] = useState(true);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
@@ -49,6 +59,31 @@ function App() {
     });
 
     return () => listener.subscription.unsubscribe();
+  }, []);
+
+  // جلب البثوث المباشرة الحقيقية من قاعدة البيانات + متابعة أي تحديث فوري
+  useEffect(() => {
+    const fetchLiveStreams = async () => {
+      const { data } = await supabase
+        .from('live_streams')
+        .select('*')
+        .order('started_at', { ascending: false });
+      setLiveStreams(data || []);
+      setIsLoadingLive(false);
+    };
+
+    fetchLiveStreams();
+
+    const channel = supabase
+      .channel('live_streams_changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'live_streams' }, () => {
+        fetchLiveStreams();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   const handleLoginSuccess = (username: string, email: string) => {
@@ -107,11 +142,39 @@ function App() {
           />
         </div>
         <p className="text-xs font-bold text-[#6B6B76] mb-3">بثوث مباشرة الآن</p>
-        <div className="flex flex-col items-center justify-center py-16 text-center">
-          <Radio className="w-10 h-10 text-[#6B6B76] mb-3" />
-          <p className="text-sm text-[#9A9A9E]">مفيش أي بث مباشر شغال دلوقتي</p>
-          <p className="text-xs text-[#6B6B76] mt-1">كن أول واحد يبدأ البث!</p>
-        </div>
+
+        {isLoadingLive ? (
+          <div className="flex justify-center py-16">
+            <Loader2 className="w-6 h-6 animate-spin text-[#8B5CF6]" />
+          </div>
+        ) : liveStreams.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-16 text-center">
+            <Radio className="w-10 h-10 text-[#6B6B76] mb-3" />
+            <p className="text-sm text-[#9A9A9E]">مفيش أي بث مباشر شغال دلوقتي</p>
+            <p className="text-xs text-[#6B6B76] mt-1">كن أول واحد يبدأ البث!</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 gap-2.5">
+            {liveStreams.map((stream) => (
+              <div
+                key={stream.id}
+                className="relative aspect-[3/4] rounded-xl overflow-hidden flex items-end bg-gradient-to-br from-[#8B5CF6] to-[#FF7A1A]"
+              >
+                <div className="absolute inset-0 flex items-center justify-center opacity-25">
+                  <span className="text-6xl font-black text-white select-none">{stream.username[0]}</span>
+                </div>
+                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/5 to-transparent" />
+                <span className="absolute top-2 right-2 bg-[#FF3B5C] px-2 py-0.5 rounded text-[9px] font-black z-10">
+                  LIVE
+                </span>
+                <span className="absolute top-2 left-2 flex items-center gap-1 bg-black/50 px-2 py-0.5 rounded-full text-[9px] font-bold z-10">
+                  <Eye className="w-2.5 h-2.5" />
+                </span>
+                <p className="relative z-10 px-2 pb-2 text-xs font-black truncate">{stream.username}</p>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* الرسائل */}
