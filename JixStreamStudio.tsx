@@ -123,7 +123,7 @@ export const JixStreamStudio: React.FC<JixStreamStudioProps> = ({ isOpen, onClos
       await registerLiveRow();
     } catch (err) {
       console.error('[JIX] فشل بدء البث:', err);
-      setConnectionError('تعذر بدء البث. تحقق من صلاحيات الكاميرا والميكروفون.');
+     setConnectionError(`خطأ: ${(err as Error).message || 'غير معروف'}`);
       setStreamMode('avatar');
     }
   };
