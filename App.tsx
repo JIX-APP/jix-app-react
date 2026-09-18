@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Home, Compass, MessageCircle, User, Plus, LogOut, Loader2, Search, Radio, Image as ImageIcon, Video, Eye } from 'lucide-react';
 import { JixAuthModal } from './JixAuthModal';
 import { JixStreamStudio } from './JixStreamStudio';
+import { JixWatchStream } from './JixWatchStream';
 import { supabase } from './supabaseClient';
 
 interface CurrentUser {
@@ -31,6 +32,7 @@ function App() {
   const [isCheckingSession, setIsCheckingSession] = useState(true);
   const [liveStreams, setLiveStreams] = useState<LiveStreamRow[]>([]);
   const [isLoadingLive, setIsLoadingLive] = useState(true);
+  const [watchingStream, setWatchingStream] = useState<LiveStreamRow | null>(null);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
@@ -158,7 +160,8 @@ function App() {
             {liveStreams.map((stream) => (
               <div
                 key={stream.id}
-                className="relative aspect-[3/4] rounded-xl overflow-hidden flex items-end bg-gradient-to-br from-[#8B5CF6] to-[#FF7A1A]"
+                onClick={() => setWatchingStream(stream)}
+                className="relative aspect-[3/4] rounded-xl overflow-hidden flex items-end bg-gradient-to-br from-[#8B5CF6] to-[#FF7A1A] cursor-pointer"
               >
                 <div className="absolute inset-0 flex items-center justify-center opacity-25">
                   <span className="text-6xl font-black text-white select-none">{stream.username[0]}</span>
@@ -284,6 +287,15 @@ function App() {
           isOpen={isStudioOpen}
           onClose={() => setIsStudioOpen(false)}
           currentUser={{ name: user.name, avatar: user.avatar }}
+        />
+      )}
+
+      {watchingStream && (
+        <JixWatchStream
+          isOpen={!!watchingStream}
+          onClose={() => setWatchingStream(null)}
+          channelName={watchingStream.channel_name}
+          hostUsername={watchingStream.username}
         />
       )}
     </div>
