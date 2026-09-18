@@ -1,5 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { X, Mic, MicOff, Camera, Image, Users, UserX, VolumeX } from 'lucide-react';
+import AgoraRTC, { IAgoraRTCClient, ICameraVideoTrack, IMicrophoneAudioTrack } from 'agora-rtc-sdk-ng';
+import { supabase } from './supabaseClient';
 
 interface Viewer {
   id: string;
@@ -14,9 +16,13 @@ interface JixStreamStudioProps {
   currentUser: { name: string; avatar: string };
 }
 
+const AGORA_TOKEN_URL = 'https://wfvhzlpvtgnydhmsxcqr.supabase.co/functions/v1/agora-token';
+
 export const JixStreamStudio: React.FC<JixStreamStudioProps> = ({ isOpen, onClose, currentUser }) => {
   const [streamMode, setStreamMode] = useState<'camera' | 'avatar'>('camera');
   const [isMicMuted, setIsMicMuted] = useState(false);
+  const [isLive, setIsLive] = useState(false);
+  const [connectionError, setConnectionError] = useState<string | null>(null);
   const [viewers, setViewers] = useState<Viewer[]>([
     { id: '1', name: 'سلطان VIP', avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100', isMuted: false },
     { id: '2', name: 'الزعيم 505', avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100', isMuted: false },
@@ -24,24 +30,106 @@ export const JixStreamStudio: React.FC<JixStreamStudioProps> = ({ isOpen, onClos
   ]);
 
   const videoRef = useRef<HTMLVideoElement>(null);
+  const clientRef = useRef<IAgoraRTCClient | null>(null);
+  const localVideoTrackRef = useRef<ICameraVideoTrack | null>(null);
+  const localAudioTrackRef = useRef<IMicrophoneAudioTrack | null>(null);
+
+  // اسم القناة: هنا بنستخدم اسم بسيط ثابت للتجربة، لاحقًا ممكن يبقى مرتبط باسم المستخدم
+  const channelName = `jix-${currentUser.name}`.replace(/\s+/g, '-');
+
+  const fetchAgoraToken = async (): Promise<{ token: string; appId: string; uid: number } | null> => {
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const accessToken = sessionData.session?.access_token;
+      const anonKey = (supabase as any).supabaseKey as string;
+
+      const response = await fetch(AGORA_TOKEN_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          apikey: anonKey,
+          Authorization: `Bearer ${accessToken ?? anonKey}`,
+        },
+        body: JSON.stringify({
+          channelName,
+          uid: Math.floor(Math.random() * 100000),
+          role: 'publisher',
+        }),
+      });
+
+      if (!response.ok) {
+        const errBody = await response.json().catch(() => ({}));
+        throw new Error(errBody.error || `HTTP ${response.status}`);
+      }
+
+      return await response.json();
+    } catch (err) {
+      console.error('[JIX] فشل جلب توكن Agora:', err);
+      setConnectionError('تعذر الاتصال بالبث. حاول مرة أخرى.');
+      return null;
+    }
+  };
+
+  const startLiveStream = async () => {
+    setConnectionError(null);
+    const tokenData = await fetchAgoraToken();
+    if (!tokenData) return;
+
+    try {
+      const client = AgoraRTC.createClient({ mode: 'live', codec: 'vp8' });
+      client.setClientRole('host');
+      clientRef.current = client;
+
+      await client.join(tokenData.appId, channelName, tokenData.token, tokenData.uid);
+
+      const [audioTrack, videoTrack] = await AgoraRTC.createMicrophoneAndCameraTracks();
+      localAudioTrackRef.current = audioTrack;
+      localVideoTrackRef.current = videoTrack;
+
+      if (videoRef.current) {
+        videoTrack.play(videoRef.current);
+      }
+
+      await client.publish([audioTrack, videoTrack]);
+      setIsLive(true);
+    } catch (err) {
+      console.error('[JIX] فشل بدء البث:', err);
+      setConnectionError('تعذر بدء البث. تحقق من صلاحيات الكاميرا والميكروفون.');
+      setStreamMode('avatar');
+    }
+  };
+
+  const stopLiveStream = async () => {
+    localAudioTrackRef.current?.close();
+    localVideoTrackRef.current?.close();
+    await clientRef.current?.leave();
+    clientRef.current = null;
+    setIsLive(false);
+  };
 
   useEffect(() => {
-    let stream: MediaStream | null = null;
-    if (isOpen && streamMode === 'camera') {
-      navigator.mediaDevices
-        ?.getUserMedia({ video: true, audio: true })
-        .then((s) => {
-          stream = s;
-          if (videoRef.current) videoRef.current.srcObject = s;
-        })
-        .catch(() => setStreamMode('avatar'));
+    if (isOpen && streamMode === 'camera' && !isLive) {
+      startLiveStream();
     }
     return () => {
-      stream?.getTracks().forEach((t) => t.stop());
+      if (!isOpen) stopLiveStream();
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, streamMode]);
 
+  const handleClose = async () => {
+    await stopLiveStream();
+    onClose();
+  };
+
   if (!isOpen) return null;
+
+  const toggleMic = () => {
+    if (localAudioTrackRef.current) {
+      localAudioTrackRef.current.setEnabled(isMicMuted);
+    }
+    setIsMicMuted(!isMicMuted);
+  };
 
   const toggleMuteViewer = (id: string) => {
     setViewers((prev) => prev.map((v) => (v.id === id ? { ...v, isMuted: !v.isMuted } : v)));
@@ -56,8 +144,14 @@ export const JixStreamStudio: React.FC<JixStreamStudioProps> = ({ isOpen, onClos
       <div className="relative w-full max-w-4xl h-[90vh] bg-[#0d0f17] border border-gray-800 rounded-3xl flex flex-col md:flex-row overflow-hidden">
         {/* شاشة البث الرئيسية */}
         <div className="flex-1 relative bg-black flex items-center justify-center">
+          {connectionError && (
+            <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-red-600/90 text-white text-xs px-4 py-2 rounded-full z-10">
+              {connectionError}
+            </div>
+          )}
+
           {streamMode === 'camera' ? (
-            <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover" />
+            <div ref={videoRef} className="w-full h-full" />
           ) : (
             <div className="text-center p-8">
               <img src={currentUser.avatar} alt="Avatar" className="w-32 h-32 rounded-full border-4 border-amber-500 mx-auto shadow-2xl animate-pulse mb-4" />
@@ -66,11 +160,27 @@ export const JixStreamStudio: React.FC<JixStreamStudioProps> = ({ isOpen, onClos
             </div>
           )}
 
+          {isLive && (
+            <div className="absolute top-4 right-4 bg-red-600 text-white text-xs font-bold px-3 py-1 rounded-full animate-pulse">
+              مباشر الآن
+            </div>
+          )}
+
           <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-3 bg-black/60 backdrop-blur-md px-4 py-2 rounded-full border border-white/10">
-            <button onClick={() => setIsMicMuted(!isMicMuted)} className={`p-3 rounded-full ${isMicMuted ? 'bg-red-600' : 'bg-white/10'}`}>
+            <button onClick={toggleMic} className={`p-3 rounded-full ${isMicMuted ? 'bg-red-600' : 'bg-white/10'}`}>
               {isMicMuted ? <MicOff className="w-5 h-5 text-white" /> : <Mic className="w-5 h-5 text-white" />}
             </button>
-            <button onClick={() => setStreamMode(streamMode === 'camera' ? 'avatar' : 'camera')} className="p-3 rounded-full bg-white/10">
+            <button
+              onClick={async () => {
+                if (streamMode === 'camera') {
+                  await stopLiveStream();
+                  setStreamMode('avatar');
+                } else {
+                  setStreamMode('camera');
+                }
+              }}
+              className="p-3 rounded-full bg-white/10"
+            >
               {streamMode === 'camera' ? <Image className="w-5 h-5 text-amber-400" /> : <Camera className="w-5 h-5 text-emerald-400" />}
             </button>
           </div>
@@ -82,7 +192,7 @@ export const JixStreamStudio: React.FC<JixStreamStudioProps> = ({ isOpen, onClos
             <h4 className="font-bold text-sm flex items-center gap-2">
               <Users className="w-4 h-4 text-amber-400" /> إدارة البث والفانزات
             </h4>
-            <button onClick={onClose} className="p-1 text-gray-400 hover:text-white">
+            <button onClick={handleClose} className="p-1 text-gray-400 hover:text-white">
               <X className="w-5 h-5" />
             </button>
           </div>
