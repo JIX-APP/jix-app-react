@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { X, Mail, ArrowLeft, ShieldCheck, Loader2 } from 'lucide-react';
 import { supabase } from './supabaseClient';
-
+ 
 interface JixAuthModalProps {
   isOpen: boolean;
   onClose: () => void;
