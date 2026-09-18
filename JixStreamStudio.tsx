@@ -1,267 +1,180 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { X, Mic, MicOff, Camera, Image, Users, UserX, VolumeX } from 'lucide-react';
-import AgoraRTC, { IAgoraRTCClient, ICameraVideoTrack, IMicrophoneAudioTrack } from 'agora-rtc-sdk-ng';
+import React, { useState } from 'react';
+import { X, Mail, ArrowLeft, ShieldCheck, Loader2 } from 'lucide-react';
 import { supabase } from './supabaseClient';
 
-interface Viewer {
-  id: string;
-  name: string;
-  avatar: string;
-  isMuted: boolean;
-}
-
-interface JixStreamStudioProps {
+interface JixAuthModalProps {
   isOpen: boolean;
   onClose: () => void;
-  currentUser: { name: string; avatar: string };
+  onSuccessLogin: (username: string, email: string) => void;
 }
 
-const AGORA_TOKEN_URL = 'https://wfvhzlpvtgnydhmsxcqr.supabase.co/functions/v1/agora-token';
+type Step = 'form' | 'otp';
 
-export const JixStreamStudio: React.FC<JixStreamStudioProps> = ({ isOpen, onClose, currentUser }) => {
-  const [streamMode, setStreamMode] = useState<'camera' | 'avatar'>('camera');
-  const [isMicMuted, setIsMicMuted] = useState(false);
-  const [isLive, setIsLive] = useState(false);
-  const [connectionError, setConnectionError] = useState<string | null>(null);
-  const [viewers, setViewers] = useState<Viewer[]>([
-    { id: '1', name: 'سلطان VIP', avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100', isMuted: false },
-    { id: '2', name: 'الزعيم 505', avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100', isMuted: false },
-    { id: '3', name: 'أميرة الجواهر', avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100', isMuted: false },
-  ]);
-
-  const videoRef = useRef<HTMLDivElement>(null);
-  const clientRef = useRef<IAgoraRTCClient | null>(null);
-  const localVideoTrackRef = useRef<ICameraVideoTrack | null>(null);
-  const localAudioTrackRef = useRef<IMicrophoneAudioTrack | null>(null);
-  const channelNameRef = useRef<string | null>(null);
-
-  // اسم القناة لازم يكون بحروف/أرقام إنجليزية بس (متطلب Agora) عشان كده بنستخدم رقم الحساب مش الاسم بالعربي
-  const getChannelName = async (): Promise<string | null> => {
-    if (channelNameRef.current) return channelNameRef.current;
-    const { data: sessionData } = await supabase.auth.getSession();
-    const userId = sessionData.session?.user.id;
-    if (!userId) return null;
-    const name = `jix-${userId}`.slice(0, 64);
-    channelNameRef.current = name;
-    return name;
-  };
-
-  const fetchAgoraToken = async (channelName: string): Promise<{ token: string; appId: string; uid: number } | null> => {
-    try {
-      const { data: sessionData } = await supabase.auth.getSession();
-      const accessToken = sessionData.session?.access_token;
-      const anonKey = (supabase as any).supabaseKey as string;
-
-      const response = await fetch(AGORA_TOKEN_URL, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          apikey: anonKey,
-          Authorization: `Bearer ${accessToken ?? anonKey}`,
-        },
-        body: JSON.stringify({
-          channelName,
-          uid: Math.floor(Math.random() * 100000),
-          role: 'publisher',
-        }),
-      });
-
-      if (!response.ok) {
-        const errBody = await response.json().catch(() => ({}));
-        throw new Error(errBody.error || `HTTP ${response.status}`);
-      }
-
-      return await response.json();
-    } catch (err) {
-      console.error('[JIX] فشل جلب توكن Agora:', err);
-      setConnectionError(`خطأ: ${(err as Error).message || 'غير معروف'}`);
-      return null;
-    }
-  };
-
-  // تسجيل البث في قاعدة البيانات عشان يظهر في صفحة "اكتشف" للمستخدمين التانيين
-  const registerLiveRow = async (channelName: string) => {
-    try {
-      const { data: sessionData } = await supabase.auth.getSession();
-      const userId = sessionData.session?.user.id;
-      if (!userId) return;
-
-      await supabase.from('live_streams').delete().eq('user_id', userId);
-      await supabase.from('live_streams').insert({
-        user_id: userId,
-        username: currentUser.name,
-        channel_name: channelName,
-      });
-    } catch (err) {
-      console.error('[JIX] فشل تسجيل البث في قاعدة البيانات:', err);
-    }
-  };
-
-  const unregisterLiveRow = async () => {
-    try {
-      const { data: sessionData } = await supabase.auth.getSession();
-      const userId = sessionData.session?.user.id;
-      if (!userId) return;
-      await supabase.from('live_streams').delete().eq('user_id', userId);
-    } catch (err) {
-      console.error('[JIX] فشل حذف سجل البث:', err);
-    }
-  };
-
-  const startLiveStream = async () => {
-    setConnectionError(null);
-
-    const channelName = await getChannelName();
-    if (!channelName) {
-      setConnectionError('خطأ: لم يتم العثور على جلسة الدخول');
-      return;
-    }
-
-    const tokenData = await fetchAgoraToken(channelName);
-    if (!tokenData) return;
-
-    try {
-      const client = AgoraRTC.createClient({ mode: 'live', codec: 'vp8' });
-      client.setClientRole('host');
-      clientRef.current = client;
-
-      await client.join(tokenData.appId, channelName, tokenData.token, tokenData.uid);
-
-      const [audioTrack, videoTrack] = await AgoraRTC.createMicrophoneAndCameraTracks();
-      localAudioTrackRef.current = audioTrack;
-      localVideoTrackRef.current = videoTrack;
-
-      if (videoRef.current) {
-        videoTrack.play(videoRef.current);
-      }
-
-      await client.publish([audioTrack, videoTrack]);
-      setIsLive(true);
-      await registerLiveRow(channelName);
-    } catch (err) {
-      console.error('[JIX] فشل بدء البث:', err);
-      setConnectionError(`خطأ: ${(err as Error).message || 'غير معروف'}`);
-      setStreamMode('avatar');
-    }
-  };
-
-  const stopLiveStream = async () => {
-    localAudioTrackRef.current?.close();
-    localVideoTrackRef.current?.close();
-    await clientRef.current?.leave();
-    clientRef.current = null;
-    setIsLive(false);
-    await unregisterLiveRow();
-  };
-
-  useEffect(() => {
-    if (isOpen && streamMode === 'camera' && !isLive) {
-      startLiveStream();
-    }
-    return () => {
-      if (!isOpen) stopLiveStream();
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isOpen, streamMode]);
-
-  const handleClose = async () => {
-    await stopLiveStream();
-    onClose();
-  };
+export const JixAuthModal: React.FC<JixAuthModalProps> = ({ isOpen, onClose, onSuccessLogin }) => {
+  const [step, setStep] = useState<Step>('form');
+  const [email, setEmail] = useState('');
+  const [username, setUsername] = useState('');
+  const [otp, setOtp] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   if (!isOpen) return null;
 
-  const toggleMic = () => {
-    if (localAudioTrackRef.current) {
-      localAudioTrackRef.current.setEnabled(isMicMuted);
+  const identifier = email.trim();
+
+  const resetAndClose = () => {
+    setStep('form');
+    setOtp('');
+    setError(null);
+    setIsSubmitting(false);
+    onClose();
+  };
+
+  const handleSendOtp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    setIsSubmitting(true);
+
+    const { error: otpError } = await supabase.auth.signInWithOtp({
+      email: identifier,
+      options: {
+        shouldCreateUser: true,
+        data: username ? { username } : undefined,
+      },
+    });
+
+    setIsSubmitting(false);
+
+    if (otpError) {
+      setError(otpError.message);
+      return;
     }
-    setIsMicMuted(!isMicMuted);
+
+    setStep('otp');
   };
 
-  const toggleMuteViewer = (id: string) => {
-    setViewers((prev) => prev.map((v) => (v.id === id ? { ...v, isMuted: !v.isMuted } : v)));
-  };
+  const handleVerifyOtp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    setIsSubmitting(true);
 
-  const kickViewer = (id: string) => {
-    setViewers((prev) => prev.filter((v) => v.id !== id));
+    const { data, error: verifyError } = await supabase.auth.verifyOtp({
+      email: identifier,
+      token: otp,
+      type: 'email',
+    });
+
+    setIsSubmitting(false);
+
+    if (verifyError) {
+      setError(verifyError.message);
+      return;
+    }
+
+    const finalUsername =
+      (data.user?.user_metadata?.username as string | undefined) ||
+      username ||
+      'مستخدم JIX';
+    const finalEmail = data.user?.email || identifier;
+
+    onSuccessLogin(finalUsername, finalEmail);
+    resetAndClose();
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-4">
-      <div className="relative w-full max-w-4xl h-[90vh] bg-[#0d0f17] border border-gray-800 rounded-3xl flex flex-col md:flex-row overflow-hidden">
-        <div className="flex-1 relative bg-black flex items-center justify-center">
-          {connectionError && (
-            <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-red-600/90 text-white text-xs px-4 py-2 rounded-full z-10">
-              {connectionError}
-            </div>
-          )}
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md">
+      <div className="relative w-full max-w-md bg-[#0f1118] border border-[#8B5CF6]/30 rounded-3xl p-6 text-white shadow-2xl shadow-[#8B5CF6]/10">
+        <button onClick={resetAndClose} className="absolute top-5 left-5 text-gray-400 hover:text-white p-2 rounded-full bg-white/5">
+          <X className="w-5 h-5" />
+        </button>
 
-          {streamMode === 'camera' ? (
-            <div ref={videoRef} className="w-full h-full" />
-          ) : (
-            <div className="text-center p-8">
-              <img src={currentUser.avatar} alt="Avatar" className="w-32 h-32 rounded-full border-4 border-[#8B5CF6] mx-auto shadow-2xl animate-pulse mb-4" />
-              <h3 className="text-xl font-bold">{currentUser.name}</h3>
-              <p className="text-[#F5B93E] text-xs mt-1">بث بصورة ثابتة (Avatar Mode)</p>
-            </div>
-          )}
+        <div className="text-center mb-6 mt-2">
+          <div className="w-16 h-16 mx-auto rounded-2xl bg-gradient-to-br from-[#FF7A1A] to-[#8B5CF6] flex items-center justify-center text-black font-black text-2xl mb-3 shadow-lg shadow-[#8B5CF6]/20">
+            JIX
+          </div>
+          <h2 className="text-2xl font-black">
+            {step === 'form' ? 'مرحباً بك في JIX' : 'أدخل رمز التحقق'}
+          </h2>
+          <p className="text-gray-400 text-sm mt-1">
+            {step === 'form'
+              ? 'سجّل دخولك للوصول إلى البثوث وتحديات الـ PK والهدايا الأسطورية'
+              : `أرسلنا كود مكوّن من 6 أرقام إلى ${identifier}`}
+          </p>
+        </div>
 
-          {isLive && (
-            <div className="absolute top-4 right-4 bg-gradient-to-r from-[#FF7A1A] to-[#8B5CF6] text-white text-xs font-bold px-3 py-1 rounded-full animate-pulse">
-              مباشر الآن
-            </div>
-          )}
+        {error && (
+          <div className="mb-4 px-4 py-2.5 rounded-xl bg-red-500/10 border border-red-500/30 text-red-300 text-xs font-bold text-center">
+            {error}
+          </div>
+        )}
 
-          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-3 bg-black/60 backdrop-blur-md px-4 py-2 rounded-full border border-white/10">
-            <button onClick={toggleMic} className={`p-3 rounded-full ${isMicMuted ? 'bg-red-600' : 'bg-white/10'}`}>
-              {isMicMuted ? <MicOff className="w-5 h-5 text-white" /> : <Mic className="w-5 h-5 text-white" />}
+        {step === 'form' ? (
+          <form onSubmit={handleSendOtp} className="space-y-4">
+            <div>
+              <label className="block text-xs font-bold text-gray-300 mb-1">اسم المستخدم / اللقب (اختياري)</label>
+              <input
+                type="text"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                placeholder="الجيلاني"
+                className="w-full px-4 py-3 bg-[#171923] border border-gray-800 rounded-2xl text-white text-sm focus:border-[#8B5CF6] outline-none"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-gray-300 mb-1 flex items-center gap-1.5">
+                <Mail className="w-3.5 h-3.5" /> عنوان البريد الإلكتروني
+              </label>
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="name@example.com"
+                required
+                className="w-full px-4 py-3 bg-[#171923] border border-gray-800 rounded-2xl text-white text-sm focus:border-[#8B5CF6] outline-none"
+              />
+            </div>
+
+            <button type="submit" disabled={isSubmitting} className="w-full py-3.5 bg-gradient-to-r from-[#FF7A1A] to-[#8B5CF6] hover:opacity-90 text-white font-black text-sm rounded-2xl shadow-lg transition active:scale-98 flex items-center justify-center gap-2 disabled:opacity-60">
+              {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <ArrowLeft className="w-4 h-4" />}
+              {isSubmitting ? 'جاري الإرسال...' : 'إرسال رمز التحقق'}
             </button>
+          </form>
+        ) : (
+          <form onSubmit={handleVerifyOtp} className="space-y-4">
+            <div>
+              <label className="block text-xs font-bold text-gray-300 mb-1">رمز التحقق (6 أرقام)</label>
+              <input
+                type="text"
+                inputMode="numeric"
+                maxLength={6}
+                value={otp}
+                onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))}
+                placeholder="••••••"
+                required
+                autoFocus
+                className="w-full px-4 py-3 bg-[#171923] border border-gray-800 rounded-2xl text-white text-center text-2xl tracking-[0.5em] focus:border-[#8B5CF6] outline-none"
+              />
+            </div>
+
+            <button type="submit" disabled={isSubmitting || otp.length !== 6} className="w-full py-3.5 bg-gradient-to-r from-[#FF7A1A] to-[#8B5CF6] hover:opacity-90 text-white font-black text-sm rounded-2xl shadow-lg transition active:scale-98 flex items-center justify-center gap-2 disabled:opacity-60">
+              {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShieldCheck className="w-4 h-4" />}
+              {isSubmitting ? 'جاري التحقق...' : 'تأكيد الدخول'}
+            </button>
+
             <button
-              onClick={async () => {
-                if (streamMode === 'camera') {
-                  await stopLiveStream();
-                  setStreamMode('avatar');
-                } else {
-                  setStreamMode('camera');
-                }
+              type="button"
+              onClick={() => {
+                setStep('form');
+                setOtp('');
+                setError(null);
               }}
-              className="p-3 rounded-full bg-white/10"
+              className="w-full text-xs font-bold text-gray-400 hover:text-white"
             >
-              {streamMode === 'camera' ? <Image className="w-5 h-5 text-[#F5B93E]" /> : <Camera className="w-5 h-5 text-emerald-400" />}
+              تعديل البيانات أو إعادة الإرسال
             </button>
-          </div>
-        </div>
-
-        <div className="w-full md:w-80 bg-[#12141f] border-t md:border-t-0 md:border-r border-gray-800 p-4 flex flex-col">
-          <div className="flex items-center justify-between pb-3 border-b border-gray-800">
-            <h4 className="font-bold text-sm flex items-center gap-2">
-              <Users className="w-4 h-4 text-[#8B5CF6]" /> إدارة البث والفانزات
-            </h4>
-            <button onClick={handleClose} className="p-1 text-gray-400 hover:text-white">
-              <X className="w-5 h-5" />
-            </button>
-          </div>
-
-          <div className="flex-1 overflow-y-auto py-3 space-y-3">
-            <p className="text-xs text-gray-400">قائمة المشاهدين ({viewers.length}):</p>
-            {viewers.map((v) => (
-              <div key={v.id} className="flex items-center justify-between bg-black/40 p-2 rounded-xl border border-gray-800">
-                <div className="flex items-center gap-2">
-                  <img src={v.avatar} alt={v.name} className="w-8 h-8 rounded-full" />
-                  <span className="text-xs font-bold">{v.name}</span>
-                </div>
-                <div className="flex items-center gap-1">
-                  <button onClick={() => toggleMuteViewer(v.id)} title={v.isMuted ? 'إلغاء كتم الكومنتات' : 'كتم الكومنتات'} className={`p-1.5 rounded-lg ${v.isMuted ? 'bg-[#8B5CF6]/20 text-[#8B5CF6]' : 'bg-gray-800 text-gray-300'}`}>
-                    <VolumeX className="w-3.5 h-3.5" />
-                  </button>
-                  <button onClick={() => kickViewer(v.id)} title="طرد نهائي من البث" className="p-1.5 rounded-lg bg-red-600/20 text-red-400 hover:bg-red-600 hover:text-white transition">
-                    <UserX className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
+          </form>
+        )}
       </div>
     </div>
   );
