@@ -33,10 +33,20 @@ export const JixStreamStudio: React.FC<JixStreamStudioProps> = ({ isOpen, onClos
   const clientRef = useRef<IAgoraRTCClient | null>(null);
   const localVideoTrackRef = useRef<ICameraVideoTrack | null>(null);
   const localAudioTrackRef = useRef<IMicrophoneAudioTrack | null>(null);
+  const channelNameRef = useRef<string | null>(null);
 
-  const channelName = `jix-${currentUser.name}`.replace(/\s+/g, '-');
+  // اسم القناة لازم يكون بحروف/أرقام إنجليزية بس (متطلب Agora) عشان كده بنستخدم رقم الحساب مش الاسم بالعربي
+  const getChannelName = async (): Promise<string | null> => {
+    if (channelNameRef.current) return channelNameRef.current;
+    const { data: sessionData } = await supabase.auth.getSession();
+    const userId = sessionData.session?.user.id;
+    if (!userId) return null;
+    const name = `jix-${userId}`.slice(0, 64);
+    channelNameRef.current = name;
+    return name;
+  };
 
-  const fetchAgoraToken = async (): Promise<{ token: string; appId: string; uid: number } | null> => {
+  const fetchAgoraToken = async (channelName: string): Promise<{ token: string; appId: string; uid: number } | null> => {
     try {
       const { data: sessionData } = await supabase.auth.getSession();
       const accessToken = sessionData.session?.access_token;
@@ -64,13 +74,13 @@ export const JixStreamStudio: React.FC<JixStreamStudioProps> = ({ isOpen, onClos
       return await response.json();
     } catch (err) {
       console.error('[JIX] فشل جلب توكن Agora:', err);
-      setConnectionError('تعذر الاتصال بالبث. حاول مرة أخرى.');
+      setConnectionError(`خطأ: ${(err as Error).message || 'غير معروف'}`);
       return null;
     }
   };
 
   // تسجيل البث في قاعدة البيانات عشان يظهر في صفحة "اكتشف" للمستخدمين التانيين
-  const registerLiveRow = async () => {
+  const registerLiveRow = async (channelName: string) => {
     try {
       const { data: sessionData } = await supabase.auth.getSession();
       const userId = sessionData.session?.user.id;
@@ -100,7 +110,14 @@ export const JixStreamStudio: React.FC<JixStreamStudioProps> = ({ isOpen, onClos
 
   const startLiveStream = async () => {
     setConnectionError(null);
-    const tokenData = await fetchAgoraToken();
+
+    const channelName = await getChannelName();
+    if (!channelName) {
+      setConnectionError('خطأ: لم يتم العثور على جلسة الدخول');
+      return;
+    }
+
+    const tokenData = await fetchAgoraToken(channelName);
     if (!tokenData) return;
 
     try {
@@ -120,10 +137,10 @@ export const JixStreamStudio: React.FC<JixStreamStudioProps> = ({ isOpen, onClos
 
       await client.publish([audioTrack, videoTrack]);
       setIsLive(true);
-      await registerLiveRow();
+      await registerLiveRow(channelName);
     } catch (err) {
       console.error('[JIX] فشل بدء البث:', err);
-     setConnectionError(`خطأ: ${(err as Error).message || 'غير معروف'}`);
+      setConnectionError(`خطأ: ${(err as Error).message || 'غير معروف'}`);
       setStreamMode('avatar');
     }
   };
