@@ -34,7 +34,6 @@ export const JixStreamStudio: React.FC<JixStreamStudioProps> = ({ isOpen, onClos
   const localVideoTrackRef = useRef<ICameraVideoTrack | null>(null);
   const localAudioTrackRef = useRef<IMicrophoneAudioTrack | null>(null);
 
-  // اسم القناة: هنا بنستخدم اسم بسيط ثابت للتجربة، لاحقًا ممكن يبقى مرتبط باسم المستخدم
   const channelName = `jix-${currentUser.name}`.replace(/\s+/g, '-');
 
   const fetchAgoraToken = async (): Promise<{ token: string; appId: string; uid: number } | null> => {
@@ -70,6 +69,35 @@ export const JixStreamStudio: React.FC<JixStreamStudioProps> = ({ isOpen, onClos
     }
   };
 
+  // تسجيل البث في قاعدة البيانات عشان يظهر في صفحة "اكتشف" للمستخدمين التانيين
+  const registerLiveRow = async () => {
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const userId = sessionData.session?.user.id;
+      if (!userId) return;
+
+      await supabase.from('live_streams').delete().eq('user_id', userId);
+      await supabase.from('live_streams').insert({
+        user_id: userId,
+        username: currentUser.name,
+        channel_name: channelName,
+      });
+    } catch (err) {
+      console.error('[JIX] فشل تسجيل البث في قاعدة البيانات:', err);
+    }
+  };
+
+  const unregisterLiveRow = async () => {
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const userId = sessionData.session?.user.id;
+      if (!userId) return;
+      await supabase.from('live_streams').delete().eq('user_id', userId);
+    } catch (err) {
+      console.error('[JIX] فشل حذف سجل البث:', err);
+    }
+  };
+
   const startLiveStream = async () => {
     setConnectionError(null);
     const tokenData = await fetchAgoraToken();
@@ -92,6 +120,7 @@ export const JixStreamStudio: React.FC<JixStreamStudioProps> = ({ isOpen, onClos
 
       await client.publish([audioTrack, videoTrack]);
       setIsLive(true);
+      await registerLiveRow();
     } catch (err) {
       console.error('[JIX] فشل بدء البث:', err);
       setConnectionError('تعذر بدء البث. تحقق من صلاحيات الكاميرا والميكروفون.');
@@ -105,6 +134,7 @@ export const JixStreamStudio: React.FC<JixStreamStudioProps> = ({ isOpen, onClos
     await clientRef.current?.leave();
     clientRef.current = null;
     setIsLive(false);
+    await unregisterLiveRow();
   };
 
   useEffect(() => {
@@ -142,7 +172,6 @@ export const JixStreamStudio: React.FC<JixStreamStudioProps> = ({ isOpen, onClos
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-4">
       <div className="relative w-full max-w-4xl h-[90vh] bg-[#0d0f17] border border-gray-800 rounded-3xl flex flex-col md:flex-row overflow-hidden">
-        {/* شاشة البث الرئيسية */}
         <div className="flex-1 relative bg-black flex items-center justify-center">
           {connectionError && (
             <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-red-600/90 text-white text-xs px-4 py-2 rounded-full z-10">
@@ -154,14 +183,14 @@ export const JixStreamStudio: React.FC<JixStreamStudioProps> = ({ isOpen, onClos
             <div ref={videoRef} className="w-full h-full" />
           ) : (
             <div className="text-center p-8">
-              <img src={currentUser.avatar} alt="Avatar" className="w-32 h-32 rounded-full border-4 border-amber-500 mx-auto shadow-2xl animate-pulse mb-4" />
+              <img src={currentUser.avatar} alt="Avatar" className="w-32 h-32 rounded-full border-4 border-[#8B5CF6] mx-auto shadow-2xl animate-pulse mb-4" />
               <h3 className="text-xl font-bold">{currentUser.name}</h3>
-              <p className="text-amber-400 text-xs mt-1">بث بصورة ثابتة (Avatar Mode)</p>
+              <p className="text-[#F5B93E] text-xs mt-1">بث بصورة ثابتة (Avatar Mode)</p>
             </div>
           )}
 
           {isLive && (
-            <div className="absolute top-4 right-4 bg-red-600 text-white text-xs font-bold px-3 py-1 rounded-full animate-pulse">
+            <div className="absolute top-4 right-4 bg-gradient-to-r from-[#FF7A1A] to-[#8B5CF6] text-white text-xs font-bold px-3 py-1 rounded-full animate-pulse">
               مباشر الآن
             </div>
           )}
@@ -181,16 +210,15 @@ export const JixStreamStudio: React.FC<JixStreamStudioProps> = ({ isOpen, onClos
               }}
               className="p-3 rounded-full bg-white/10"
             >
-              {streamMode === 'camera' ? <Image className="w-5 h-5 text-amber-400" /> : <Camera className="w-5 h-5 text-emerald-400" />}
+              {streamMode === 'camera' ? <Image className="w-5 h-5 text-[#F5B93E]" /> : <Camera className="w-5 h-5 text-emerald-400" />}
             </button>
           </div>
         </div>
 
-        {/* لوحة تحكم الفانزات */}
         <div className="w-full md:w-80 bg-[#12141f] border-t md:border-t-0 md:border-r border-gray-800 p-4 flex flex-col">
           <div className="flex items-center justify-between pb-3 border-b border-gray-800">
             <h4 className="font-bold text-sm flex items-center gap-2">
-              <Users className="w-4 h-4 text-amber-400" /> إدارة البث والفانزات
+              <Users className="w-4 h-4 text-[#8B5CF6]" /> إدارة البث والفانزات
             </h4>
             <button onClick={handleClose} className="p-1 text-gray-400 hover:text-white">
               <X className="w-5 h-5" />
@@ -206,7 +234,7 @@ export const JixStreamStudio: React.FC<JixStreamStudioProps> = ({ isOpen, onClos
                   <span className="text-xs font-bold">{v.name}</span>
                 </div>
                 <div className="flex items-center gap-1">
-                  <button onClick={() => toggleMuteViewer(v.id)} title={v.isMuted ? 'إلغاء كتم الكومنتات' : 'كتم الكومنتات'} className={`p-1.5 rounded-lg ${v.isMuted ? 'bg-amber-500/20 text-amber-400' : 'bg-gray-800 text-gray-300'}`}>
+                  <button onClick={() => toggleMuteViewer(v.id)} title={v.isMuted ? 'إلغاء كتم الكومنتات' : 'كتم الكومنتات'} className={`p-1.5 rounded-lg ${v.isMuted ? 'bg-[#8B5CF6]/20 text-[#8B5CF6]' : 'bg-gray-800 text-gray-300'}`}>
                     <VolumeX className="w-3.5 h-3.5" />
                   </button>
                   <button onClick={() => kickViewer(v.id)} title="طرد نهائي من البث" className="p-1.5 rounded-lg bg-red-600/20 text-red-400 hover:bg-red-600 hover:text-white transition">
