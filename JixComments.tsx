@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { X, Send, Loader2 } from 'lucide-react';
 import { supabase } from './supabaseClient';
+import { checkText } from './JixModeration';
 
 interface JixCommentsProps {
   isOpen: boolean;
@@ -42,6 +43,13 @@ export const JixComments: React.FC<JixCommentsProps> = ({ isOpen, onClose, postI
 
   const handleSend = async () => {
     if (!newComment.trim()) return;
+
+    const textCheck = checkText(newComment);
+    if (!textCheck.isClean) {
+      setError('التعليق يحتوي على كلمات غير مسموح بها');
+      return;
+    }
+
     setError(null);
     setIsSending(true);
     try {
