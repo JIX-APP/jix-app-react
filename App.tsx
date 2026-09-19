@@ -7,6 +7,7 @@ import { JixVideoFeed } from './JixVideoFeed';
 import { JixUploadVideo } from './JixUploadVideo';
 import { JixAvatarUpload } from './JixAvatarUpload';
 import { LevelBadge, AvatarFrame, useLevelXp } from './JixLevelSystem';
+import { checkText } from './JixModeration';
 import { supabase } from './supabaseClient';
 
 interface CurrentUser {
@@ -44,6 +45,7 @@ function App() {
   const [isEditingName, setIsEditingName] = useState(false);
   const [nameDraft, setNameDraft] = useState('');
   const [isSavingName, setIsSavingName] = useState(false);
+  const [nameError, setNameError] = useState<string | null>(null);
   const supporterXp = useLevelXp(user?.id ?? null, 'supporter');
   const receiverXp = useLevelXp(user?.id ?? null, 'receiver');
 
@@ -145,6 +147,14 @@ function App() {
 
   const handleSaveName = async () => {
     if (!user || !nameDraft.trim()) return;
+
+    const textCheck = checkText(nameDraft);
+    if (!textCheck.isClean) {
+      setNameError('الاسم يحتوي على كلمة غير مسموح بها');
+      return;
+    }
+
+    setNameError(null);
     setIsSavingName(true);
     try {
       const newName = nameDraft.trim();
@@ -271,21 +281,24 @@ function App() {
                 />
               </AvatarFrame>
               {isEditingName ? (
-                <div className="flex items-center gap-2 mb-1">
-                  <input
-                    value={nameDraft}
-                    onChange={(e) => setNameDraft(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && handleSaveName()}
-                    autoFocus
-                    className="px-3 py-1.5 bg-[#171923] border border-gray-800 rounded-xl text-white text-sm text-center focus:border-[#8B5CF6] outline-none"
-                  />
-                  <button
-                    onClick={handleSaveName}
-                    disabled={isSavingName || !nameDraft.trim()}
-                    className="w-7 h-7 rounded-full bg-gradient-to-br from-[#FF7A1A] to-[#8B5CF6] flex items-center justify-center disabled:opacity-50"
-                  >
-                    {isSavingName ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
-                  </button>
+                <div className="flex flex-col items-center gap-1 mb-1">
+                  <div className="flex items-center gap-2">
+                    <input
+                      value={nameDraft}
+                      onChange={(e) => setNameDraft(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && handleSaveName()}
+                      autoFocus
+                      className="px-3 py-1.5 bg-[#171923] border border-gray-800 rounded-xl text-white text-sm text-center focus:border-[#8B5CF6] outline-none"
+                    />
+                    <button
+                      onClick={handleSaveName}
+                      disabled={isSavingName || !nameDraft.trim()}
+                      className="w-7 h-7 rounded-full bg-gradient-to-br from-[#FF7A1A] to-[#8B5CF6] flex items-center justify-center disabled:opacity-50"
+                    >
+                      {isSavingName ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
+                    </button>
+                  </div>
+                  {nameError && <p className="text-[10px] text-red-400">{nameError}</p>}
                 </div>
               ) : (
                 <div className="flex items-center gap-1.5 mb-1">
