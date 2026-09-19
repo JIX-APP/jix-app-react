@@ -4,6 +4,7 @@ import AgoraRTC, { IAgoraRTCClient, ICameraVideoTrack, IMicrophoneAudioTrack } f
 import { supabase } from './supabaseClient';
 import { jixAudio } from './jixAudioFx';
 import { GIFTS_CATALOG, GiftIcon, giftLegendaryEnterStyle, giftPopStyle } from './JixGiftIcons';
+import { LevelBadge, useLevelXp } from './JixLevelSystem';
 
 interface Viewer {
   id: string;
@@ -35,6 +36,8 @@ export const JixStreamStudio: React.FC<JixStreamStudioProps> = ({ isOpen, onClos
   const [giftToast, setGiftToast] = useState<GiftToast | null>(null);
   const [coinsEarnedThisStream, setCoinsEarnedThisStream] = useState(0);
   const [liveId, setLiveId] = useState<string | null>(null);
+  const [hostUserId, setHostUserId] = useState<string | null>(null);
+  const hostReceiverXp = useLevelXp(hostUserId, 'receiver');
   const [viewers, setViewers] = useState<Viewer[]>([
     { id: '1', name: 'سلطان VIP', avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100', isMuted: false },
     { id: '2', name: 'الزعيم 505', avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100', isMuted: false },
@@ -172,6 +175,9 @@ export const JixStreamStudio: React.FC<JixStreamStudioProps> = ({ isOpen, onClos
     if (isOpen && streamMode === 'camera' && !isLive) {
       startLiveStream();
     }
+    supabase.auth.getSession().then(({ data }) => {
+      setHostUserId(data.session?.user.id ?? null);
+    });
     return () => {
       if (!isOpen) stopLiveStream();
     };
@@ -251,8 +257,11 @@ export const JixStreamStudio: React.FC<JixStreamStudioProps> = ({ isOpen, onClos
           )}
 
           {isLive && (
-            <div className="absolute top-4 right-4 bg-gradient-to-r from-[#FF7A1A] to-[#8B5CF6] text-white text-xs font-bold px-3 py-1 rounded-full animate-pulse">
-              مباشر الآن
+            <div className="absolute top-4 right-4 flex items-center gap-1.5 z-10">
+              <span className="bg-gradient-to-r from-[#FF7A1A] to-[#8B5CF6] text-white text-xs font-bold px-3 py-1 rounded-full animate-pulse">
+                مباشر الآن
+              </span>
+              <LevelBadge xp={hostReceiverXp} kind="receiver" />
             </div>
           )}
 
