@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { supabase } from './supabaseClient';
 
 export type LevelKind = 'supporter' | 'receiver';
@@ -43,6 +43,9 @@ export const getNextTier = (xp: number): LevelTier | null => {
 // خطّاف بسيط لجلب XP مستخدم معيّن (داعم أو مستقبل) مع تحديث فوري
 export const useLevelXp = (userId: string | null, kind: LevelKind) => {
   const [xp, setXp] = useState(0);
+  // معرّف فريد لكل مكوّن يستخدم هذا الخطّاف - يمنع تعارض أسماء القنوات
+  // لما أكثر من مكوّن يراقب نفس المستخدم بنفس الوقت (زي فتح البث والملف الشخصي مع بعض)
+  const instanceId = useRef(Math.random().toString(36).slice(2));
 
   useEffect(() => {
     if (!userId) return;
@@ -56,7 +59,7 @@ export const useLevelXp = (userId: string | null, kind: LevelKind) => {
       .then(({ data }) => setXp((data as any)?.[column] ?? 0));
 
     const channel = supabase
-      .channel(`level_${kind}_${userId}`)
+      .channel(`level_${kind}_${userId}_${instanceId.current}`)
       .on(
         'postgres_changes',
         { event: 'UPDATE', schema: 'public', table: 'profiles', filter: `id=eq.${userId}` },
