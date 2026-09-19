@@ -9,6 +9,9 @@ import { JixAvatarUpload } from './JixAvatarUpload';
 import { LevelBadge, AvatarFrame, useLevelXp } from './JixLevelSystem';
 import { checkText } from './JixModeration';
 import { supabase } from './supabaseClient';
+import { getPKBattle } from './JixPK';
+import { JixPKChallengeNotification } from './JixPKChallengeNotification';
+import { JixPKBattleView, JixPKResultOverlay } from './JixPKBattleView';
 
 interface CurrentUser {
   id: string;
@@ -48,6 +51,34 @@ function App() {
   const [nameError, setNameError] = useState<string | null>(null);
   const supporterXp = useLevelXp(user?.id ?? null, 'supporter');
   const receiverXp = useLevelXp(user?.id ?? null, 'receiver');
+
+  // ---- نظام PK ----
+  const [pkBattleId, setPkBattleId] = useState<string | null>(null);
+  const [pkHostAName, setPkHostAName] = useState('');
+  const [pkHostBName, setPkHostBName] = useState('');
+  const [pkWinnerName, setPkWinnerName] = useState<string | null | undefined>(undefined);
+
+  // لما تنبدأ معركة (بعد قبول تحدي) نجيب أسماء الطرفين
+  useEffect(() => {
+    if (!pkBattleId) return;
+
+    const loadBattleNames = async () => {
+      const battle = await getPKBattle(pkBattleId);
+      if (!battle) return;
+
+      const [{ data: profileA }, { data: profileB }] = await Promise.all([
+        supabase.from('profiles').select('full_name, handle').eq('id', battle.host_a_id).maybeSingle(),
+        battle.host_b_id
+          ? supabase.from('profiles').select('full_name, handle').eq('id', battle.host_b_id).maybeSingle()
+          : Promise.resolve({ data: null }),
+      ]);
+
+      setPkHostAName(profileA?.full_name || profileA?.handle || 'مذيع');
+      setPkHostBName(profileB?.full_name || profileB?.handle || 'مذيع');
+    };
+
+    loadBattleNames();
+  }, [pkBattleId]);
 
   useEffect(() => {
     const loadUser = async (sUser: any) => {
@@ -159,7 +190,6 @@ function App() {
     try {
       const newName = nameDraft.trim();
 
-      // نحدّث الاسم بمكانين: بيانات المصادقة (user_metadata) وجدول profiles (يستخدمه فيد الفيديوهات والتعليقات)
       await supabase.auth.updateUser({ data: { username: newName } });
       await supabase.from('profiles').update({ full_name: newName }).eq('id', user.id);
 
@@ -406,6 +436,33 @@ function App() {
           channelName={watchingStream.channel_name}
           hostUsername={watchingStream.username}
           hostId={watchingStream.user_id}
+        />
+      )}
+
+      {/* إشعار تحدي PK وارد - شغال دايمًا بالخلفية طالما مسجل دخول */}
+      <JixPKChallengeNotification
+        currentUserId={user?.id ?? null}
+        onAccepted={(battleId) => setPkBattleId(battleId)}
+      />
+
+      {/* شاشة معركة PK النشطة - تطلع فوق كل شي لما تنبدأ معركة */}
+      {pkBattleId && pkWinnerName === undefined && (
+        <JixPKBattleView
+          battleId={pkBattleId}
+          hostAName={pkHostAName}
+          hostBName={pkHostBName}
+          onBattleEnded={(winner) => setPkWinnerName(winner)}
+        />
+      )}
+
+      {/* شاشة إعلان الفائز */}
+      {pkBattleId && pkWinnerName !== undefined && (
+        <JixPKResultOverlay
+          winnerName={pkWinnerName}
+          onClose={() => {
+            setPkBattleId(null);
+            setPkWinnerName(undefined);
+          }}
         />
       )}
     </div>
