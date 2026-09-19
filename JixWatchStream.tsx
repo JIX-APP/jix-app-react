@@ -7,6 +7,7 @@ import { jixAudio } from './jixAudioFx';
 import { GIFTS_CATALOG, GiftIcon, giftLegendaryEnterStyle, giftPopStyle } from './JixGiftIcons';
 import { LevelBadge, useLevelXp } from './JixLevelSystem';
 import { JixReportButton } from './JixReportButton';
+import { JixPKChallengeButton } from './JixPKChallengeButton';
 
 interface JixWatchStreamProps {
   isOpen: boolean;
@@ -15,6 +16,8 @@ interface JixWatchStreamProps {
   channelName: string;
   hostUsername: string;
   hostId: string;
+  currentUserId?: string | null;
+  onPKBattleStarted?: (battleId: string) => void;
 }
 
 interface GiftToast {
@@ -32,6 +35,8 @@ export const JixWatchStream: React.FC<JixWatchStreamProps> = ({
   channelName,
   hostUsername,
   hostId,
+  currentUserId,
+  onPKBattleStarted,
 }) => {
   const [isConnecting, setIsConnecting] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -135,6 +140,34 @@ export const JixWatchStream: React.FC<JixWatchStreamProps> = ({
     };
   }, [isOpen, liveId]);
 
+  // لو أنا (المشاهد) أرسلت تحدي PK لهذا المذيع، نستنى لين يوافق ونفتح شاشة المعركة تلقائيًا
+  useEffect(() => {
+    if (!isOpen || !currentUserId || !onPKBattleStarted) return;
+
+    const pkChannel = supabase
+      .channel(`pk_watcher_${currentUserId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'pk_battles',
+          filter: `host_a_id=eq.${currentUserId}`,
+        },
+        (payload) => {
+          const row = payload.new as { id: string; status: string };
+          if (row.status === 'active') {
+            onPKBattleStarted(row.id);
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(pkChannel);
+    };
+  }, [isOpen, currentUserId, onPKBattleStarted]);
+
   if (!isOpen) return null;
 
   return (
@@ -191,6 +224,13 @@ export const JixWatchStream: React.FC<JixWatchStreamProps> = ({
             {hostUsername}
           </span>
           <LevelBadge xp={hostReceiverXp} kind="receiver" />
+          {currentUserId && currentUserId !== hostId && onPKBattleStarted && (
+            <JixPKChallengeButton
+              targetUserId={hostId}
+              targetUsername={hostUsername}
+              onBattleStarted={onPKBattleStarted}
+            />
+          )}
           <JixReportButton targetType="live_stream" targetId={liveId} />
         </div>
 
