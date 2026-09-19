@@ -2,6 +2,8 @@ import React, { useRef, useState } from 'react';
 import { Camera, Loader2 } from 'lucide-react';
 import { supabase } from './supabaseClient';
 
+const MODERATE_IMAGE_URL = 'https://wfvhzlpvtgnydhmsxcqr.supabase.co/functions/v1/moderate-image';
+
 interface JixAvatarUploadProps {
   userId: string;
   currentAvatarUrl: string | null;
@@ -34,15 +36,35 @@ export const JixAvatarUpload: React.FC<JixAvatarUploadProps> = ({
       if (uploadError) throw uploadError;
 
       const { data: publicUrlData } = supabase.storage.from('videos').getPublicUrl(filePath);
+      const publicUrl = publicUrlData.publicUrl;
+
+      // فحص الصورة الشخصية تلقائيًا قبل اعتمادها - صور البروفايل حساسة بشكل خاص
+      try {
+        const modResponse = await fetch(MODERATE_IMAGE_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ imageUrl: publicUrl }),
+        });
+        const modResult = await modResponse.json();
+        if (modResult.isFlagged) {
+          await supabase.storage.from('videos').remove([filePath]);
+          setError(`تعذر اعتماد الصورة: ${modResult.reason || 'تخالف معايير المجتمع'}`);
+          setIsUploading(false);
+          if (fileInputRef.current) fileInputRef.current.value = '';
+          return;
+        }
+      } catch (modErr) {
+        console.error('[JIX] فشل فحص الصورة الشخصية، سيتم الاعتماد بدون فحص آلي:', modErr);
+      }
 
       const { error: updateError } = await supabase
         .from('profiles')
-        .update({ avatar_url: publicUrlData.publicUrl })
+        .update({ avatar_url: publicUrl })
         .eq('id', userId);
 
       if (updateError) throw updateError;
 
-      onUpdated(publicUrlData.publicUrl);
+      onUpdated(publicUrl);
     } catch (err) {
       setError((err as Error).message || 'فشل تحديث الصورة');
     } finally {
