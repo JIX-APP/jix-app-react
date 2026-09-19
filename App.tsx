@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { Home, Compass, MessageCircle, User, Plus, LogOut, Loader2, Search, Radio, Video, Eye, Pencil, Check } from 'lucide-react';
+import { Home, Compass, MessageCircle, User, Plus, LogOut, Loader2, Search, Radio, Video, Eye, Pencil, Check, Crown } from 'lucide-react';
 import { JixAuthModal } from './JixAuthModal';
 import { JixStreamStudio } from './JixStreamStudio';
 import { JixWatchStream } from './JixWatchStream';
 import { JixVideoFeed } from './JixVideoFeed';
 import { JixUploadVideo } from './JixUploadVideo';
 import { JixAvatarUpload } from './JixAvatarUpload';
+import { JixVipStore } from './JixVipStore';
 import { LevelBadge, AvatarFrame, useLevelXp } from './JixLevelSystem';
 import { checkText } from './JixModeration';
 import { supabase } from './supabaseClient';
@@ -39,6 +40,7 @@ function App() {
   const [isAuthOpen, setIsAuthOpen] = useState(false);
   const [isStudioOpen, setIsStudioOpen] = useState(false);
   const [isUploadOpen, setIsUploadOpen] = useState(false);
+  const [isVipStoreOpen, setIsVipStoreOpen] = useState(false);
   const [videoFeedKey, setVideoFeedKey] = useState(0);
   const [user, setUser] = useState<CurrentUser | null>(null);
   const [isCheckingSession, setIsCheckingSession] = useState(true);
@@ -168,6 +170,14 @@ function App() {
       return;
     }
     setIsUploadOpen(true);
+  };
+
+  const handleVipStoreClick = () => {
+    if (!user) {
+      setIsAuthOpen(true);
+      return;
+    }
+    setIsVipStoreOpen(true);
   };
 
   const handleStartEditName = () => {
@@ -345,13 +355,20 @@ function App() {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-2 mb-5">
+            <div className="grid grid-cols-3 gap-2 mb-5">
               <button
                 onClick={handleGoLive}
                 className="flex flex-col items-center gap-1.5 py-3 bg-gradient-to-br from-[#FF7A1A] to-[#8B5CF6] rounded-xl"
               >
                 <Radio className="w-5 h-5" />
                 <span className="text-[10px] font-bold">بث مباشر</span>
+              </button>
+              <button
+                onClick={handleVipStoreClick}
+                className="flex flex-col items-center gap-1.5 py-3 bg-white/5 rounded-xl"
+              >
+                <Crown className="w-5 h-5 text-[#F5B93E]" />
+                <span className="text-[10px] font-bold">أرقام VIP</span>
               </button>
               <button
                 onClick={handleUploadClick}
@@ -438,6 +455,12 @@ function App() {
           hostId={watchingStream.user_id}
         />
       )}
+
+      <JixVipStore
+        isOpen={isVipStoreOpen}
+        onClose={() => setIsVipStoreOpen(false)}
+        currentUserId={user?.id ?? null}
+      />
 
       {/* إشعار تحدي PK وارد - شغال دايمًا بالخلفية طالما مسجل دخول */}
       <JixPKChallengeNotification
