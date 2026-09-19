@@ -1,10 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { Home, Compass, MessageCircle, User, Plus, LogOut, Loader2, Search, Radio, Video, Eye } from 'lucide-react';
+import { Home, Compass, MessageCircle, User, Plus, LogOut, Loader2, Search, Radio, Video, Eye, Pencil, Check } from 'lucide-react';
 import { JixAuthModal } from './JixAuthModal';
 import { JixStreamStudio } from './JixStreamStudio';
 import { JixWatchStream } from './JixWatchStream';
 import { JixVideoFeed } from './JixVideoFeed';
 import { JixUploadVideo } from './JixUploadVideo';
+import { JixAvatarUpload } from './JixAvatarUpload';
+import { LevelBadge, AvatarFrame, useLevelXp } from './JixLevelSystem';
 import { supabase } from './supabaseClient';
 
 interface CurrentUser {
@@ -12,6 +14,7 @@ interface CurrentUser {
   name: string;
   email: string;
   avatar: string;
+  avatarUrl: string | null;
 }
 
 interface LiveStreamRow {
@@ -38,33 +41,39 @@ function App() {
   const [liveStreams, setLiveStreams] = useState<LiveStreamRow[]>([]);
   const [isLoadingLive, setIsLoadingLive] = useState(true);
   const [watchingStream, setWatchingStream] = useState<LiveStreamRow | null>(null);
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [nameDraft, setNameDraft] = useState('');
+  const [isSavingName, setIsSavingName] = useState(false);
+  const supporterXp = useLevelXp(user?.id ?? null, 'supporter');
+  const receiverXp = useLevelXp(user?.id ?? null, 'receiver');
 
   useEffect(() => {
+    const loadUser = async (sUser: any) => {
+      const { data: profile } = await supabase.from('profiles').select('avatar_url').eq('id', sUser.id).maybeSingle();
+      setUser({
+        id: sUser.id,
+        name: (sUser.user_metadata?.username as string) || 'مستخدم JIX',
+        email: sUser.email || '',
+        avatar: DEFAULT_AVATAR,
+        avatarUrl: profile?.avatar_url ?? null,
+      });
+    };
+
     supabase.auth.getSession().then(({ data }) => {
       const sUser = data.session?.user;
       if (sUser) {
-        setUser({
-          id: sUser.id,
-          name: (sUser.user_metadata?.username as string) || 'مستخدم JIX',
-          email: sUser.email || '',
-          avatar: DEFAULT_AVATAR,
-        });
+        loadUser(sUser);
       }
       setIsCheckingSession(false);
     });
 
     const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
       const sUser = session?.user;
-      setUser(
-        sUser
-          ? {
-              id: sUser.id,
-              name: (sUser.user_metadata?.username as string) || 'مستخدم JIX',
-              email: sUser.email || '',
-              avatar: DEFAULT_AVATAR,
-            }
-          : null
-      );
+      if (sUser) {
+        loadUser(sUser);
+      } else {
+        setUser(null);
+      }
     });
 
     return () => listener.subscription.unsubscribe();
@@ -98,7 +107,9 @@ function App() {
     supabase.auth.getSession().then(({ data }) => {
       const sUser = data.session?.user;
       if (sUser) {
-        setUser({ id: sUser.id, name: username, email, avatar: DEFAULT_AVATAR });
+        supabase.from('profiles').select('avatar_url').eq('id', sUser.id).maybeSingle().then(({ data: profile }) => {
+          setUser({ id: sUser.id, name: username, email, avatar: DEFAULT_AVATAR, avatarUrl: profile?.avatar_url ?? null });
+        });
       }
     });
   };
@@ -124,6 +135,31 @@ function App() {
       return;
     }
     setIsUploadOpen(true);
+  };
+
+  const handleStartEditName = () => {
+    if (!user) return;
+    setNameDraft(user.name);
+    setIsEditingName(true);
+  };
+
+  const handleSaveName = async () => {
+    if (!user || !nameDraft.trim()) return;
+    setIsSavingName(true);
+    try {
+      const newName = nameDraft.trim();
+
+      // نحدّث الاسم بمكانين: بيانات المصادقة (user_metadata) وجدول profiles (يستخدمه فيد الفيديوهات والتعليقات)
+      await supabase.auth.updateUser({ data: { username: newName } });
+      await supabase.from('profiles').update({ full_name: newName }).eq('id', user.id);
+
+      setUser((prev) => (prev ? { ...prev, name: newName } : prev));
+      setIsEditingName(false);
+    } catch (err) {
+      console.error('[JIX] فشل تحديث الاسم:', err);
+    } finally {
+      setIsSavingName(false);
+    }
   };
 
   return (
@@ -222,11 +258,48 @@ function App() {
         ) : (
           <div>
             <div className="flex flex-col items-center text-center mb-6">
-              <div className="w-20 h-20 rounded-full bg-gradient-to-br from-[#FF7A1A] to-[#8B5CF6] flex items-center justify-center font-black text-2xl mb-3">
-                {user.name[0]}
-              </div>
-              <p className="font-black text-lg">{user.name}</p>
+              <AvatarFrame
+                xp={Math.max(supporterXp, receiverXp)}
+                kind={supporterXp >= receiverXp ? 'supporter' : 'receiver'}
+                size={80}
+              >
+                <JixAvatarUpload
+                  userId={user.id}
+                  currentAvatarUrl={user.avatarUrl}
+                  fallbackLetter={user.name[0]}
+                  onUpdated={(newUrl) => setUser((prev) => (prev ? { ...prev, avatarUrl: newUrl } : prev))}
+                />
+              </AvatarFrame>
+              {isEditingName ? (
+                <div className="flex items-center gap-2 mb-1">
+                  <input
+                    value={nameDraft}
+                    onChange={(e) => setNameDraft(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && handleSaveName()}
+                    autoFocus
+                    className="px-3 py-1.5 bg-[#171923] border border-gray-800 rounded-xl text-white text-sm text-center focus:border-[#8B5CF6] outline-none"
+                  />
+                  <button
+                    onClick={handleSaveName}
+                    disabled={isSavingName || !nameDraft.trim()}
+                    className="w-7 h-7 rounded-full bg-gradient-to-br from-[#FF7A1A] to-[#8B5CF6] flex items-center justify-center disabled:opacity-50"
+                  >
+                    {isSavingName ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
+                  </button>
+                </div>
+              ) : (
+                <div className="flex items-center gap-1.5 mb-1">
+                  <p className="font-black text-lg">{user.name}</p>
+                  <button onClick={handleStartEditName} className="p-1 rounded-full bg-white/5">
+                    <Pencil className="w-3 h-3 text-gray-400" />
+                  </button>
+                </div>
+              )}
               <p className="text-xs text-[#6B6B76]">{user.email}</p>
+              <div className="flex items-center gap-2 mt-2">
+                <LevelBadge xp={supporterXp} kind="supporter" size="md" />
+                <LevelBadge xp={receiverXp} kind="receiver" size="md" />
+              </div>
             </div>
 
             <div className="grid grid-cols-2 gap-2 mb-5">
