@@ -40,7 +40,7 @@ function App() {
       if (sUser) {
         setUser({
           name: (sUser.user_metadata?.username as string) || 'مستخدم JIX',
-          email: sUser.email || sUser.phone || '',
+          email: sUser.email || '',
           avatar: DEFAULT_AVATAR,
         });
       }
@@ -53,7 +53,7 @@ function App() {
         sUser
           ? {
               name: (sUser.user_metadata?.username as string) || 'مستخدم JIX',
-              email: sUser.email || sUser.phone || '',
+              email: sUser.email || '',
               avatar: DEFAULT_AVATAR,
             }
           : null
@@ -63,7 +63,6 @@ function App() {
     return () => listener.subscription.unsubscribe();
   }, []);
 
-  // جلب البثوث المباشرة الحقيقية من قاعدة البيانات + متابعة أي تحديث فوري
   useEffect(() => {
     const fetchLiveStreams = async () => {
       const { data } = await supabase
@@ -109,23 +108,19 @@ function App() {
 
   return (
     <div className="h-[100dvh] max-w-[430px] mx-auto relative bg-[#0E0E12] text-white overflow-hidden">
-      {/* الهيدر - يظهر بس في الرئيسية */}
       {screen === 'Home' && (
         <header className="absolute top-0 inset-x-0 z-30 flex items-center justify-between px-4 pt-4 pb-3 bg-[#0E0E12]/80 backdrop-blur">
           <span className="font-black text-sm">JIX</span>
           {isCheckingSession ? (
             <Loader2 className="w-4 h-4 animate-spin text-[#8B5CF6]" />
           ) : (
-            <div className="flex items-center gap-2">
-              <button className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center">
-                <Search className="w-4 h-4" />
-              </button>
-            </div>
+            <button className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center">
+              <Search className="w-4 h-4" />
+            </button>
           )}
         </header>
       )}
 
-      {/* الرئيسية */}
       <div className={`absolute inset-0 pt-16 pb-24 ${screen === 'Home' ? '' : 'hidden'}`}>
         <div className="h-full flex flex-col items-center justify-center px-8 text-center">
           <ImageIcon className="w-10 h-10 text-[#6B6B76] mb-3" />
@@ -134,7 +129,6 @@ function App() {
         </div>
       </div>
 
-      {/* اكتشف */}
       <div className={`absolute inset-0 pt-6 pb-24 px-4 overflow-y-auto ${screen === 'Discover' ? '' : 'hidden'}`}>
         <div className="flex items-center gap-2 bg-white/5 rounded-full px-4 py-3 mb-6">
           <Search className="w-4 h-4 text-[#6B6B76]" />
@@ -160,7 +154,13 @@ function App() {
             {liveStreams.map((stream) => (
               <div
                 key={stream.id}
-                onClick={() => setWatchingStream(stream)}
+                onClick={() => {
+                  if (!user) {
+                    setIsAuthOpen(true);
+                    return;
+                  }
+                  setWatchingStream(stream);
+                }}
                 className="relative aspect-[3/4] rounded-xl overflow-hidden flex items-end bg-gradient-to-br from-[#8B5CF6] to-[#FF7A1A] cursor-pointer"
               >
                 <div className="absolute inset-0 flex items-center justify-center opacity-25">
@@ -180,7 +180,6 @@ function App() {
         )}
       </div>
 
-      {/* الرسائل */}
       <div className={`absolute inset-0 pt-6 pb-24 px-4 ${screen === 'Messages' ? '' : 'hidden'}`}>
         <h2 className="font-black text-lg mb-6">الرسائل</h2>
         <div className="flex flex-col items-center justify-center py-16 text-center">
@@ -189,7 +188,6 @@ function App() {
         </div>
       </div>
 
-      {/* حسابي */}
       <div className={`absolute inset-0 pt-6 pb-24 px-4 overflow-y-auto ${screen === 'Profile' ? '' : 'hidden'}`}>
         {!user ? (
           <div className="flex flex-col items-center justify-center py-16 text-center">
@@ -242,7 +240,6 @@ function App() {
         )}
       </div>
 
-      {/* شريط التنقل السفلي */}
       <nav className="absolute bottom-0 inset-x-0 z-30 bg-black/40 backdrop-blur border-t border-white/10 flex items-center justify-around py-2.5">
         <button
           onClick={() => setScreen('Home')}
@@ -294,8 +291,10 @@ function App() {
         <JixWatchStream
           isOpen={!!watchingStream}
           onClose={() => setWatchingStream(null)}
+          liveId={watchingStream.id}
           channelName={watchingStream.channel_name}
           hostUsername={watchingStream.username}
+          hostId={watchingStream.user_id}
         />
       )}
     </div>
