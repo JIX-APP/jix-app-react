@@ -5,6 +5,7 @@ import { supabase } from './supabaseClient';
 import { JixGiftBar } from './JixGiftBar';
 import { jixAudio } from './jixAudioFx';
 import { GIFTS_CATALOG, GiftIcon, giftLegendaryEnterStyle, giftPopStyle } from './JixGiftIcons';
+import { LevelBadge, useLevelXp } from './JixLevelSystem';
 
 interface JixWatchStreamProps {
   isOpen: boolean;
@@ -36,6 +37,7 @@ export const JixWatchStream: React.FC<JixWatchStreamProps> = ({
   const [giftToast, setGiftToast] = useState<GiftToast | null>(null);
   const videoRef = useRef<HTMLDivElement>(null);
   const clientRef = useRef<IAgoraRTCClient | null>(null);
+  const hostReceiverXp = useLevelXp(hostId, 'receiver');
 
   useEffect(() => {
     if (!isOpen) return;
@@ -183,8 +185,11 @@ export const JixWatchStream: React.FC<JixWatchStreamProps> = ({
           <X className="w-5 h-5" />
         </button>
 
-        <div className="absolute top-4 right-4 bg-gradient-to-r from-[#FF7A1A] to-[#8B5CF6] text-xs font-black px-3 py-1.5 rounded-full z-10">
-          {hostUsername}
+        <div className="absolute top-4 right-4 flex items-center gap-1.5 z-10">
+          <span className="bg-gradient-to-r from-[#FF7A1A] to-[#8B5CF6] text-xs font-black px-3 py-1.5 rounded-full">
+            {hostUsername}
+          </span>
+          <LevelBadge xp={hostReceiverXp} kind="receiver" />
         </div>
 
         {!isConnecting && !error && <JixGiftBar liveId={liveId} hostId={hostId} />}
