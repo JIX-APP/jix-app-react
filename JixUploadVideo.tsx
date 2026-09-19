@@ -1,6 +1,9 @@
 import React, { useRef, useState } from 'react';
 import { X, Upload, Loader2, Camera } from 'lucide-react';
 import { supabase } from './supabaseClient';
+import { checkText } from './JixModeration';
+
+const MODERATE_IMAGE_URL = 'https://wfvhzlpvtgnydhmsxcqr.supabase.co/functions/v1/moderate-image';
 
 interface JixUploadVideoProps {
   isOpen: boolean;
@@ -43,6 +46,13 @@ export const JixUploadVideo: React.FC<JixUploadVideoProps> = ({ isOpen, onClose,
       return;
     }
 
+    // فحص الوصف نصيًا قبل أي شي
+    const textCheck = checkText(caption);
+    if (!textCheck.isClean) {
+      setError('الوصف يحتوي على كلمات غير مسموح بها، عدّله وحاول مرة أخرى');
+      return;
+    }
+
     setError(null);
     setIsUploading(true);
 
@@ -58,11 +68,32 @@ export const JixUploadVideo: React.FC<JixUploadVideoProps> = ({ isOpen, onClose,
       if (uploadError) throw uploadError;
 
       const { data: publicUrlData } = supabase.storage.from('videos').getPublicUrl(filePath);
+      const publicUrl = publicUrlData.publicUrl;
+
+      // فحص الصور فقط تلقائيًا بالذكاء الاصطناعي (الفيديو يعتمد على البلاغات حاليًا)
+      if (isImage) {
+        try {
+          const modResponse = await fetch(MODERATE_IMAGE_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ imageUrl: publicUrl }),
+          });
+          const modResult = await modResponse.json();
+          if (modResult.isFlagged) {
+            await supabase.storage.from('videos').remove([filePath]);
+            setError(`تعذر نشر الصورة: ${modResult.reason || 'تخالف معايير المجتمع'}`);
+            setIsUploading(false);
+            return;
+          }
+        } catch (modErr) {
+          console.error('[JIX] فشل فحص الصورة، سيتم النشر بدون فحص آلي:', modErr);
+        }
+      }
 
       const { error: insertError } = await supabase.from('videos').insert({
         user_id: userId,
-        video_url: publicUrlData.publicUrl,
-        thumbnail_url: isImage ? publicUrlData.publicUrl : null,
+        video_url: publicUrl,
+        thumbnail_url: isImage ? publicUrl : null,
         caption,
         hashtags: extractHashtags(caption),
         category,
