@@ -1,11 +1,14 @@
 import React, { useEffect, useState } from 'react';
-import { Home, Compass, MessageCircle, User, Plus, LogOut, Loader2, Search, Radio, Image as ImageIcon, Video, Eye } from 'lucide-react';
+import { Home, Compass, MessageCircle, User, Plus, LogOut, Loader2, Search, Radio, Video, Eye } from 'lucide-react';
 import { JixAuthModal } from './JixAuthModal';
 import { JixStreamStudio } from './JixStreamStudio';
 import { JixWatchStream } from './JixWatchStream';
+import { JixVideoFeed } from './JixVideoFeed';
+import { JixUploadVideo } from './JixUploadVideo';
 import { supabase } from './supabaseClient';
 
 interface CurrentUser {
+  id: string;
   name: string;
   email: string;
   avatar: string;
@@ -28,6 +31,8 @@ function App() {
   const [screen, setScreen] = useState<ScreenName>('Home');
   const [isAuthOpen, setIsAuthOpen] = useState(false);
   const [isStudioOpen, setIsStudioOpen] = useState(false);
+  const [isUploadOpen, setIsUploadOpen] = useState(false);
+  const [videoFeedKey, setVideoFeedKey] = useState(0);
   const [user, setUser] = useState<CurrentUser | null>(null);
   const [isCheckingSession, setIsCheckingSession] = useState(true);
   const [liveStreams, setLiveStreams] = useState<LiveStreamRow[]>([]);
@@ -39,6 +44,7 @@ function App() {
       const sUser = data.session?.user;
       if (sUser) {
         setUser({
+          id: sUser.id,
           name: (sUser.user_metadata?.username as string) || 'مستخدم JIX',
           email: sUser.email || '',
           avatar: DEFAULT_AVATAR,
@@ -52,6 +58,7 @@ function App() {
       setUser(
         sUser
           ? {
+              id: sUser.id,
               name: (sUser.user_metadata?.username as string) || 'مستخدم JIX',
               email: sUser.email || '',
               avatar: DEFAULT_AVATAR,
@@ -88,7 +95,12 @@ function App() {
   }, []);
 
   const handleLoginSuccess = (username: string, email: string) => {
-    setUser({ name: username, email, avatar: DEFAULT_AVATAR });
+    supabase.auth.getSession().then(({ data }) => {
+      const sUser = data.session?.user;
+      if (sUser) {
+        setUser({ id: sUser.id, name: username, email, avatar: DEFAULT_AVATAR });
+      }
+    });
   };
 
   const handleLogout = async () => {
@@ -106,27 +118,32 @@ function App() {
     setIsStudioOpen(true);
   };
 
+  const handleUploadClick = () => {
+    if (!user) {
+      setIsAuthOpen(true);
+      return;
+    }
+    setIsUploadOpen(true);
+  };
+
   return (
     <div className="h-[100dvh] max-w-[430px] mx-auto relative bg-[#0E0E12] text-white overflow-hidden">
       {screen === 'Home' && (
-        <header className="absolute top-0 inset-x-0 z-30 flex items-center justify-between px-4 pt-4 pb-3 bg-[#0E0E12]/80 backdrop-blur">
+        <header className="absolute top-0 inset-x-0 z-30 flex items-center justify-between px-4 pt-4 pb-3 bg-gradient-to-b from-black/60 to-transparent">
           <span className="font-black text-sm">JIX</span>
           {isCheckingSession ? (
             <Loader2 className="w-4 h-4 animate-spin text-[#8B5CF6]" />
           ) : (
-            <button className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center">
+            <button className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center backdrop-blur">
               <Search className="w-4 h-4" />
             </button>
           )}
         </header>
       )}
 
-      <div className={`absolute inset-0 pt-16 pb-24 ${screen === 'Home' ? '' : 'hidden'}`}>
-        <div className="h-full flex flex-col items-center justify-center px-8 text-center">
-          <ImageIcon className="w-10 h-10 text-[#6B6B76] mb-3" />
-          <p className="text-sm text-[#9A9A9E]">لسه مفيش منشورات (صور أو فيديوهات)</p>
-          <p className="text-xs text-[#6B6B76] mt-1">أول منشور هيظهر هنا لما حد ينشر</p>
-        </div>
+      {/* الرئيسية - فيد الفيديوهات (شغال) */}
+      <div className={`absolute inset-0 pb-24 ${screen === 'Home' ? '' : 'hidden'}`}>
+        <JixVideoFeed currentUserId={user?.id ?? null} refreshKey={videoFeedKey} />
       </div>
 
       <div className={`absolute inset-0 pt-6 pb-24 px-4 overflow-y-auto ${screen === 'Discover' ? '' : 'hidden'}`}>
@@ -212,7 +229,7 @@ function App() {
               <p className="text-xs text-[#6B6B76]">{user.email}</p>
             </div>
 
-            <div className="grid grid-cols-3 gap-2 mb-5">
+            <div className="grid grid-cols-2 gap-2 mb-5">
               <button
                 onClick={handleGoLive}
                 className="flex flex-col items-center gap-1.5 py-3 bg-gradient-to-br from-[#FF7A1A] to-[#8B5CF6] rounded-xl"
@@ -220,11 +237,10 @@ function App() {
                 <Radio className="w-5 h-5" />
                 <span className="text-[10px] font-bold">بث مباشر</span>
               </button>
-              <button className="flex flex-col items-center gap-1.5 py-3 bg-white/5 rounded-xl" disabled>
-                <ImageIcon className="w-5 h-5" />
-                <span className="text-[10px] font-bold">رفع صورة</span>
-              </button>
-              <button className="flex flex-col items-center gap-1.5 py-3 bg-white/5 rounded-xl" disabled>
+              <button
+                onClick={handleUploadClick}
+                className="flex flex-col items-center gap-1.5 py-3 bg-white/5 rounded-xl"
+              >
                 <Video className="w-5 h-5" />
                 <span className="text-[10px] font-bold">رفع فيديو</span>
               </button>
@@ -256,7 +272,7 @@ function App() {
           <span className="text-[10px] font-bold">اكتشف</span>
         </button>
         <button
-          onClick={handleGoLive}
+          onClick={handleUploadClick}
           className="w-12 h-12 -mt-4 rounded-2xl bg-gradient-to-br from-[#FF7A1A] to-[#8B5CF6] flex items-center justify-center shadow-lg shadow-[#8B5CF6]/30"
         >
           <Plus className="w-6 h-6 text-white" />
@@ -278,6 +294,15 @@ function App() {
       </nav>
 
       <JixAuthModal isOpen={isAuthOpen} onClose={() => setIsAuthOpen(false)} onSuccessLogin={handleLoginSuccess} />
+
+      <JixUploadVideo
+        isOpen={isUploadOpen}
+        onClose={() => setIsUploadOpen(false)}
+        onUploaded={() => {
+          setVideoFeedKey((k) => k + 1);
+          setScreen('Home');
+        }}
+      />
 
       {user && (
         <JixStreamStudio
