@@ -6,6 +6,7 @@ import { JixGiftBar } from './JixGiftBar';
 import { jixAudio } from './jixAudioFx';
 import { GIFTS_CATALOG, GiftIcon, giftLegendaryEnterStyle, giftPopStyle } from './JixGiftIcons';
 import { LevelBadge, useLevelXp } from './JixLevelSystem';
+import { JixReportButton } from './JixReportButton';
 
 interface JixWatchStreamProps {
   isOpen: boolean;
@@ -190,6 +191,7 @@ export const JixWatchStream: React.FC<JixWatchStreamProps> = ({
             {hostUsername}
           </span>
           <LevelBadge xp={hostReceiverXp} kind="receiver" />
+          <JixReportButton targetType="live_stream" targetId={liveId} />
         </div>
 
         {!isConnecting && !error && <JixGiftBar liveId={liveId} hostId={hostId} />}
