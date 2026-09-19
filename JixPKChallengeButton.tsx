@@ -21,39 +21,54 @@ export const JixPKChallengeButton: React.FC<JixPKChallengeButtonProps> = ({
   const handleDirectChallenge = async () => {
     setIsSending(true);
     setError(null);
-    const result = await requestPKChallenge(targetUserId);
-    setIsSending(false);
+    try {
+      const result = await requestPKChallenge(targetUserId);
+      setIsSending(false);
 
-    if (result.error) {
-      setError(result.error);
-      return;
+      if (result.error) {
+        alert('خطأ: ' + result.error);
+        setError(result.error);
+        return;
+      }
+
+      alert('تم إرسال التحدي بنجاح! battleId: ' + result.battleId);
+      setSentPending(true);
+      setTimeout(() => {
+        setIsOpen(false);
+        setSentPending(false);
+      }, 2000);
+    } catch (err: any) {
+      setIsSending(false);
+      alert('استثناء غير متوقع: ' + (err?.message || String(err)));
+      setError('حدث خطأ غير متوقع');
     }
-
-    setSentPending(true);
-    setTimeout(() => {
-      setIsOpen(false);
-      setSentPending(false);
-    }, 2000);
   };
 
   const handleRandomMatch = async () => {
     setIsSending(true);
     setError(null);
-    const result = await joinPKRandomQueue();
-    setIsSending(false);
+    try {
+      const result = await joinPKRandomQueue();
+      setIsSending(false);
 
-    if (result.error) {
-      setError(result.error);
-      return;
-    }
+      if (result.error) {
+        alert('خطأ: ' + result.error);
+        setError(result.error);
+        return;
+      }
 
-    if (result.battleId) {
-      // صار تطابق فوري
-      setIsOpen(false);
-      onBattleStarted(result.battleId);
-    } else {
-      // انضم للطابور وينتظر
-      setSentPending(true);
+      if (result.battleId) {
+        alert('صار تطابق فوري! battleId: ' + result.battleId);
+        setIsOpen(false);
+        onBattleStarted(result.battleId);
+      } else {
+        alert('انضممت لطابور الانتظار');
+        setSentPending(true);
+      }
+    } catch (err: any) {
+      setIsSending(false);
+      alert('استثناء غير متوقع: ' + (err?.message || String(err)));
+      setError('حدث خطأ غير متوقع');
     }
   };
 
