@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Heart, MessageCircle, Share2, UserPlus, UserCheck, Volume2, VolumeX } from 'lucide-react';
 import { supabase } from './supabaseClient';
 import { JixComments } from './JixComments';
+import { JixReportButton } from './JixReportButton';
 
 interface VideoRow {
   id: string;
@@ -181,6 +182,8 @@ export const JixVideoFeed: React.FC<JixVideoFeedProps> = ({ currentUserId, refre
               <Share2 className="w-7 h-7 text-white" />
               <span className="text-[10px] font-bold">{post.shares_count}</span>
             </button>
+
+            <JixReportButton targetType="post" targetId={post.id} />
           </div>
 
           {/* الوصف - أسفل */}
