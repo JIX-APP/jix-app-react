@@ -448,7 +448,6 @@ function App() {
                   </button>
                 </div>
               )}
-              <p className="text-xs text-[#6B6B76]">{user.email}</p>
               {user.accountNumber !== null && (
                 <p className="text-[10px] text-[#8B5CF6] font-bold mt-0.5" dir="ltr">
                   ID: {user.accountNumber}
