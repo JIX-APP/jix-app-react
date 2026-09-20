@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { X, Mail, Smartphone, ArrowLeft, ShieldCheck, Loader2, Calendar } from 'lucide-react';
 import { supabase } from './supabaseClient';
+import { JixDobPicker } from './JixDobPicker';
 
 interface JixAuthModalProps {
   isOpen: boolean;
@@ -199,18 +200,11 @@ export const JixAuthModal: React.FC<JixAuthModalProps> = ({ isOpen, onClose, onS
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-gray-300 mb-1 flex items-center gap-1.5">
+                <label className="block text-xs font-bold text-gray-300 mb-1.5 flex items-center gap-1.5">
                   <Calendar className="w-3.5 h-3.5" /> تاريخ الميلاد
                 </label>
-                <input
-                  type="date"
-                  value={dateOfBirth}
-                  onChange={(e) => setDateOfBirth(e.target.value)}
-                  max={new Date().toISOString().split('T')[0]}
-                  required
-                  className="w-full px-4 py-3 bg-[#171923] border border-gray-800 rounded-2xl text-white text-sm focus:border-amber-500 outline-none [color-scheme:dark]"
-                />
-                <p className="text-[10px] text-gray-500 mt-1">يجب أن يكون عمرك 18 سنة أو أكثر لاستخدام JIX</p>
+                <JixDobPicker value={dateOfBirth} onChange={setDateOfBirth} />
+                <p className="text-[10px] text-gray-500 mt-1.5">يجب أن يكون عمرك 18 سنة أو أكثر لاستخدام JIX</p>
               </div>
 
               <button type="submit" disabled={isSubmitting} className="w-full py-3.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-black font-black text-sm rounded-2xl shadow-lg transition active:scale-98 flex items-center justify-center gap-2 disabled:opacity-60">
