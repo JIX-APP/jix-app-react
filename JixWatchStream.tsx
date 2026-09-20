@@ -262,6 +262,7 @@ export const JixWatchStream: React.FC<JixWatchStreamProps> = ({
             channelName={channelName}
             currentUserId={currentUserId ?? null}
             currentUserName={viewerName}
+            onOpenProfile={onOpenProfile}
           />
         )}
       </div>
