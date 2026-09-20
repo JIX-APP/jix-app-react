@@ -23,12 +23,26 @@ interface JixUserProfileProps {
   currentUserId: string | null;
 }
 
+// حساب العمر بدقة من تاريخ الميلاد
+const calculateAge = (dob: string): number => {
+  const birthDate = new Date(dob);
+  const today = new Date();
+  let age = today.getFullYear() - birthDate.getFullYear();
+  const monthDiff = today.getMonth() - birthDate.getMonth();
+  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+    age--;
+  }
+  return age;
+};
+
 interface ProfileData {
   id: string;
   full_name: string | null;
   handle: string | null;
   avatar_url: string | null;
   region: string | null;
+  gender: 'male' | 'female' | null;
+  date_of_birth: string | null;
 }
 
 interface PostRow {
@@ -61,7 +75,7 @@ export const JixUserProfile: React.FC<JixUserProfileProps> = ({ isOpen, onClose,
 
     const { data: profileData } = await supabase
       .from('profiles')
-      .select('id, full_name, handle, avatar_url, region')
+      .select('id, full_name, handle, avatar_url, region, gender, date_of_birth')
       .eq('id', userId)
       .maybeSingle();
     setProfile(profileData);
@@ -179,6 +193,18 @@ export const JixUserProfile: React.FC<JixUserProfileProps> = ({ isOpen, onClose,
             <div className="flex items-center gap-2 mt-2.5">
               <LevelBadge xp={supporterXp} kind="supporter" size="md" />
               <LevelBadge xp={receiverXp} kind="receiver" size="md" />
+              {profile.gender && profile.date_of_birth && (
+                <span
+                  className="inline-flex items-center gap-1.5 rounded-full font-black px-2.5 py-1 text-xs text-white"
+                  style={{ background: 'linear-gradient(135deg, #FF7A1A, #8B5CF6)' }}
+                >
+                  <span style={{ fontSize: '14px', lineHeight: 1 }}>
+                    {profile.gender === 'male' ? '♂' : '♀'}
+                  </span>
+                  <span className="w-px h-2.5 bg-white/40" />
+                  {calculateAge(profile.date_of_birth)}
+                </span>
+              )}
             </div>
 
             {currentUserId && currentUserId !== userId && (
