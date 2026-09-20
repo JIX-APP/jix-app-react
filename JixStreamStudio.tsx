@@ -5,6 +5,7 @@ import { supabase } from './supabaseClient';
 import { jixAudio } from './jixAudioFx';
 import { GIFTS_CATALOG, GiftIcon, giftLegendaryEnterStyle, giftPopStyle } from './JixGiftIcons';
 import { LevelBadge, useLevelXp } from './JixLevelSystem';
+import { JixLiveComments } from './JixLiveComments';
 
 interface Viewer {
   id: string;
@@ -361,6 +362,15 @@ export const JixStreamStudio: React.FC<JixStreamStudioProps> = ({ isOpen, onClos
         <Users className="w-4 h-4 text-white" />
         <span className="text-xs font-bold text-white">{viewers.length}</span>
       </button>
+
+      {/* كومنتات البث المباشر - بث حي بدون تخزين، تختفي تلقائيًا */}
+      {isLive && hostUserId && (
+        <JixLiveComments
+          channelName={`jix-${hostUserId}`.slice(0, 64)}
+          currentUserId={hostUserId}
+          currentUserName={currentUser.name}
+        />
+      )}
 
       {/* أزرار التحكم السفلية */}
       <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex items-center gap-3 bg-black/60 backdrop-blur-md px-4 py-2 rounded-full border border-white/10 z-10">
