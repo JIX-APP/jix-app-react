@@ -78,6 +78,26 @@ export const JixWatchStream: React.FC<JixWatchStreamProps> = ({
       });
   }, [currentUserId, hostId]);
 
+  // تسجيل حضور حقيقي بقناة Presence - يوصل صاحب البث فورًا بدخولك وخروجك (حتى لو انقفل التطبيق فجأة)
+  useEffect(() => {
+    if (!isOpen || !liveId || !currentUserId) return;
+
+    const presenceChannel = supabase.channel(`presence_${liveId}`, {
+      config: { presence: { key: currentUserId } },
+    });
+
+    presenceChannel.subscribe(async (status) => {
+      if (status === 'SUBSCRIBED') {
+        await presenceChannel.track({ id: currentUserId, name: viewerName });
+      }
+    });
+
+    return () => {
+      presenceChannel.untrack();
+      supabase.removeChannel(presenceChannel);
+    };
+  }, [isOpen, liveId, currentUserId, viewerName]);
+
   const handleKicked = (permanent: boolean) => {
     clientRef.current?.leave();
     setKickedNotice({ permanent });
