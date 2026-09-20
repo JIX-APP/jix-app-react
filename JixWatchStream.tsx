@@ -19,6 +19,7 @@ interface JixWatchStreamProps {
   hostId: string;
   currentUserId?: string | null;
   onPKBattleStarted?: (battleId: string) => void;
+  onOpenProfile?: (userId: string) => void;
 }
 
 interface GiftToast {
@@ -38,6 +39,7 @@ export const JixWatchStream: React.FC<JixWatchStreamProps> = ({
   hostId,
   currentUserId,
   onPKBattleStarted,
+  onOpenProfile,
 }) => {
   const [isConnecting, setIsConnecting] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -235,9 +237,12 @@ export const JixWatchStream: React.FC<JixWatchStreamProps> = ({
         </button>
 
         <div className="absolute top-4 right-4 flex items-center gap-1.5 z-10">
-          <span className="bg-gradient-to-r from-[#FF7A1A] to-[#8B5CF6] text-xs font-black px-3 py-1.5 rounded-full">
+          <button
+            onClick={() => onOpenProfile?.(hostId)}
+            className="bg-gradient-to-r from-[#FF7A1A] to-[#8B5CF6] text-xs font-black px-3 py-1.5 rounded-full"
+          >
             {hostUsername}
-          </span>
+          </button>
           <LevelBadge xp={hostReceiverXp} kind="receiver" />
           {currentUserId && currentUserId !== hostId && onPKBattleStarted && (
             <JixPKChallengeButton
