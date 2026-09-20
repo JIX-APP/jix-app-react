@@ -13,12 +13,14 @@ interface JixLiveCommentsProps {
   channelName: string; // نفس اسم قناة البث (channel_name) - يوحّد الناشر والمشاهدين بقناة واحدة
   currentUserId: string | null;
   currentUserName: string;
+  onOpenProfile?: (userId: string) => void;
 }
 
 export const JixLiveComments: React.FC<JixLiveCommentsProps> = ({
   channelName,
   currentUserId,
   currentUserName,
+  onOpenProfile,
 }) => {
   const [messages, setMessages] = useState<LiveCommentMsg[]>([]);
   const [input, setInput] = useState('');
@@ -71,13 +73,18 @@ export const JixLiveComments: React.FC<JixLiveCommentsProps> = ({
   return (
     <>
       {/* فقاعات الكومنتات - تطلع فوق بعض من الأسفل وتختفي تلقائيًا. نسيب مساحة يمين لزر الهدية */}
-      <div className="absolute bottom-24 left-3 right-20 z-10 flex flex-col-reverse gap-1.5 pointer-events-none max-h-[45%] overflow-hidden">
+      <div className="absolute bottom-24 left-3 right-20 z-10 flex flex-col-reverse gap-1.5 max-h-[45%] overflow-hidden">
         {[...messages].reverse().map((msg) => (
           <div
             key={msg.id}
-            className="bg-black/50 backdrop-blur-sm rounded-2xl px-3 py-1.5 max-w-[90%] animate-[fadeIn_0.3s_ease-out]"
+            className="bg-black/50 backdrop-blur-sm rounded-2xl px-3 py-1.5 max-w-[90%] w-fit animate-[fadeIn_0.3s_ease-out] pointer-events-auto"
           >
-            <span className="text-[11px] font-black text-[#F5B93E]">{msg.senderName}: </span>
+            <button
+              onClick={() => onOpenProfile?.(msg.senderId)}
+              className="text-[11px] font-black text-[#F5B93E]"
+            >
+              {msg.senderName}:{' '}
+            </button>
             <span className="text-[11px] text-white">{msg.text}</span>
           </div>
         ))}
