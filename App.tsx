@@ -20,6 +20,7 @@ interface CurrentUser {
   email: string;
   avatar: string;
   avatarUrl: string | null;
+  accountNumber: number | null;
 }
 
 interface LiveStreamRow {
@@ -84,13 +85,18 @@ function App() {
 
   useEffect(() => {
     const loadUser = async (sUser: any) => {
-      const { data: profile } = await supabase.from('profiles').select('avatar_url').eq('id', sUser.id).maybeSingle();
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('avatar_url, account_number')
+        .eq('id', sUser.id)
+        .maybeSingle();
       setUser({
         id: sUser.id,
         name: (sUser.user_metadata?.username as string) || 'مستخدم JIX',
         email: sUser.email || '',
         avatar: DEFAULT_AVATAR,
         avatarUrl: profile?.avatar_url ?? null,
+        accountNumber: profile?.account_number ?? null,
       });
     };
 
@@ -142,9 +148,21 @@ function App() {
     supabase.auth.getSession().then(({ data }) => {
       const sUser = data.session?.user;
       if (sUser) {
-        supabase.from('profiles').select('avatar_url').eq('id', sUser.id).maybeSingle().then(({ data: profile }) => {
-          setUser({ id: sUser.id, name: username, email, avatar: DEFAULT_AVATAR, avatarUrl: profile?.avatar_url ?? null });
-        });
+        supabase
+          .from('profiles')
+          .select('avatar_url, account_number')
+          .eq('id', sUser.id)
+          .maybeSingle()
+          .then(({ data: profile }) => {
+            setUser({
+              id: sUser.id,
+              name: username,
+              email,
+              avatar: DEFAULT_AVATAR,
+              avatarUrl: profile?.avatar_url ?? null,
+              accountNumber: profile?.account_number ?? null,
+            });
+          });
       }
     });
   };
@@ -349,6 +367,11 @@ function App() {
                 </div>
               )}
               <p className="text-xs text-[#6B6B76]">{user.email}</p>
+              {user.accountNumber !== null && (
+                <p className="text-[10px] text-[#8B5CF6] font-bold mt-0.5" dir="ltr">
+                  ID: {user.accountNumber}
+                </p>
+              )}
               <div className="flex items-center gap-2 mt-2">
                 <LevelBadge xp={supporterXp} kind="supporter" size="md" />
                 <LevelBadge xp={receiverXp} kind="receiver" size="md" />
