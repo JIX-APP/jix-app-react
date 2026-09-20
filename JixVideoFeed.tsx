@@ -1,5 +1,19 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Heart, MessageCircle, Share2, UserPlus, UserCheck, Volume2, VolumeX } from 'lucide-react';
+import {
+  Heart,
+  MessageCircle,
+  Share2,
+  UserPlus,
+  UserCheck,
+  Volume2,
+  VolumeX,
+  Trash2,
+  Loader2,
+  X,
+  MoreVertical,
+  EyeOff,
+  Eye,
+} from 'lucide-react';
 import { supabase } from './supabaseClient';
 import { JixComments } from './JixComments';
 import { JixReportButton } from './JixReportButton';
@@ -13,6 +27,7 @@ interface VideoRow {
   likes_count: number;
   comments_count: number;
   shares_count: number;
+  is_hidden: boolean;
   profiles: { handle: string | null; full_name: string | null; avatar_url: string | null } | null;
 }
 
@@ -27,6 +42,11 @@ export const JixVideoFeed: React.FC<JixVideoFeedProps> = ({ currentUserId, refre
   const [followedIds, setFollowedIds] = useState<Set<string>>(new Set());
   const [isMuted, setIsMuted] = useState(true);
   const [activeCommentsPostId, setActiveCommentsPostId] = useState<string | null>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+  const [isTogglingVisibility, setIsTogglingVisibility] = useState(false);
   const videoRefs = useRef<Record<string, HTMLVideoElement | null>>({});
 
   useEffect(() => {
@@ -39,17 +59,20 @@ export const JixVideoFeed: React.FC<JixVideoFeedProps> = ({ currentUserId, refre
   const fetchPosts = async () => {
     const { data } = await supabase
       .from('videos')
-      .select('id, user_id, video_url, thumbnail_url, caption, likes_count, comments_count, shares_count, profiles(handle, full_name, avatar_url)')
+      .select('id, user_id, video_url, thumbnail_url, caption, likes_count, comments_count, shares_count, is_hidden, profiles(handle, full_name, avatar_url)')
       .order('created_at', { ascending: false });
 
-    setPosts((data as unknown as VideoRow[]) || []);
+    // نستثني المنشورات المخفية إلا لو كانت لصاحبها هو نفسه المستخدم الحالي
+    const allPosts = (data as unknown as VideoRow[]) || [];
+    const visiblePosts = allPosts.filter((p) => !p.is_hidden || p.user_id === currentUserId);
+    setPosts(visiblePosts);
 
     if (currentUserId && data) {
-      const ids = data.map((v: any) => v.id);
+      const ids = allPosts.map((v) => v.id);
       const { data: myLikes } = await supabase.from('likes').select('post_id').eq('user_id', currentUserId).in('post_id', ids);
       setLikedIds(new Set((myLikes || []).map((l) => l.post_id)));
 
-      const userIds = [...new Set(data.map((v: any) => v.user_id))];
+      const userIds = [...new Set(allPosts.map((v) => v.user_id))];
       const { data: myFollows } = await supabase
         .from('follows')
         .select('following_id')
@@ -111,6 +134,44 @@ export const JixVideoFeed: React.FC<JixVideoFeedProps> = ({ currentUserId, refre
     if (error) fetchPosts();
   };
 
+  const handleDelete = async (postId: string) => {
+    setIsDeleting(true);
+    setDeleteError(null);
+    try {
+      const { error } = await supabase.rpc('delete_video', { p_video_id: postId });
+      if (error) throw error;
+
+      setPosts((prev) => prev.filter((p) => p.id !== postId));
+      setConfirmDeleteId(null);
+    } catch (err) {
+      setDeleteError((err as Error).message || 'تعذر حذف المنشور');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const handleToggleVisibility = async (postId: string) => {
+    setIsTogglingVisibility(true);
+    try {
+      const { data, error } = await supabase.rpc('toggle_video_visibility', { p_video_id: postId });
+      if (error) throw error;
+
+      const nowHidden = (data as any)?.is_hidden ?? false;
+
+      if (nowHidden && currentUserId) {
+        // لو صاحب المنشور هو المستخدم الحالي، يبقى ظاهر له بس بعلامة "مخفي"
+        setPosts((prev) => prev.map((p) => (p.id === postId ? { ...p, is_hidden: true } : p)));
+      } else {
+        setPosts((prev) => prev.map((p) => (p.id === postId ? { ...p, is_hidden: false } : p)));
+      }
+      setOpenMenuId(null);
+    } catch (err) {
+      console.error('[JIX] فشل تغيير حالة الإخفاء:', err);
+    } finally {
+      setIsTogglingVisibility(false);
+    }
+  };
+
   if (posts.length === 0) {
     return (
       <div className="h-full flex flex-col items-center justify-center px-8 text-center">
@@ -145,6 +206,13 @@ export const JixVideoFeed: React.FC<JixVideoFeedProps> = ({ currentUserId, refre
             >
               {isMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
             </button>
+          )}
+
+          {/* علامة "مخفي" تظهر لصاحب المنشور فقط */}
+          {post.is_hidden && currentUserId === post.user_id && (
+            <span className="absolute top-4 left-4 flex items-center gap-1 bg-black/60 px-2.5 py-1 rounded-full text-[10px] font-bold text-gray-300 z-10">
+              <EyeOff className="w-3 h-3" /> مخفي
+            </span>
           )}
 
           {/* شريط أيقونات التفاعل - يمين */}
@@ -184,7 +252,14 @@ export const JixVideoFeed: React.FC<JixVideoFeedProps> = ({ currentUserId, refre
               <span className="text-[10px] font-bold">{post.shares_count}</span>
             </button>
 
-            <JixReportButton targetType="post" targetId={post.id} />
+            {/* قائمة النقط الثلاث تظهر بس على منشورات المستخدم نفسه، وإلا زر الإبلاغ */}
+            {currentUserId === post.user_id ? (
+              <button onClick={() => setOpenMenuId(post.id)} className="flex flex-col items-center gap-1">
+                <MoreVertical className="w-6 h-6 text-white" />
+              </button>
+            ) : (
+              <JixReportButton targetType="post" targetId={post.id} />
+            )}
           </div>
 
           {/* الوصف - أسفل */}
@@ -208,6 +283,95 @@ export const JixVideoFeed: React.FC<JixVideoFeedProps> = ({ currentUserId, refre
           }}
           postId={activeCommentsPostId}
         />
+      )}
+
+      {/* قائمة خيارات المنشور (النقط الثلاث) */}
+      {openMenuId && (
+        <div
+          className="fixed inset-0 z-[60] flex items-end justify-center bg-black/70"
+          onClick={() => setOpenMenuId(null)}
+        >
+          <div
+            className="w-full max-w-md bg-[#0f1118] rounded-t-3xl border-t border-gray-800 p-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="w-10 h-1 bg-gray-700 rounded-full mx-auto mb-4" />
+
+            <button
+              onClick={() => handleToggleVisibility(openMenuId)}
+              disabled={isTogglingVisibility}
+              className="w-full flex items-center gap-3 px-4 py-3.5 bg-white/5 rounded-2xl mb-2.5 disabled:opacity-50"
+            >
+              {posts.find((p) => p.id === openMenuId)?.is_hidden ? (
+                <Eye className="w-5 h-5 text-gray-300" />
+              ) : (
+                <EyeOff className="w-5 h-5 text-gray-300" />
+              )}
+              <span className="text-sm font-bold text-white">
+                {posts.find((p) => p.id === openMenuId)?.is_hidden ? 'إظهار المنشور' : 'إخفاء المنشور (خاص)'}
+              </span>
+              {isTogglingVisibility && <Loader2 className="w-4 h-4 animate-spin text-white mr-auto" />}
+            </button>
+
+            <button
+              onClick={() => {
+                setConfirmDeleteId(openMenuId);
+                setOpenMenuId(null);
+              }}
+              className="w-full flex items-center gap-3 px-4 py-3.5 bg-red-600/10 rounded-2xl"
+            >
+              <Trash2 className="w-5 h-5 text-red-400" />
+              <span className="text-sm font-bold text-red-400">حذف المنشور</span>
+            </button>
+
+            <button
+              onClick={() => setOpenMenuId(null)}
+              className="w-full py-3.5 mt-3 text-sm font-bold text-gray-400"
+            >
+              إلغاء
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* تأكيد الحذف */}
+      {confirmDeleteId && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 p-4">
+          <div className="w-full max-w-sm bg-[#0f1118] border border-gray-800 rounded-3xl p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-black text-sm text-white">حذف المنشور</h3>
+              <button onClick={() => setConfirmDeleteId(null)} className="p-1 text-gray-400">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <p className="text-xs text-gray-300 mb-5">
+              هل أنت متأكد إنك تبي تحذف هذا المنشور؟ ما يقدر يترجع بعد الحذف.
+            </p>
+
+            {deleteError && (
+              <p className="text-[10px] text-red-400 text-center mb-3">{deleteError}</p>
+            )}
+
+            <div className="flex gap-2.5">
+              <button
+                onClick={() => setConfirmDeleteId(null)}
+                disabled={isDeleting}
+                className="flex-1 py-3 bg-white/5 text-white font-bold text-sm rounded-2xl disabled:opacity-50"
+              >
+                إلغاء
+              </button>
+              <button
+                onClick={() => handleDelete(confirmDeleteId)}
+                disabled={isDeleting}
+                className="flex-1 py-3 bg-red-600 text-white font-black text-sm rounded-2xl disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {isDeleting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                حذف
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
