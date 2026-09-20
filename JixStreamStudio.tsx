@@ -44,11 +44,7 @@ export const JixStreamStudio: React.FC<JixStreamStudioProps> = ({ isOpen, onClos
   const [isModeratorManagerOpen, setIsModeratorManagerOpen] = useState(false);
   const [showExitConfirm, setShowExitConfirm] = useState(false);
   const hostReceiverXp = useLevelXp(hostUserId, 'receiver');
-  const [viewers, setViewers] = useState<Viewer[]>([
-    { id: '1', name: 'سلطان VIP', avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100', isMuted: false },
-    { id: '2', name: 'الزعيم 505', avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100', isMuted: false },
-    { id: '3', name: 'أميرة الجواهر', avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100', isMuted: false },
-  ]);
+  const [viewers, setViewers] = useState<Viewer[]>([]);
 
   const videoRef = useRef<HTMLDivElement>(null);
   const clientRef = useRef<IAgoraRTCClient | null>(null);
