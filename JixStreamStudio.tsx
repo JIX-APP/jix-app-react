@@ -11,7 +11,6 @@ import { JixModeratorManager } from './JixModeratorManager';
 interface Viewer {
   id: string;
   name: string;
-  avatar: string;
   isMuted: boolean;
 }
 
@@ -39,6 +38,7 @@ export const JixStreamStudio: React.FC<JixStreamStudioProps> = ({ isOpen, onClos
   const [giftToast, setGiftToast] = useState<GiftToast | null>(null);
   const [coinsEarnedThisStream, setCoinsEarnedThisStream] = useState(0);
   const [liveId, setLiveId] = useState<string | null>(null);
+  const moderationChannelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
   const [hostUserId, setHostUserId] = useState<string | null>(null);
   const [isViewersOpen, setIsViewersOpen] = useState(false);
   const [isModeratorManagerOpen, setIsModeratorManagerOpen] = useState(false);
@@ -247,6 +247,52 @@ export const JixStreamStudio: React.FC<JixStreamStudioProps> = ({ isOpen, onClos
     };
   }, [isOpen, liveId]);
 
+  // تتبع حقيقي للمشاهدين - يعتمد على Presence (اتصال مباشر)، يتحدث فورًا لحظة بلحظة
+  useEffect(() => {
+    if (!isOpen || !liveId) return;
+
+    const presenceChannel = supabase.channel(`presence_${liveId}`, {
+      config: { presence: { key: 'host' } },
+    });
+
+    const syncViewers = () => {
+      const state = presenceChannel.presenceState<{ id: string; name: string }>();
+      const list: Viewer[] = [];
+      Object.values(state).forEach((entries) => {
+        entries.forEach((entry) => {
+          list.push({ id: entry.id, name: entry.name, isMuted: false });
+        });
+      });
+      setViewers((prev) =>
+        list.map((v) => ({ ...v, isMuted: prev.find((p) => p.id === v.id)?.isMuted ?? false }))
+      );
+    };
+
+    presenceChannel
+      .on('presence', { event: 'sync' }, syncViewers)
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(presenceChannel);
+    };
+  }, [isOpen, liveId]);
+
+  // قناة إرسال أوامر الإشراف (كتم/طرد) من لوحة إدارة البث - بنفس اسم قناة الكومنتات الحية عشان توصل فورًا لكل المشاهدين
+  useEffect(() => {
+    if (!isOpen || !hostUserId) return;
+
+    const channel = supabase.channel(`live_comments_${`jix-${hostUserId}`.slice(0, 64)}`, {
+      config: { broadcast: { self: true } },
+    });
+    channel.subscribe();
+    moderationChannelRef.current = channel;
+
+    return () => {
+      supabase.removeChannel(channel);
+      moderationChannelRef.current = null;
+    };
+  }, [isOpen, hostUserId]);
+
   const handleClose = async () => {
     await stopLiveStream();
     onClose();
@@ -276,12 +322,46 @@ export const JixStreamStudio: React.FC<JixStreamStudioProps> = ({ isOpen, onClos
     setIsMicMuted(!isMicMuted);
   };
 
-  const toggleMuteViewer = (id: string) => {
-    setViewers((prev) => prev.map((v) => (v.id === id ? { ...v, isMuted: !v.isMuted } : v)));
+  const toggleMuteViewer = async (id: string) => {
+    const viewer = viewers.find((v) => v.id === id);
+    if (!viewer || !liveId || !hostUserId) return;
+
+    // الكتم إجراء ما ينرجع - نسمح فقط بالكتم من هالقائمة (لإلغاء الكتم يرجع المستخدم يكتب بنفسه بعد ما يُسمح له لاحقًا)
+    if (viewer.isMuted) return;
+
+    const { error } = await supabase.rpc('mute_stream_user', {
+      p_live_id: liveId,
+      p_host_id: hostUserId,
+      p_target_user_id: id,
+    });
+
+    if (!error) {
+      setViewers((prev) => prev.map((v) => (v.id === id ? { ...v, isMuted: true } : v)));
+      moderationChannelRef.current?.send({
+        type: 'broadcast',
+        event: 'moderation',
+        payload: { action: 'mute', targetUserId: id },
+      });
+    }
   };
 
-  const kickViewer = (id: string) => {
-    setViewers((prev) => prev.filter((v) => v.id !== id));
+  const kickViewer = async (id: string) => {
+    if (!liveId || !hostUserId) return;
+
+    const { error } = await supabase.rpc('kick_stream_user_permanent', {
+      p_live_id: liveId,
+      p_host_id: hostUserId,
+      p_target_user_id: id,
+    });
+
+    if (!error) {
+      setViewers((prev) => prev.filter((v) => v.id !== id));
+      moderationChannelRef.current?.send({
+        type: 'broadcast',
+        event: 'moderation',
+        payload: { action: 'kick_permanent', targetUserId: id },
+      });
+    }
   };
 
   return (
@@ -419,22 +499,28 @@ export const JixStreamStudio: React.FC<JixStreamStudioProps> = ({ isOpen, onClos
 
             <div className="flex-1 overflow-y-auto py-3 space-y-3">
               <p className="text-xs text-gray-400">قائمة المشاهدين ({viewers.length}):</p>
-              {viewers.map((v) => (
-                <div key={v.id} className="flex items-center justify-between bg-black/40 p-2 rounded-xl border border-gray-800">
-                  <div className="flex items-center gap-2">
-                    <img src={v.avatar} alt={v.name} className="w-8 h-8 rounded-full" />
-                    <span className="text-xs font-bold text-white">{v.name}</span>
+              {viewers.length === 0 ? (
+                <p className="text-center text-xs text-gray-500 py-6">ما فيه مشاهدين حاليًا</p>
+              ) : (
+                viewers.map((v) => (
+                  <div key={v.id} className="flex items-center justify-between bg-black/40 p-2 rounded-xl border border-gray-800">
+                    <div className="flex items-center gap-2">
+                      <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#FF7A1A] to-[#8B5CF6] flex items-center justify-center text-[10px] font-black text-white">
+                        {v.name[0]}
+                      </div>
+                      <span className="text-xs font-bold text-white">{v.name}</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <button onClick={() => toggleMuteViewer(v.id)} disabled={v.isMuted} title={v.isMuted ? 'مكتوم بالفعل' : 'كتم الكومنتات'} className={`p-1.5 rounded-lg disabled:opacity-50 ${v.isMuted ? 'bg-[#8B5CF6]/20 text-[#8B5CF6]' : 'bg-gray-800 text-gray-300'}`}>
+                        <VolumeX className="w-3.5 h-3.5" />
+                      </button>
+                      <button onClick={() => kickViewer(v.id)} title="طرد نهائي من البث" className="p-1.5 rounded-lg bg-red-600/20 text-red-400 hover:bg-red-600 hover:text-white transition">
+                        <UserX className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-1">
-                    <button onClick={() => toggleMuteViewer(v.id)} title={v.isMuted ? 'إلغاء كتم الكومنتات' : 'كتم الكومنتات'} className={`p-1.5 rounded-lg ${v.isMuted ? 'bg-[#8B5CF6]/20 text-[#8B5CF6]' : 'bg-gray-800 text-gray-300'}`}>
-                      <VolumeX className="w-3.5 h-3.5" />
-                    </button>
-                    <button onClick={() => kickViewer(v.id)} title="طرد نهائي من البث" className="p-1.5 rounded-lg bg-red-600/20 text-red-400 hover:bg-red-600 hover:text-white transition">
-                      <UserX className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                </div>
-              ))}
+                ))
+              )}
             </div>
           </div>
         </div>
