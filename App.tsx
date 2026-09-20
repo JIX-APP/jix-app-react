@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Home, Compass, MessageCircle, User, Plus, LogOut, Loader2, Search, Radio, Video, Eye, Pencil, Check, Crown } from 'lucide-react';
+import { Home, Compass, MessageCircle, User, Plus, LogOut, Loader2, Search, Radio, Video, Eye, Pencil, Check, Crown, Calendar, MapPin } from 'lucide-react';
 import { JixAuthModal } from './JixAuthModal';
 import { JixStreamStudio } from './JixStreamStudio';
 import { JixWatchStream } from './JixWatchStream';
@@ -21,6 +21,8 @@ interface CurrentUser {
   avatar: string;
   avatarUrl: string | null;
   accountNumber: number | null;
+  dateOfBirth: string | null;
+  region: string | null;
 }
 
 interface LiveStreamRow {
@@ -35,6 +37,20 @@ type ScreenName = 'Home' | 'Discover' | 'Messages' | 'Profile';
 
 const DEFAULT_AVATAR =
   'https://images.unsplash.com/photo-1633332755192-727a05c4013d?w=200';
+
+const PROFILE_COLUMNS = 'avatar_url, account_number, date_of_birth, region';
+
+// حساب العمر بدقة من تاريخ الميلاد
+const calculateAge = (dob: string): number => {
+  const birthDate = new Date(dob);
+  const today = new Date();
+  let age = today.getFullYear() - birthDate.getFullYear();
+  const monthDiff = today.getMonth() - birthDate.getMonth();
+  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+    age--;
+  }
+  return age;
+};
 
 function App() {
   const [screen, setScreen] = useState<ScreenName>('Home');
@@ -52,6 +68,18 @@ function App() {
   const [nameDraft, setNameDraft] = useState('');
   const [isSavingName, setIsSavingName] = useState(false);
   const [nameError, setNameError] = useState<string | null>(null);
+
+  // تعديل تاريخ الميلاد
+  const [isEditingDob, setIsEditingDob] = useState(false);
+  const [dobDraft, setDobDraft] = useState('');
+  const [isSavingDob, setIsSavingDob] = useState(false);
+  const [dobError, setDobError] = useState<string | null>(null);
+
+  // تعديل المنطقة
+  const [isEditingRegion, setIsEditingRegion] = useState(false);
+  const [regionDraft, setRegionDraft] = useState('');
+  const [isSavingRegion, setIsSavingRegion] = useState(false);
+
   const supporterXp = useLevelXp(user?.id ?? null, 'supporter');
   const receiverXp = useLevelXp(user?.id ?? null, 'receiver');
 
@@ -87,7 +115,7 @@ function App() {
     const loadUser = async (sUser: any) => {
       const { data: profile } = await supabase
         .from('profiles')
-        .select('avatar_url, account_number')
+        .select(PROFILE_COLUMNS)
         .eq('id', sUser.id)
         .maybeSingle();
       setUser({
@@ -97,6 +125,8 @@ function App() {
         avatar: DEFAULT_AVATAR,
         avatarUrl: profile?.avatar_url ?? null,
         accountNumber: profile?.account_number ?? null,
+        dateOfBirth: profile?.date_of_birth ?? null,
+        region: profile?.region ?? null,
       });
     };
 
@@ -150,7 +180,7 @@ function App() {
       if (sUser) {
         supabase
           .from('profiles')
-          .select('avatar_url, account_number')
+          .select(PROFILE_COLUMNS)
           .eq('id', sUser.id)
           .maybeSingle()
           .then(({ data: profile }) => {
@@ -161,6 +191,8 @@ function App() {
               avatar: DEFAULT_AVATAR,
               avatarUrl: profile?.avatar_url ?? null,
               accountNumber: profile?.account_number ?? null,
+              dateOfBirth: profile?.date_of_birth ?? null,
+              region: profile?.region ?? null,
             });
           });
       }
@@ -227,6 +259,61 @@ function App() {
       console.error('[JIX] فشل تحديث الاسم:', err);
     } finally {
       setIsSavingName(false);
+    }
+  };
+
+  const handleStartEditDob = () => {
+    if (!user) return;
+    setDobDraft(user.dateOfBirth || '');
+    setDobError(null);
+    setIsEditingDob(true);
+  };
+
+  const handleSaveDob = async () => {
+    if (!user || !dobDraft) return;
+
+    const age = calculateAge(dobDraft);
+    if (age < 18) {
+      setDobError('يجب أن يكون عمرك 18 سنة أو أكثر');
+      return;
+    }
+
+    setDobError(null);
+    setIsSavingDob(true);
+    try {
+      const { error } = await supabase.from('profiles').update({ date_of_birth: dobDraft }).eq('id', user.id);
+      if (error) throw error;
+
+      setUser((prev) => (prev ? { ...prev, dateOfBirth: dobDraft } : prev));
+      setIsEditingDob(false);
+    } catch (err) {
+      setDobError((err as Error).message || 'تعذر حفظ تاريخ الميلاد');
+    } finally {
+      setIsSavingDob(false);
+    }
+  };
+
+  const handleStartEditRegion = () => {
+    if (!user) return;
+    setRegionDraft(user.region || '');
+    setIsEditingRegion(true);
+  };
+
+  const handleSaveRegion = async () => {
+    if (!user) return;
+
+    setIsSavingRegion(true);
+    try {
+      const newRegion = regionDraft.trim();
+      const { error } = await supabase.from('profiles').update({ region: newRegion || null }).eq('id', user.id);
+      if (error) throw error;
+
+      setUser((prev) => (prev ? { ...prev, region: newRegion || null } : prev));
+      setIsEditingRegion(false);
+    } catch (err) {
+      console.error('[JIX] فشل تحديث المنطقة:', err);
+    } finally {
+      setIsSavingRegion(false);
     }
   };
 
@@ -375,6 +462,79 @@ function App() {
               <div className="flex items-center gap-2 mt-2">
                 <LevelBadge xp={supporterXp} kind="supporter" size="md" />
                 <LevelBadge xp={receiverXp} kind="receiver" size="md" />
+              </div>
+            </div>
+
+            {/* بيانات إضافية قابلة للتعديل: تاريخ الميلاد والمنطقة */}
+            <div className="space-y-2.5 mb-5">
+              {/* تاريخ الميلاد */}
+              <div className="flex items-center justify-between px-4 py-3 bg-white/5 rounded-2xl">
+                <div className="flex items-center gap-2.5">
+                  <Calendar className="w-4 h-4 text-[#8B5CF6]" />
+                  {isEditingDob ? (
+                    <div className="flex flex-col gap-1">
+                      <input
+                        type="date"
+                        value={dobDraft}
+                        onChange={(e) => setDobDraft(e.target.value)}
+                        max={new Date().toISOString().split('T')[0]}
+                        className="px-2 py-1 bg-[#171923] border border-gray-800 rounded-lg text-white text-xs focus:border-[#8B5CF6] outline-none [color-scheme:dark]"
+                      />
+                      {dobError && <p className="text-[9px] text-red-400">{dobError}</p>}
+                    </div>
+                  ) : (
+                    <span className="text-xs text-gray-300">
+                      {user.dateOfBirth ? `تاريخ الميلاد: ${user.dateOfBirth}` : 'أضف تاريخ ميلادك'}
+                    </span>
+                  )}
+                </div>
+                {isEditingDob ? (
+                  <button
+                    onClick={handleSaveDob}
+                    disabled={isSavingDob || !dobDraft}
+                    className="w-7 h-7 rounded-full bg-gradient-to-br from-[#FF7A1A] to-[#8B5CF6] flex items-center justify-center disabled:opacity-50 shrink-0"
+                  >
+                    {isSavingDob ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
+                  </button>
+                ) : (
+                  <button onClick={handleStartEditDob} className="p-1 rounded-full bg-white/5 shrink-0">
+                    <Pencil className="w-3 h-3 text-gray-400" />
+                  </button>
+                )}
+              </div>
+
+              {/* المنطقة */}
+              <div className="flex items-center justify-between px-4 py-3 bg-white/5 rounded-2xl">
+                <div className="flex items-center gap-2.5">
+                  <MapPin className="w-4 h-4 text-[#8B5CF6]" />
+                  {isEditingRegion ? (
+                    <input
+                      value={regionDraft}
+                      onChange={(e) => setRegionDraft(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && handleSaveRegion()}
+                      placeholder="مثال: الدوحة، قطر"
+                      autoFocus
+                      className="px-2 py-1 bg-[#171923] border border-gray-800 rounded-lg text-white text-xs focus:border-[#8B5CF6] outline-none w-36"
+                    />
+                  ) : (
+                    <span className="text-xs text-gray-300">
+                      {user.region || 'أضف منطقتك'}
+                    </span>
+                  )}
+                </div>
+                {isEditingRegion ? (
+                  <button
+                    onClick={handleSaveRegion}
+                    disabled={isSavingRegion}
+                    className="w-7 h-7 rounded-full bg-gradient-to-br from-[#FF7A1A] to-[#8B5CF6] flex items-center justify-center disabled:opacity-50 shrink-0"
+                  >
+                    {isSavingRegion ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
+                  </button>
+                ) : (
+                  <button onClick={handleStartEditRegion} className="p-1 rounded-full bg-white/5 shrink-0">
+                    <Pencil className="w-3 h-3 text-gray-400" />
+                  </button>
+                )}
               </div>
             </div>
 
