@@ -8,6 +8,7 @@ import { GIFTS_CATALOG, GiftIcon, giftLegendaryEnterStyle, giftPopStyle } from '
 import { LevelBadge, useLevelXp } from './JixLevelSystem';
 import { JixReportButton } from './JixReportButton';
 import { JixPKChallengeButton } from './JixPKChallengeButton';
+import { JixLiveComments } from './JixLiveComments';
 
 interface JixWatchStreamProps {
   isOpen: boolean;
@@ -41,9 +42,23 @@ export const JixWatchStream: React.FC<JixWatchStreamProps> = ({
   const [isConnecting, setIsConnecting] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [giftToast, setGiftToast] = useState<GiftToast | null>(null);
+  const [viewerName, setViewerName] = useState<string>('مستخدم JIX');
   const videoRef = useRef<HTMLDivElement>(null);
   const clientRef = useRef<IAgoraRTCClient | null>(null);
   const hostReceiverXp = useLevelXp(hostId, 'receiver');
+
+  // جلب اسم المشاهد الحالي عشان يظهر بجانب تعليقاته بالبث
+  useEffect(() => {
+    if (!currentUserId) return;
+    supabase
+      .from('profiles')
+      .select('full_name, handle')
+      .eq('id', currentUserId)
+      .maybeSingle()
+      .then(({ data }) => {
+        setViewerName(data?.full_name || data?.handle || 'مستخدم JIX');
+      });
+  }, [currentUserId]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -235,6 +250,15 @@ export const JixWatchStream: React.FC<JixWatchStreamProps> = ({
         </div>
 
         {!isConnecting && !error && <JixGiftBar liveId={liveId} hostId={hostId} />}
+
+        {/* كومنتات البث المباشر - بث حي بدون تخزين، تختفي تلقائيًا */}
+        {!isConnecting && !error && (
+          <JixLiveComments
+            channelName={channelName}
+            currentUserId={currentUserId ?? null}
+            currentUserName={viewerName}
+          />
+        )}
       </div>
     </div>
   );
