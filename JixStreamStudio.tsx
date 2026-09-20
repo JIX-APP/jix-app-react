@@ -1,11 +1,12 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { X, Mic, MicOff, Camera, Image, Users, UserX, VolumeX, Coins, ChevronDown } from 'lucide-react';
+import { X, Mic, MicOff, Camera, Image, Users, UserX, VolumeX, Coins, ChevronDown, Shield } from 'lucide-react';
 import AgoraRTC, { IAgoraRTCClient, ICameraVideoTrack, IMicrophoneAudioTrack } from 'agora-rtc-sdk-ng';
 import { supabase } from './supabaseClient';
 import { jixAudio } from './jixAudioFx';
 import { GIFTS_CATALOG, GiftIcon, giftLegendaryEnterStyle, giftPopStyle } from './JixGiftIcons';
 import { LevelBadge, useLevelXp } from './JixLevelSystem';
 import { JixLiveComments } from './JixLiveComments';
+import { JixModeratorManager } from './JixModeratorManager';
 
 interface Viewer {
   id: string;
@@ -40,6 +41,8 @@ export const JixStreamStudio: React.FC<JixStreamStudioProps> = ({ isOpen, onClos
   const [liveId, setLiveId] = useState<string | null>(null);
   const [hostUserId, setHostUserId] = useState<string | null>(null);
   const [isViewersOpen, setIsViewersOpen] = useState(false);
+  const [isModeratorManagerOpen, setIsModeratorManagerOpen] = useState(false);
+  const [showExitConfirm, setShowExitConfirm] = useState(false);
   const hostReceiverXp = useLevelXp(hostUserId, 'receiver');
   const [viewers, setViewers] = useState<Viewer[]>([
     { id: '1', name: 'سلطان VIP', avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100', isMuted: false },
@@ -312,7 +315,7 @@ export const JixStreamStudio: React.FC<JixStreamStudioProps> = ({ isOpen, onClos
 
       {/* الشريط العلوي: إغلاق + مباشر + لفل + كوينز */}
       <div className="absolute top-4 inset-x-4 flex items-center justify-between z-10">
-        <button onClick={handleClose} className="w-9 h-9 rounded-full bg-black/50 flex items-center justify-center">
+        <button onClick={() => setShowExitConfirm(true)} className="w-9 h-9 rounded-full bg-black/50 flex items-center justify-center">
           <X className="w-5 h-5 text-white" />
         </button>
 
@@ -363,14 +366,34 @@ export const JixStreamStudio: React.FC<JixStreamStudioProps> = ({ isOpen, onClos
         <span className="text-xs font-bold text-white">{viewers.length}</span>
       </button>
 
+      {/* زر إدارة المشرفين - لصاحب البث فقط */}
+      {isLive && (
+        <button
+          onClick={() => setIsModeratorManagerOpen(true)}
+          className="absolute bottom-24 left-20 flex items-center gap-1.5 bg-black/50 px-3 py-2 rounded-full z-10"
+        >
+          <Shield className="w-4 h-4 text-[#8B5CF6]" />
+        </button>
+      )}
+
       {/* كومنتات البث المباشر - بث حي بدون تخزين، تختفي تلقائيًا */}
       {isLive && hostUserId && (
         <JixLiveComments
           channelName={`jix-${hostUserId}`.slice(0, 64)}
+          liveId={liveId ?? ''}
+          hostId={hostUserId}
           currentUserId={hostUserId}
           currentUserName={currentUser.name}
+          isHost={true}
+          isModerator={false}
         />
       )}
+
+      <JixModeratorManager
+        isOpen={isModeratorManagerOpen}
+        onClose={() => setIsModeratorManagerOpen(false)}
+        hostId={hostUserId ?? ''}
+      />
 
       {/* أزرار التحكم السفلية */}
       <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex items-center gap-3 bg-black/60 backdrop-blur-md px-4 py-2 rounded-full border border-white/10 z-10">
@@ -416,6 +439,34 @@ export const JixStreamStudio: React.FC<JixStreamStudioProps> = ({ isOpen, onClos
                   </div>
                 </div>
               ))}
+            </div>
+          </div>
+        </div>
+      )}
+      {/* تأكيد الخروج من البث - يمنع إغلاق البث بالخطأ بضغطة واحدة */}
+      {showExitConfirm && (
+        <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/80 p-4">
+          <div className="w-full max-w-sm bg-[#12141f] border border-gray-800 rounded-3xl p-6">
+            <h3 className="font-black text-sm text-white mb-2">إنهاء البث المباشر؟</h3>
+            <p className="text-xs text-gray-400 mb-5">
+              هل أنت متأكد إنك تبي تخرج وتنهي البث؟ كل من يشاهدك الآن بينقطع اتصاله.
+            </p>
+            <div className="flex gap-2.5">
+              <button
+                onClick={() => setShowExitConfirm(false)}
+                className="flex-1 py-3 bg-white/5 text-white font-bold text-sm rounded-2xl"
+              >
+                البقاء بالبث
+              </button>
+              <button
+                onClick={() => {
+                  setShowExitConfirm(false);
+                  handleClose();
+                }}
+                className="flex-1 py-3 bg-red-600 text-white font-black text-sm rounded-2xl"
+              >
+                إنهاء البث
+              </button>
             </div>
           </div>
         </div>
