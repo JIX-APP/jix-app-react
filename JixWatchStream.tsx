@@ -45,6 +45,8 @@ export const JixWatchStream: React.FC<JixWatchStreamProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [giftToast, setGiftToast] = useState<GiftToast | null>(null);
   const [viewerName, setViewerName] = useState<string>('مستخدم JIX');
+  const [isModerator, setIsModerator] = useState(false);
+  const [kickedNotice, setKickedNotice] = useState<{ permanent: boolean } | null>(null);
   const videoRef = useRef<HTMLDivElement>(null);
   const clientRef = useRef<IAgoraRTCClient | null>(null);
   const hostReceiverXp = useLevelXp(hostId, 'receiver');
@@ -61,6 +63,25 @@ export const JixWatchStream: React.FC<JixWatchStreamProps> = ({
         setViewerName(data?.full_name || data?.handle || 'مستخدم JIX');
       });
   }, [currentUserId]);
+
+  // التأكد هل المشاهد الحالي معيّن كمشرف لهذا المذيع
+  useEffect(() => {
+    if (!currentUserId || currentUserId === hostId) return;
+    supabase
+      .from('stream_moderators')
+      .select('id')
+      .eq('host_id', hostId)
+      .eq('moderator_id', currentUserId)
+      .maybeSingle()
+      .then(({ data }) => {
+        setIsModerator(!!data);
+      });
+  }, [currentUserId, hostId]);
+
+  const handleKicked = (permanent: boolean) => {
+    clientRef.current?.leave();
+    setKickedNotice({ permanent });
+  };
 
   useEffect(() => {
     if (!isOpen) return;
@@ -260,10 +281,29 @@ export const JixWatchStream: React.FC<JixWatchStreamProps> = ({
         {!isConnecting && !error && (
           <JixLiveComments
             channelName={channelName}
+            liveId={liveId}
+            hostId={hostId}
             currentUserId={currentUserId ?? null}
             currentUserName={viewerName}
+            isHost={false}
+            isModerator={isModerator}
             onOpenProfile={onOpenProfile}
+            onKicked={handleKicked}
           />
+        )}
+
+        {/* شاشة الطرد - تحل محل كل شي وتغلق الاتصال */}
+        {kickedNotice && (
+          <div className="absolute inset-0 z-40 flex flex-col items-center justify-center bg-black/95 px-6 text-center">
+            <p className="text-sm text-red-400 font-bold mb-4">
+              {kickedNotice.permanent
+                ? 'تم طردك نهائيًا من هذا البث'
+                : 'تم طردك مؤقتًا من هذا البث لمدة 5 دقايق'}
+            </p>
+            <button onClick={onClose} className="px-5 py-2.5 bg-white/10 rounded-xl text-sm font-bold text-white">
+              رجوع
+            </button>
+          </div>
         )}
       </div>
     </div>
