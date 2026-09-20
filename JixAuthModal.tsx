@@ -46,10 +46,15 @@ export const JixAuthModal: React.FC<JixAuthModalProps> = ({ isOpen, onClose, onS
     onClose();
   };
 
-  // خطوة 1: التحقق من العمر أولاً، ثم إرسال كود الـ OTP عبر Supabase
+  // خطوة 1: التحقق من الاسم والعمر أولاً، ثم إرسال كود الـ OTP عبر Supabase
   const handleSendOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+
+    if (!username.trim()) {
+      setError('يجب إدخال اسمك للمتابعة');
+      return;
+    }
 
     if (!dateOfBirth) {
       setError('يجب إدخال تاريخ الميلاد للمتابعة');
@@ -70,14 +75,14 @@ export const JixAuthModal: React.FC<JixAuthModalProps> = ({ isOpen, onClose, onS
             email: identifier,
             options: {
               shouldCreateUser: true,
-              data: username ? { username, date_of_birth: dateOfBirth } : { date_of_birth: dateOfBirth },
+              data: { username: username.trim(), date_of_birth: dateOfBirth },
             },
           })
         : await supabase.auth.signInWithOtp({
             phone: identifier,
             options: {
               shouldCreateUser: true,
-              data: username ? { username, date_of_birth: dateOfBirth } : { date_of_birth: dateOfBirth },
+              data: { username: username.trim(), date_of_birth: dateOfBirth },
             },
           });
 
@@ -175,12 +180,13 @@ export const JixAuthModal: React.FC<JixAuthModalProps> = ({ isOpen, onClose, onS
 
             <form onSubmit={handleSendOtp} className="space-y-4">
               <div>
-                <label className="block text-xs font-bold text-gray-300 mb-1">اسم المستخدم / اللقب (اختياري)</label>
+                <label className="block text-xs font-bold text-gray-300 mb-1">اسمك</label>
                 <input
                   type="text"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
                   placeholder="الجيلاني"
+                  required
                   className="w-full px-4 py-3 bg-[#171923] border border-gray-800 rounded-2xl text-white text-sm focus:border-amber-500 outline-none"
                 />
               </div>
