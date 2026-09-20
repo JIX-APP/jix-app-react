@@ -7,6 +7,7 @@ interface JixCommentsProps {
   isOpen: boolean;
   onClose: () => void;
   postId: string;
+  onOpenProfile?: (userId: string) => void;
 }
 
 interface CommentRow {
@@ -17,7 +18,7 @@ interface CommentRow {
   profiles: { handle: string | null; full_name: string | null; avatar_url: string | null } | null;
 }
 
-export const JixComments: React.FC<JixCommentsProps> = ({ isOpen, onClose, postId }) => {
+export const JixComments: React.FC<JixCommentsProps> = ({ isOpen, onClose, postId, onOpenProfile }) => {
   const [comments, setComments] = useState<CommentRow[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [newComment, setNewComment] = useState('');
@@ -89,13 +90,23 @@ export const JixComments: React.FC<JixCommentsProps> = ({ isOpen, onClose, postI
           ) : (
             comments.map((c) => (
               <div key={c.id} className="flex gap-2.5">
-                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#FF7A1A] to-[#8B5CF6] flex items-center justify-center text-xs font-black shrink-0">
-                  {(c.profiles?.full_name || c.profiles?.handle || 'م')[0]}
-                </div>
+                <button
+                  onClick={() => onOpenProfile?.(c.user_id)}
+                  className="w-8 h-8 rounded-full bg-gradient-to-br from-[#FF7A1A] to-[#8B5CF6] flex items-center justify-center text-xs font-black shrink-0 overflow-hidden"
+                >
+                  {c.profiles?.avatar_url ? (
+                    <img src={c.profiles.avatar_url} className="w-full h-full object-cover" />
+                  ) : (
+                    (c.profiles?.full_name || c.profiles?.handle || 'م')[0]
+                  )}
+                </button>
                 <div>
-                  <p className="text-xs font-bold text-gray-300">
+                  <button
+                    onClick={() => onOpenProfile?.(c.user_id)}
+                    className="text-xs font-bold text-gray-300"
+                  >
                     {c.profiles?.full_name || c.profiles?.handle || 'مستخدم JIX'}
-                  </p>
+                  </button>
                   <p className="text-sm text-white mt-0.5">{c.comment_text}</p>
                 </div>
               </div>
