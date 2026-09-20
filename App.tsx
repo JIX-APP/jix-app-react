@@ -25,6 +25,7 @@ interface CurrentUser {
   accountNumber: number | null;
   dateOfBirth: string | null;
   region: string | null;
+  gender: 'male' | 'female' | null;
 }
 
 interface LiveStreamRow {
@@ -40,7 +41,7 @@ type ScreenName = 'Home' | 'Discover' | 'Messages' | 'Profile';
 const DEFAULT_AVATAR =
   'https://images.unsplash.com/photo-1633332755192-727a05c4013d?w=200';
 
-const PROFILE_COLUMNS = 'avatar_url, account_number, date_of_birth, region';
+const PROFILE_COLUMNS = 'avatar_url, account_number, date_of_birth, region, gender';
 
 const calculateAge = (dob: string): number => {
   const birthDate = new Date(dob);
@@ -127,6 +128,7 @@ function App() {
         accountNumber: profile?.account_number ?? null,
         dateOfBirth: profile?.date_of_birth ?? null,
         region: profile?.region ?? null,
+        gender: profile?.gender ?? null,
       });
     };
 
@@ -193,6 +195,7 @@ function App() {
               accountNumber: profile?.account_number ?? null,
               dateOfBirth: profile?.date_of_birth ?? null,
               region: profile?.region ?? null,
+              gender: profile?.gender ?? null,
             });
           });
       }
@@ -473,6 +476,18 @@ function App() {
               <div className="flex items-center gap-2 mt-2">
                 <LevelBadge xp={supporterXp} kind="supporter" size="md" />
                 <LevelBadge xp={receiverXp} kind="receiver" size="md" />
+                {user.gender && user.dateOfBirth && (
+                  <span
+                    className="inline-flex items-center gap-1.5 rounded-full font-black px-2.5 py-1 text-xs text-white"
+                    style={{ background: 'linear-gradient(135deg, #FF7A1A, #8B5CF6)' }}
+                  >
+                    <span style={{ fontSize: '14px', lineHeight: 1 }}>
+                      {user.gender === 'male' ? '♂' : '♀'}
+                    </span>
+                    <span className="w-px h-2.5 bg-white/40" />
+                    {calculateAge(user.dateOfBirth)}
+                  </span>
+                )}
               </div>
             </div>
 
