@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Mail, Smartphone, ArrowLeft, ShieldCheck, Loader2, Calendar } from 'lucide-react';
+import { X, Mail, Smartphone, ArrowLeft, ShieldCheck, Loader2, Calendar, User } from 'lucide-react';
 import { supabase } from './supabaseClient';
 import { JixDobPicker } from './JixDobPicker';
 
@@ -30,6 +30,7 @@ export const JixAuthModal: React.FC<JixAuthModalProps> = ({ isOpen, onClose, onS
   const [phone, setPhone] = useState('');
   const [username, setUsername] = useState('');
   const [dateOfBirth, setDateOfBirth] = useState('');
+  const [gender, setGender] = useState<'male' | 'female' | ''>('');
   const [otp, setOtp] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -61,6 +62,11 @@ export const JixAuthModal: React.FC<JixAuthModalProps> = ({ isOpen, onClose, onS
       return;
     }
 
+    if (!gender) {
+      setError('يجب اختيار الجنس للمتابعة');
+      return;
+    }
+
     const age = calculateAge(dateOfBirth);
     if (age < 18) {
       setError('يجب أن يكون عمرك 18 سنة أو أكثر لاستخدام JIX');
@@ -75,14 +81,14 @@ export const JixAuthModal: React.FC<JixAuthModalProps> = ({ isOpen, onClose, onS
             email: identifier,
             options: {
               shouldCreateUser: true,
-              data: { username: username.trim(), date_of_birth: dateOfBirth },
+              data: { username: username.trim(), date_of_birth: dateOfBirth, gender },
             },
           })
         : await supabase.auth.signInWithOtp({
             phone: identifier,
             options: {
               shouldCreateUser: true,
-              data: { username: username.trim(), date_of_birth: dateOfBirth },
+              data: { username: username.trim(), date_of_birth: dateOfBirth, gender },
             },
           });
 
@@ -113,12 +119,12 @@ export const JixAuthModal: React.FC<JixAuthModalProps> = ({ isOpen, onClose, onS
       return;
     }
 
-    // نحفظ تاريخ الميلاد بجدول profiles بعد نجاح تسجيل الدخول
+    // نحفظ تاريخ الميلاد والجنس بجدول profiles بعد نجاح تسجيل الدخول
     // (Trigger بقاعدة البيانات يرفض تلقائيًا أي عمر أقل من 18 كحماية إضافية)
     if (data.user && dateOfBirth) {
       const { error: profileError } = await supabase
         .from('profiles')
-        .update({ date_of_birth: dateOfBirth })
+        .update({ date_of_birth: dateOfBirth, gender: gender || null })
         .eq('id', data.user.id);
 
       if (profileError) {
@@ -211,6 +217,36 @@ export const JixAuthModal: React.FC<JixAuthModalProps> = ({ isOpen, onClose, onS
                 </label>
                 <JixDobPicker value={dateOfBirth} onChange={setDateOfBirth} />
                 <p className="text-[10px] text-gray-500 mt-1.5">يجب أن يكون عمرك 18 سنة أو أكثر لاستخدام JIX</p>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-gray-300 mb-1.5 flex items-center gap-1.5">
+                  <User className="w-3.5 h-3.5" /> الجنس
+                </label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setGender('male')}
+                    className={`py-3 rounded-2xl text-sm font-bold border transition ${
+                      gender === 'male'
+                        ? 'bg-amber-500 text-black border-amber-500'
+                        : 'bg-[#171923] text-gray-300 border-gray-800'
+                    }`}
+                  >
+                    ذكر
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setGender('female')}
+                    className={`py-3 rounded-2xl text-sm font-bold border transition ${
+                      gender === 'female'
+                        ? 'bg-amber-500 text-black border-amber-500'
+                        : 'bg-[#171923] text-gray-300 border-gray-800'
+                    }`}
+                  >
+                    أنثى
+                  </button>
+                </div>
               </div>
 
               <button type="submit" disabled={isSubmitting} className="w-full py-3.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-black font-black text-sm rounded-2xl shadow-lg transition active:scale-98 flex items-center justify-center gap-2 disabled:opacity-60">
