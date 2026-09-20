@@ -8,6 +8,7 @@ import { JixUploadVideo } from './JixUploadVideo';
 import { JixAvatarUpload } from './JixAvatarUpload';
 import { JixVipStore } from './JixVipStore';
 import { JixDobPicker } from './JixDobPicker';
+import { JixUserProfile } from './JixUserProfile';
 import { LevelBadge, AvatarFrame, useLevelXp } from './JixLevelSystem';
 import { checkText } from './JixModeration';
 import { supabase } from './supabaseClient';
@@ -77,6 +78,9 @@ function App() {
   const [isEditingRegion, setIsEditingRegion] = useState(false);
   const [regionDraft, setRegionDraft] = useState('');
   const [isSavingRegion, setIsSavingRegion] = useState(false);
+
+  // صفحة بروفايل مستخدم آخر - تفتح فوق كل شي من أي نقطة بالتطبيق
+  const [viewingProfileUserId, setViewingProfileUserId] = useState<string | null>(null);
 
   const supporterXp = useLevelXp(user?.id ?? null, 'supporter');
   const receiverXp = useLevelXp(user?.id ?? null, 'receiver');
@@ -226,6 +230,15 @@ function App() {
     setIsVipStoreOpen(true);
   };
 
+  // فتح بروفايل مستخدم - يتجاهل الطلب لو المستخدم ضغط على بروفايله هو نفسه من مكان عام
+  const handleOpenProfile = (targetUserId: string) => {
+    if (!user) {
+      setIsAuthOpen(true);
+      return;
+    }
+    setViewingProfileUserId(targetUserId);
+  };
+
   const handleStartEditName = () => {
     if (!user) return;
     setNameDraft(user.name);
@@ -329,7 +342,11 @@ function App() {
       )}
 
       <div className={`absolute inset-0 pb-24 ${screen === 'Home' ? '' : 'hidden'}`}>
-        <JixVideoFeed currentUserId={user?.id ?? null} refreshKey={videoFeedKey} />
+        <JixVideoFeed
+          currentUserId={user?.id ?? null}
+          refreshKey={videoFeedKey}
+          onOpenProfile={handleOpenProfile}
+        />
       </div>
 
       <div className={`absolute inset-0 pt-6 pb-24 px-4 overflow-y-auto ${screen === 'Discover' ? '' : 'hidden'}`}>
@@ -633,6 +650,8 @@ function App() {
           channelName={watchingStream.channel_name}
           hostUsername={watchingStream.username}
           hostId={watchingStream.user_id}
+          currentUserId={user?.id ?? null}
+          onOpenProfile={handleOpenProfile}
         />
       )}
 
@@ -641,6 +660,16 @@ function App() {
         onClose={() => setIsVipStoreOpen(false)}
         currentUserId={user?.id ?? null}
       />
+
+      {/* صفحة بروفايل مستخدم آخر - تفتح فوق كل شي */}
+      {viewingProfileUserId && (
+        <JixUserProfile
+          isOpen={!!viewingProfileUserId}
+          onClose={() => setViewingProfileUserId(null)}
+          userId={viewingProfileUserId}
+          currentUserId={user?.id ?? null}
+        />
+      )}
 
       <JixPKChallengeNotification
         currentUserId={user?.id ?? null}
