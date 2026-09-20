@@ -70,12 +70,12 @@ export const JixLiveComments: React.FC<JixLiveCommentsProps> = ({
 
   return (
     <>
-      {/* فقاعات الكومنتات - تطلع فوق بعض من الأسفل وتختفي تلقائيًا */}
-      <div className="absolute bottom-24 left-3 right-20 z-20 flex flex-col-reverse gap-1.5 pointer-events-none max-h-[45%] overflow-hidden">
+      {/* فقاعات الكومنتات - تطلع فوق بعض من الأسفل وتختفي تلقائيًا. نسيب مساحة يمين لزر الهدية */}
+      <div className="absolute bottom-24 left-3 right-20 z-10 flex flex-col-reverse gap-1.5 pointer-events-none max-h-[45%] overflow-hidden">
         {[...messages].reverse().map((msg) => (
           <div
             key={msg.id}
-            className="bg-black/50 backdrop-blur-sm rounded-2xl px-3 py-1.5 max-w-[85%] animate-[fadeIn_0.3s_ease-out]"
+            className="bg-black/50 backdrop-blur-sm rounded-2xl px-3 py-1.5 max-w-[90%] animate-[fadeIn_0.3s_ease-out]"
           >
             <span className="text-[11px] font-black text-[#F5B93E]">{msg.senderName}: </span>
             <span className="text-[11px] text-white">{msg.text}</span>
@@ -83,9 +83,9 @@ export const JixLiveComments: React.FC<JixLiveCommentsProps> = ({
         ))}
       </div>
 
-      {/* صندوق كتابة التعليق */}
+      {/* صندوق كتابة التعليق - نوقفه قبل زر الهدية (يمين) عشان ما يغطيه */}
       {currentUserId && (
-        <div className="absolute bottom-4 left-3 right-3 z-20 flex items-center gap-2">
+        <div className="absolute bottom-6 left-3 right-20 z-10 flex items-center gap-2">
           <input
             value={input}
             onChange={(e) => setInput(e.target.value)}
