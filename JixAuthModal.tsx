@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Mail, Smartphone, ArrowLeft, ShieldCheck, Loader2, Calendar, User } from 'lucide-react';
+import { X, Mail, ArrowLeft, ShieldCheck, Loader2, Calendar, User } from 'lucide-react';
 import { supabase } from './supabaseClient';
 import { JixDobPicker } from './JixDobPicker';
 
@@ -24,10 +24,8 @@ const calculateAge = (dob: string): number => {
 };
 
 export const JixAuthModal: React.FC<JixAuthModalProps> = ({ isOpen, onClose, onSuccessLogin }) => {
-  const [authMethod, setAuthMethod] = useState<'email' | 'phone'>('email');
   const [step, setStep] = useState<Step>('form');
   const [email, setEmail] = useState('');
-  const [phone, setPhone] = useState('');
   const [username, setUsername] = useState('');
   const [dateOfBirth, setDateOfBirth] = useState('');
   const [gender, setGender] = useState<'male' | 'female' | ''>('');
@@ -37,7 +35,7 @@ export const JixAuthModal: React.FC<JixAuthModalProps> = ({ isOpen, onClose, onS
 
   if (!isOpen) return null;
 
-  const identifier = authMethod === 'email' ? email.trim() : phone.trim();
+  const identifier = email.trim();
 
   const resetAndClose = () => {
     setStep('form');
@@ -47,7 +45,7 @@ export const JixAuthModal: React.FC<JixAuthModalProps> = ({ isOpen, onClose, onS
     onClose();
   };
 
-  // خطوة 1: التحقق من الاسم والعمر أولاً، ثم إرسال كود الـ OTP عبر Supabase
+  // خطوة 1: التحقق من الاسم والعمر أولاً، ثم إرسال كود الـ OTP عبر البريد الإلكتروني
   const handleSendOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
@@ -75,22 +73,13 @@ export const JixAuthModal: React.FC<JixAuthModalProps> = ({ isOpen, onClose, onS
 
     setIsSubmitting(true);
 
-    const { error: otpError } =
-      authMethod === 'email'
-        ? await supabase.auth.signInWithOtp({
-            email: identifier,
-            options: {
-              shouldCreateUser: true,
-              data: { username: username.trim(), date_of_birth: dateOfBirth, gender },
-            },
-          })
-        : await supabase.auth.signInWithOtp({
-            phone: identifier,
-            options: {
-              shouldCreateUser: true,
-              data: { username: username.trim(), date_of_birth: dateOfBirth, gender },
-            },
-          });
+    const { error: otpError } = await supabase.auth.signInWithOtp({
+      email: identifier,
+      options: {
+        shouldCreateUser: true,
+        data: { username: username.trim(), date_of_birth: dateOfBirth, gender },
+      },
+    });
 
     setIsSubmitting(false);
 
@@ -108,10 +97,11 @@ export const JixAuthModal: React.FC<JixAuthModalProps> = ({ isOpen, onClose, onS
     setError(null);
     setIsSubmitting(true);
 
-    const { data, error: verifyError } =
-      authMethod === 'email'
-        ? await supabase.auth.verifyOtp({ email: identifier, token: otp, type: 'email' })
-        : await supabase.auth.verifyOtp({ phone: identifier, token: otp, type: 'sms' });
+    const { data, error: verifyError } = await supabase.auth.verifyOtp({
+      email: identifier,
+      token: otp,
+      type: 'email',
+    });
 
     if (verifyError) {
       setIsSubmitting(false);
@@ -174,87 +164,76 @@ export const JixAuthModal: React.FC<JixAuthModalProps> = ({ isOpen, onClose, onS
         )}
 
         {step === 'form' ? (
-          <>
-            <div className="flex bg-[#171923] p-1 rounded-2xl border border-gray-800 mb-5">
-              <button type="button" onClick={() => setAuthMethod('email')} className={`flex-1 py-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 ${authMethod === 'email' ? 'bg-amber-500 text-black' : 'text-gray-400'}`}>
-                <Mail className="w-4 h-4" /> البريد الإلكتروني
-              </button>
-              <button type="button" onClick={() => setAuthMethod('phone')} className={`flex-1 py-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 ${authMethod === 'phone' ? 'bg-amber-500 text-black' : 'text-gray-400'}`}>
-                <Smartphone className="w-4 h-4" /> رقم الهاتف
-              </button>
+          <form onSubmit={handleSendOtp} className="space-y-4">
+            <div>
+              <label className="block text-xs font-bold text-gray-300 mb-1">اسمك</label>
+              <input
+                type="text"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                placeholder="الجيلاني"
+                required
+                className="w-full px-4 py-3 bg-[#171923] border border-gray-800 rounded-2xl text-white text-sm focus:border-amber-500 outline-none"
+              />
             </div>
 
-            <form onSubmit={handleSendOtp} className="space-y-4">
-              <div>
-                <label className="block text-xs font-bold text-gray-300 mb-1">اسمك</label>
-                <input
-                  type="text"
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
-                  placeholder="الجيلاني"
-                  required
-                  className="w-full px-4 py-3 bg-[#171923] border border-gray-800 rounded-2xl text-white text-sm focus:border-amber-500 outline-none"
-                />
-              </div>
+            <div>
+              <label className="block text-xs font-bold text-gray-300 mb-1 flex items-center gap-1.5">
+                <Mail className="w-3.5 h-3.5" /> عنوان البريد الإلكتروني
+              </label>
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="name@example.com"
+                required
+                className="w-full px-4 py-3 bg-[#171923] border border-gray-800 rounded-2xl text-white text-sm focus:border-amber-500 outline-none"
+              />
+            </div>
 
-              <div>
-                <label className="block text-xs font-bold text-gray-300 mb-1">
-                  {authMethod === 'email' ? 'عنوان البريد الإلكتروني' : 'رقم الهاتف (مع رمز الدولة)'}
-                </label>
-                <input
-                  type={authMethod === 'email' ? 'email' : 'tel'}
-                  value={authMethod === 'email' ? email : phone}
-                  onChange={(e) => (authMethod === 'email' ? setEmail(e.target.value) : setPhone(e.target.value))}
-                  placeholder={authMethod === 'email' ? 'name@example.com' : '+9745XXXXXXX'}
-                  required
-                  className="w-full px-4 py-3 bg-[#171923] border border-gray-800 rounded-2xl text-white text-sm focus:border-amber-500 outline-none"
-                />
-              </div>
+            <div>
+              <label className="block text-xs font-bold text-gray-300 mb-1.5 flex items-center gap-1.5">
+                <Calendar className="w-3.5 h-3.5" /> تاريخ الميلاد
+              </label>
+              <JixDobPicker value={dateOfBirth} onChange={setDateOfBirth} />
+              <p className="text-[10px] text-gray-500 mt-1.5">يجب أن يكون عمرك 18 سنة أو أكثر لاستخدام JIX</p>
+            </div>
 
-              <div>
-                <label className="block text-xs font-bold text-gray-300 mb-1.5 flex items-center gap-1.5">
-                  <Calendar className="w-3.5 h-3.5" /> تاريخ الميلاد
-                </label>
-                <JixDobPicker value={dateOfBirth} onChange={setDateOfBirth} />
-                <p className="text-[10px] text-gray-500 mt-1.5">يجب أن يكون عمرك 18 سنة أو أكثر لاستخدام JIX</p>
+            <div>
+              <label className="block text-xs font-bold text-gray-300 mb-1.5 flex items-center gap-1.5">
+                <User className="w-3.5 h-3.5" /> الجنس
+              </label>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setGender('male')}
+                  className={`py-3 rounded-2xl text-sm font-bold border transition ${
+                    gender === 'male'
+                      ? 'bg-amber-500 text-black border-amber-500'
+                      : 'bg-[#171923] text-gray-300 border-gray-800'
+                  }`}
+                >
+                  ذكر
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setGender('female')}
+                  className={`py-3 rounded-2xl text-sm font-bold border transition ${
+                    gender === 'female'
+                      ? 'bg-amber-500 text-black border-amber-500'
+                      : 'bg-[#171923] text-gray-300 border-gray-800'
+                  }`}
+                >
+                  أنثى
+                </button>
               </div>
+            </div>
 
-              <div>
-                <label className="block text-xs font-bold text-gray-300 mb-1.5 flex items-center gap-1.5">
-                  <User className="w-3.5 h-3.5" /> الجنس
-                </label>
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setGender('male')}
-                    className={`py-3 rounded-2xl text-sm font-bold border transition ${
-                      gender === 'male'
-                        ? 'bg-amber-500 text-black border-amber-500'
-                        : 'bg-[#171923] text-gray-300 border-gray-800'
-                    }`}
-                  >
-                    ذكر
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setGender('female')}
-                    className={`py-3 rounded-2xl text-sm font-bold border transition ${
-                      gender === 'female'
-                        ? 'bg-amber-500 text-black border-amber-500'
-                        : 'bg-[#171923] text-gray-300 border-gray-800'
-                    }`}
-                  >
-                    أنثى
-                  </button>
-                </div>
-              </div>
-
-              <button type="submit" disabled={isSubmitting} className="w-full py-3.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-black font-black text-sm rounded-2xl shadow-lg transition active:scale-98 flex items-center justify-center gap-2 disabled:opacity-60">
-                {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <ArrowLeft className="w-4 h-4" />}
-                {isSubmitting ? 'جاري الإرسال...' : 'إرسال رمز التحقق'}
-              </button>
-            </form>
-          </>
+            <button type="submit" disabled={isSubmitting} className="w-full py-3.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-black font-black text-sm rounded-2xl shadow-lg transition active:scale-98 flex items-center justify-center gap-2 disabled:opacity-60">
+              {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <ArrowLeft className="w-4 h-4" />}
+              {isSubmitting ? 'جاري الإرسال...' : 'إرسال رمز التحقق'}
+            </button>
+          </form>
         ) : (
           <form onSubmit={handleVerifyOtp} className="space-y-4">
             <div>
