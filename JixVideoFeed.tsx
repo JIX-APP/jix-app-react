@@ -80,7 +80,11 @@ export const JixVideoFeed: React.FC<JixVideoFeedProps> = ({ currentUserId, refre
   }, [posts]);
 
   const handleLike = async (postId: string) => {
-    if (!currentUserId) return;
+    if (!currentUserId) {
+      alert('يجب تسجيل الدخول عشان تقدر تعمل لايك');
+      return;
+    }
+
     const isLiked = likedIds.has(postId);
 
     setLikedIds((prev) => {
@@ -92,8 +96,20 @@ export const JixVideoFeed: React.FC<JixVideoFeedProps> = ({ currentUserId, refre
       prev.map((v) => (v.id === postId ? { ...v, likes_count: v.likes_count + (isLiked ? -1 : 1) } : v))
     );
 
-    const { error } = await supabase.rpc('toggle_like', { p_post_id: postId });
-    if (error) fetchPosts();
+    try {
+      const { data, error } = await supabase.rpc('toggle_like', { p_post_id: postId });
+      if (error) {
+        alert('خطأ باللايك: ' + error.message);
+        fetchPosts();
+        return;
+      }
+      // نجاح - نتأكد من القيمة الحقيقية من قاعدة البيانات بعد نجاح العملية
+      alert('نجح! النتيجة من السيرفر: ' + JSON.stringify(data));
+      fetchPosts();
+    } catch (err: any) {
+      alert('استثناء غير متوقع: ' + (err?.message || String(err)));
+      fetchPosts();
+    }
   };
 
   const handleFollow = async (targetUserId: string) => {
