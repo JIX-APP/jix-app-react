@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { X, Loader2 } from 'lucide-react';
+import { X, Loader2, UserPlus2, LogOut } from 'lucide-react';
 import AgoraRTC, { IAgoraRTCClient, IAgoraRTCRemoteUser } from 'agora-rtc-sdk-ng';
 import { supabase } from './supabaseClient';
 import { JixGiftBar } from './JixGiftBar';
@@ -9,6 +9,7 @@ import { LevelBadge, useLevelXp } from './JixLevelSystem';
 import { JixReportButton } from './JixReportButton';
 import { JixPKChallengeButton } from './JixPKChallengeButton';
 import { JixLiveComments } from './JixLiveComments';
+import { JixCohostSlot } from './JixCohostSlot';
 
 interface JixWatchStreamProps {
   isOpen: boolean;
@@ -26,6 +27,13 @@ interface GiftToast {
   id: string;
   giftId: string;
   rarity: string;
+}
+
+interface CohostSlotData {
+  slot: number;
+  guestId: string;
+  guestName: string;
+  agoraUid: number | null;
 }
 
 const AGORA_TOKEN_URL = 'https://wfvhzlpvtgnydhmsxcqr.supabase.co/functions/v1/agora-token';
@@ -47,11 +55,21 @@ export const JixWatchStream: React.FC<JixWatchStreamProps> = ({
   const [viewerName, setViewerName] = useState<string>('مستخدم JIX');
   const [isModerator, setIsModerator] = useState(false);
   const [kickedNotice, setKickedNotice] = useState<{ permanent: boolean } | null>(null);
+
+  const [cohostSlots, setCohostSlots] = useState<(CohostSlotData | null)[]>([null, null, null]);
+  const [requestSent, setRequestSent] = useState(false);
+  const [isRequesting, setIsRequesting] = useState(false);
+  const [remoteUsersByUid, setRemoteUsersByUid] = useState<Record<number, IAgoraRTCRemoteUser>>({});
+  const cohostPublishClientRef = useRef<IAgoraRTCClient | null>(null);
+  const cohostLocalVideoTrackRef = useRef<any>(null);
+  const cohostLocalAudioTrackRef = useRef<any>(null);
+
   const videoRef = useRef<HTMLDivElement>(null);
   const clientRef = useRef<IAgoraRTCClient | null>(null);
   const hostReceiverXp = useLevelXp(hostId, 'receiver');
 
-  // جلب اسم المشاهد الحالي عشان يظهر بجانب تعليقاته بالبث
+  const isMeCohost = cohostSlots.some((s) => s?.guestId === currentUserId);
+
   useEffect(() => {
     if (!currentUserId) return;
     supabase
@@ -64,7 +82,6 @@ export const JixWatchStream: React.FC<JixWatchStreamProps> = ({
       });
   }, [currentUserId]);
 
-  // التأكد هل المشاهد الحالي معيّن كمشرف لهذا المذيع
   useEffect(() => {
     if (!currentUserId || currentUserId === hostId) return;
     supabase
@@ -78,7 +95,6 @@ export const JixWatchStream: React.FC<JixWatchStreamProps> = ({
       });
   }, [currentUserId, hostId]);
 
-  // تسجيل حضور حقيقي بقناة Presence - يوصل صاحب البث فورًا بدخولك وخروجك (حتى لو انقفل التطبيق فجأة)
   useEffect(() => {
     if (!isOpen || !liveId || !currentUserId) return;
 
@@ -143,17 +159,21 @@ export const JixWatchStream: React.FC<JixWatchStreamProps> = ({
 
         client.on('user-published', async (remoteUser: IAgoraRTCRemoteUser, mediaType) => {
           await client.subscribe(remoteUser, mediaType);
-          if (mediaType === 'video' && videoRef.current) {
-            remoteUser.videoTrack?.play(videoRef.current);
-          }
+
+          setRemoteUsersByUid((prev) => ({ ...prev, [remoteUser.uid as number]: remoteUser }));
+
           if (mediaType === 'audio') {
             remoteUser.audioTrack?.play();
           }
           setIsConnecting(false);
         });
 
-        client.on('user-unpublished', () => {
-          setError('انتهى البث المباشر');
+        client.on('user-unpublished', (remoteUser) => {
+          setRemoteUsersByUid((prev) => {
+            const next = { ...prev };
+            delete next[remoteUser.uid as number];
+            return next;
+          });
         });
 
         await client.join(tokenData.appId, channelName, tokenData.token, tokenData.uid);
@@ -174,6 +194,145 @@ export const JixWatchStream: React.FC<JixWatchStreamProps> = ({
       clientRef.current = null;
     };
   }, [isOpen, channelName]);
+
+  useEffect(() => {
+    if (!liveId) return;
+
+    let hostAgoraUid: number | null = null;
+
+    const applyHostVideo = () => {
+      if (hostAgoraUid === null) return;
+      const remoteUser = remoteUsersByUid[hostAgoraUid];
+      if (remoteUser?.videoTrack && videoRef.current) {
+        remoteUser.videoTrack.play(videoRef.current);
+      }
+    };
+
+    supabase
+      .from('live_streams')
+      .select('host_agora_uid')
+      .eq('id', liveId)
+      .maybeSingle()
+      .then(({ data }) => {
+        hostAgoraUid = data?.host_agora_uid ?? null;
+        applyHostVideo();
+      });
+
+    applyHostVideo();
+  }, [liveId, remoteUsersByUid]);
+
+  useEffect(() => {
+    if (!liveId) return;
+
+    const loadSlots = async () => {
+      const { data } = await supabase
+        .from('stream_cohosts')
+        .select('slot, guest_id, agora_uid, profiles(full_name, handle)')
+        .eq('live_id', liveId);
+
+      const next: (CohostSlotData | null)[] = [null, null, null];
+      (data || []).forEach((row: any) => {
+        next[row.slot - 1] = {
+          slot: row.slot,
+          guestId: row.guest_id,
+          guestName: row.profiles?.full_name || row.profiles?.handle || 'ضيف',
+          agoraUid: row.agora_uid,
+        };
+      });
+      setCohostSlots(next);
+    };
+
+    loadSlots();
+
+    const channel = supabase
+      .channel(`stream_cohosts_${liveId}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'stream_cohosts', filter: `live_id=eq.${liveId}` },
+        () => loadSlots()
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [liveId]);
+
+  useEffect(() => {
+    const mySlot = cohostSlots.find((s) => s?.guestId === currentUserId);
+
+    const startPublishing = async () => {
+      try {
+        const { data: sessionData } = await supabase.auth.getSession();
+        const accessToken = sessionData.session?.access_token;
+        const anonKey = (supabase as any).supabaseKey as string;
+        const uid = Math.floor(Math.random() * 100000) + 500000;
+
+        const response = await fetch(AGORA_TOKEN_URL, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            apikey: anonKey,
+            Authorization: `Bearer ${accessToken ?? anonKey}`,
+          },
+          body: JSON.stringify({ channelName, uid, role: 'publisher' }),
+        });
+        if (!response.ok) return;
+        const tokenData = await response.json();
+
+        const client = AgoraRTC.createClient({ mode: 'live', codec: 'vp8' });
+        client.setClientRole('host');
+        cohostPublishClientRef.current = client;
+
+        await client.join(tokenData.appId, channelName, tokenData.token, tokenData.uid);
+
+        const [audioTrack, videoTrack] = await AgoraRTC.createMicrophoneAndCameraTracks();
+        cohostLocalAudioTrackRef.current = audioTrack;
+        cohostLocalVideoTrackRef.current = videoTrack;
+
+        await client.publish([audioTrack, videoTrack]);
+
+        await supabase.rpc('set_cohost_uid', { p_live_id: liveId, p_agora_uid: uid });
+      } catch (err) {
+        console.error('[JIX] فشل نشر فيديو القست:', err);
+      }
+    };
+
+    const stopPublishing = async () => {
+      const tracks = [cohostLocalAudioTrackRef.current, cohostLocalVideoTrackRef.current].filter(Boolean);
+      if (tracks.length) {
+        try {
+          await cohostPublishClientRef.current?.unpublish(tracks as any);
+        } catch {
+          // تجاهل
+        }
+      }
+      cohostLocalAudioTrackRef.current?.close();
+      cohostLocalVideoTrackRef.current?.close();
+      cohostLocalAudioTrackRef.current = null;
+      cohostLocalVideoTrackRef.current = null;
+      try {
+        await cohostPublishClientRef.current?.leave();
+      } catch {
+        // تجاهل
+      }
+      cohostPublishClientRef.current = null;
+    };
+
+    if (mySlot && !cohostPublishClientRef.current) {
+      startPublishing();
+    } else if (!mySlot && cohostPublishClientRef.current) {
+      stopPublishing();
+    }
+  }, [cohostSlots, currentUserId, channelName, liveId]);
+
+  useEffect(() => {
+    return () => {
+      cohostPublishClientRef.current?.leave();
+      cohostLocalAudioTrackRef.current?.close();
+      cohostLocalVideoTrackRef.current?.close();
+    };
+  }, []);
 
   useEffect(() => {
     if (!isOpen || !liveId) return;
@@ -198,7 +357,6 @@ export const JixWatchStream: React.FC<JixWatchStreamProps> = ({
     };
   }, [isOpen, liveId]);
 
-  // لو أنا (المشاهد) أرسلت تحدي PK لهذا المذيع، نستنى لين يوافق ونفتح شاشة المعركة تلقائيًا
   useEffect(() => {
     if (!isOpen || !currentUserId || !onPKBattleStarted) return;
 
@@ -226,11 +384,26 @@ export const JixWatchStream: React.FC<JixWatchStreamProps> = ({
     };
   }, [isOpen, currentUserId, onPKBattleStarted]);
 
+  const handleRequestCohost = async () => {
+    if (!currentUserId) return;
+    setIsRequesting(true);
+    const { error } = await supabase.rpc('request_cohost', { p_live_id: liveId, p_host_id: hostId });
+    setIsRequesting(false);
+    if (!error) setRequestSent(true);
+  };
+
+  const handleLeaveCohost = async () => {
+    if (!currentUserId) return;
+    await supabase.rpc('remove_cohost', { p_live_id: liveId, p_guest_id: currentUserId });
+  };
+
   if (!isOpen) return null;
+
+  const hasCohosts = cohostSlots.some((s) => s !== null);
 
   return (
     <div className="fixed inset-0 z-50 bg-black flex flex-col">
-      <div className="flex-1 relative flex items-center justify-center">
+      <div className={`relative ${hasCohosts ? 'h-1/2' : 'flex-1'} flex items-center justify-center`}>
         <div ref={videoRef} className="w-full h-full" />
 
         {isConnecting && !error && (
@@ -297,7 +470,32 @@ export const JixWatchStream: React.FC<JixWatchStreamProps> = ({
 
         {!isConnecting && !error && <JixGiftBar liveId={liveId} hostId={hostId} />}
 
-        {/* كومنتات البث المباشر - بث حي بدون تخزين، تختفي تلقائيًا */}
+        {currentUserId && currentUserId !== hostId && (
+          <div className="absolute bottom-4 left-4 z-10">
+            {isMeCohost ? (
+              <button
+                onClick={handleLeaveCohost}
+                className="flex items-center gap-1.5 bg-red-600/80 px-3 py-2 rounded-full text-[10px] font-bold text-white"
+              >
+                <LogOut className="w-3.5 h-3.5" /> نزول من القست
+              </button>
+            ) : requestSent ? (
+              <span className="flex items-center gap-1.5 bg-black/50 px-3 py-2 rounded-full text-[10px] font-bold text-gray-300">
+                بانتظار موافقة المذيع...
+              </span>
+            ) : (
+              <button
+                onClick={handleRequestCohost}
+                disabled={isRequesting}
+                className="flex items-center gap-1.5 bg-black/50 px-3 py-2 rounded-full text-[10px] font-bold text-white disabled:opacity-50"
+              >
+                {isRequesting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <UserPlus2 className="w-3.5 h-3.5" />}
+                طلب الصعود كقست
+              </button>
+            )}
+          </div>
+        )}
+
         {!isConnecting && !error && (
           <JixLiveComments
             channelName={channelName}
@@ -312,7 +510,6 @@ export const JixWatchStream: React.FC<JixWatchStreamProps> = ({
           />
         )}
 
-        {/* شاشة الطرد - تحل محل كل شي وتغلق الاتصال */}
         {kickedNotice && (
           <div className="absolute inset-0 z-40 flex flex-col items-center justify-center bg-black/95 px-6 text-center">
             <p className="text-sm text-red-400 font-bold mb-4">
@@ -326,6 +523,34 @@ export const JixWatchStream: React.FC<JixWatchStreamProps> = ({
           </div>
         )}
       </div>
+
+      {hasCohosts && (
+        <div className="h-1/2 grid grid-cols-3 gap-1 p-1 bg-[#0a0a0e]">
+          {cohostSlots.map((slot, i) => {
+            if (!slot) {
+              return (
+                <div key={i} className="bg-[#1a1c26] rounded-lg flex items-center justify-center">
+                  <span className="text-[9px] text-gray-600">مكان فاضي</span>
+                </div>
+              );
+            }
+
+            const isMe = slot.guestId === currentUserId;
+
+            return (
+              <JixCohostSlot
+                key={i}
+                name={slot.guestName}
+                isLocalPreview={isMe}
+                localVideoTrack={isMe ? cohostLocalVideoTrackRef.current : undefined}
+                remoteUser={!isMe && slot.agoraUid ? remoteUsersByUid[slot.agoraUid] : undefined}
+                canRemove={isMe}
+                onRemove={isMe ? handleLeaveCohost : undefined}
+              />
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 };
