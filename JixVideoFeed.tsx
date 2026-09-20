@@ -34,9 +34,10 @@ interface VideoRow {
 interface JixVideoFeedProps {
   currentUserId: string | null;
   refreshKey: number;
+  onOpenProfile?: (userId: string) => void;
 }
 
-export const JixVideoFeed: React.FC<JixVideoFeedProps> = ({ currentUserId, refreshKey }) => {
+export const JixVideoFeed: React.FC<JixVideoFeedProps> = ({ currentUserId, refreshKey, onOpenProfile }) => {
   const [posts, setPosts] = useState<VideoRow[]>([]);
   const [likedIds, setLikedIds] = useState<Set<string>>(new Set());
   const [followedIds, setFollowedIds] = useState<Set<string>>(new Set());
@@ -53,7 +54,6 @@ export const JixVideoFeed: React.FC<JixVideoFeedProps> = ({ currentUserId, refre
     fetchPosts();
   }, [refreshKey]);
 
-  // منشور صورة = خزّنا نفس الرابط بعمودي video_url و thumbnail_url وقت الرفع
   const isImagePost = (post: VideoRow) => !!post.thumbnail_url && post.thumbnail_url === post.video_url;
 
   const fetchPosts = async () => {
@@ -62,7 +62,6 @@ export const JixVideoFeed: React.FC<JixVideoFeedProps> = ({ currentUserId, refre
       .select('id, user_id, video_url, thumbnail_url, caption, likes_count, comments_count, shares_count, is_hidden, profiles(handle, full_name, avatar_url)')
       .order('created_at', { ascending: false });
 
-    // نستثني المنشورات المخفية إلا لو كانت لصاحبها هو نفسه المستخدم الحالي
     const allPosts = (data as unknown as VideoRow[]) || [];
     const visiblePosts = allPosts.filter((p) => !p.is_hidden || p.user_id === currentUserId);
     setPosts(visiblePosts);
@@ -82,7 +81,6 @@ export const JixVideoFeed: React.FC<JixVideoFeedProps> = ({ currentUserId, refre
     }
   };
 
-  // تشغيل الفيديو الظاهر بالشاشة فقط وإيقاف الباقي
   useEffect(() => {
     const observer = new IntersectionObserver(
       (entries) => {
@@ -159,7 +157,6 @@ export const JixVideoFeed: React.FC<JixVideoFeedProps> = ({ currentUserId, refre
       const nowHidden = (data as any)?.is_hidden ?? false;
 
       if (nowHidden && currentUserId) {
-        // لو صاحب المنشور هو المستخدم الحالي، يبقى ظاهر له بس بعلامة "مخفي"
         setPosts((prev) => prev.map((p) => (p.id === postId ? { ...p, is_hidden: true } : p)));
       } else {
         setPosts((prev) => prev.map((p) => (p.id === postId ? { ...p, is_hidden: false } : p)));
@@ -208,7 +205,6 @@ export const JixVideoFeed: React.FC<JixVideoFeedProps> = ({ currentUserId, refre
             </button>
           )}
 
-          {/* علامة "مخفي" تظهر لصاحب المنشور فقط */}
           {post.is_hidden && currentUserId === post.user_id && (
             <span className="absolute top-4 left-4 flex items-center gap-1 bg-black/60 px-2.5 py-1 rounded-full text-[10px] font-bold text-gray-300 z-10">
               <EyeOff className="w-3 h-3" /> مخفي
@@ -218,9 +214,16 @@ export const JixVideoFeed: React.FC<JixVideoFeedProps> = ({ currentUserId, refre
           {/* شريط أيقونات التفاعل - يمين */}
           <div className="absolute bottom-24 right-3 flex flex-col items-center gap-5 z-10">
             <div className="relative">
-              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#FF7A1A] to-[#8B5CF6] flex items-center justify-center text-xs font-black">
-                {(post.profiles?.full_name || post.profiles?.handle || 'م')[0]}
-              </div>
+              <button
+                onClick={() => onOpenProfile?.(post.user_id)}
+                className="w-10 h-10 rounded-full bg-gradient-to-br from-[#FF7A1A] to-[#8B5CF6] flex items-center justify-center text-xs font-black overflow-hidden"
+              >
+                {post.profiles?.avatar_url ? (
+                  <img src={post.profiles.avatar_url} className="w-full h-full object-cover" />
+                ) : (
+                  (post.profiles?.full_name || post.profiles?.handle || 'م')[0]
+                )}
+              </button>
               {currentUserId && post.user_id !== currentUserId && (
                 <button
                   onClick={() => handleFollow(post.user_id)}
@@ -252,7 +255,6 @@ export const JixVideoFeed: React.FC<JixVideoFeedProps> = ({ currentUserId, refre
               <span className="text-[10px] font-bold">{post.shares_count}</span>
             </button>
 
-            {/* قائمة النقط الثلاث تظهر بس على منشورات المستخدم نفسه، وإلا زر الإبلاغ */}
             {currentUserId === post.user_id ? (
               <button onClick={() => setOpenMenuId(post.id)} className="flex flex-col items-center gap-1">
                 <MoreVertical className="w-6 h-6 text-white" />
@@ -264,9 +266,9 @@ export const JixVideoFeed: React.FC<JixVideoFeedProps> = ({ currentUserId, refre
 
           {/* الوصف - أسفل */}
           <div className="absolute bottom-6 left-4 right-16 z-10">
-            <p className="font-black text-sm mb-1">
+            <button onClick={() => onOpenProfile?.(post.user_id)} className="font-black text-sm mb-1 text-white">
               {post.profiles?.full_name || post.profiles?.handle || 'مستخدم JIX'}
-            </p>
+            </button>
             {post.caption && <p className="text-xs text-gray-200">{post.caption}</p>}
           </div>
 
@@ -282,6 +284,7 @@ export const JixVideoFeed: React.FC<JixVideoFeedProps> = ({ currentUserId, refre
             fetchPosts();
           }}
           postId={activeCommentsPostId}
+          onOpenProfile={onOpenProfile}
         />
       )}
 
