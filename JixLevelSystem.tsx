@@ -14,17 +14,56 @@ interface LevelTier {
 // نفس فلسفة بيقو لايف: كل ما زاد إجمالي الكوينز (مرسلة أو مستقبلة)، ارتفع اللفل
 // المدرّجات هنا للداعمين (Supporter) - المستقبل يستخدم نفس الجدول بس على receiver_xp
 const TIERS: LevelTier[] = [
-  { level: 1, minXp: 0, name: 'مبتدئ', frameColors: ['#6B6B76', '#4A4A52'], glow: false },
-  { level: 2, minXp: 500, name: 'برونزي', frameColors: ['#C98B4E', '#8B5A2B'], glow: false },
-  { level: 3, minXp: 2000, name: 'فضي', frameColors: ['#D3D1C7', '#888780'], glow: false },
-  { level: 4, minXp: 5000, name: 'ذهبي', frameColors: ['#FAC775', '#D4901A'], glow: false },
-  { level: 5, minXp: 12000, name: 'بلاتيني', frameColors: ['#8FD8F0', '#3A9BC0'], glow: false },
-  { level: 6, minXp: 25000, name: 'ماسي', frameColors: ['#85B7EB', '#378ADD'], glow: true },
-  { level: 7, minXp: 50000, name: 'أسطوري', frameColors: ['#FF7A1A', '#8B5CF6'], glow: true },
-  { level: 8, minXp: 100000, name: 'ملكي', frameColors: ['#D4537E', '#8B5CF6'], glow: true },
-  { level: 9, minXp: 250000, name: 'إمبراطوري', frameColors: ['#FAC775', '#FF7A1A'], glow: true },
-  { level: 10, minXp: 500000, name: 'خرافي', frameColors: ['#8B5CF6', '#D4537E'], glow: true },
-];
+  { level: 1, minXp: 1, name: 'مبتدئ 1', frameColors: ['#6B6B76', '#4A4A52'], glow: false },
+  { level: 2, minXp: 50, name: 'مبتدئ 2', frameColors: ['#6B6B76', '#4A4A52'], glow: false },
+  { level: 3, minXp: 150, name: 'مبتدئ 3', frameColors: ['#6B6B76', '#4A4A52'], glow: false },
+  { level: 4, minXp: 350, name: 'مبتدئ 4', frameColors: ['#6B6B76', '#4A4A52'], glow: false },
+  { level: 5, minXp: 650, name: 'مبتدئ 5', frameColors: ['#6B6B76', '#4A4A52'], glow: false },
+  { level: 6, minXp: 1000, name: 'برونزي 1', frameColors: ['#C98B4E', '#8B5A2B'], glow: false },
+  { level: 7, minXp: 1400, name: 'برونزي 2', frameColors: ['#C98B4E', '#8B5A2B'], glow: false },
+  { level: 8, minXp: 1900, name: 'برونزي 3', frameColors: ['#C98B4E', '#8B5A2B'], glow: false },
+  { level: 9, minXp: 2600, name: 'برونزي 4', frameColors: ['#C98B4E', '#8B5A2B'], glow: false },
+  { level: 10, minXp: 3600, name: 'برونزي 5', frameColors: ['#C98B4E', '#8B5A2B'], glow: false },
+  { level: 11, minXp: 5000, name: 'فضي 1', frameColors: ['#D3D1C7', '#888780'], glow: false },
+  { level: 12, minXp: 6600, name: 'فضي 2', frameColors: ['#D3D1C7', '#888780'], glow: false },
+  { level: 13, minXp: 8700, name: 'فضي 3', frameColors: ['#D3D1C7', '#888780'], glow: false },
+  { level: 14, minXp: 11000, name: 'فضي 4', frameColors: ['#D3D1C7', '#888780'], glow: false },
+  { level: 15, minXp: 15000, name: 'فضي 5', frameColors: ['#D3D1C7', '#888780'], glow: false },
+  { level: 16, minXp: 20000, name: 'ذهبي 1', frameColors: ['#FAC775', '#D4901A'], glow: false },
+  { level: 17, minXp: 26000, name: 'ذهبي 2', frameColors: ['#FAC775', '#D4901A'], glow: false },
+  { level: 18, minXp: 34000, name: 'ذهبي 3', frameColors: ['#FAC775', '#D4901A'], glow: false },
+  { level: 19, minXp: 44000, name: 'ذهبي 4', frameColors: ['#FAC775', '#D4901A'], glow: false },
+  { level: 20, minXp: 58000, name: 'ذهبي 5', frameColors: ['#FAC775', '#D4901A'], glow: false },
+  { level: 21, minXp: 75000, name: 'بلاتيني 1', frameColors: ['#8FD8F0', '#3A9BC0'], glow: false },
+  { level: 22, minXp: 95000, name: 'بلاتيني 2', frameColors: ['#8FD8F0', '#3A9BC0'], glow: false },
+  { level: 23, minXp: 120000, name: 'بلاتيني 3', frameColors: ['#8FD8F0', '#3A9BC0'], glow: false },
+  { level: 24, minXp: 155000, name: 'بلاتيني 4', frameColors: ['#8FD8F0', '#3A9BC0'], glow: false },
+  { level: 25, minXp: 195000, name: 'بلاتيني 5', frameColors: ['#8FD8F0', '#3A9BC0'], glow: false },
+  { level: 26, minXp: 250000, name: 'ماسي 1', frameColors: ['#85B7EB', '#378ADD'], glow: true },
+  { level: 27, minXp: 310000, name: 'ماسي 2', frameColors: ['#85B7EB', '#378ADD'], glow: true },
+  { level: 28, minXp: 390000, name: 'ماسي 3', frameColors: ['#85B7EB', '#378ADD'], glow: true },
+  { level: 29, minXp: 485000, name: 'ماسي 4', frameColors: ['#85B7EB', '#378ADD'], glow: true },
+  { level: 30, minXp: 600000, name: 'ماسي 5', frameColors: ['#85B7EB', '#378ADD'], glow: true },
+  { level: 31, minXp: 750000, name: 'أسطوري 1', frameColors: ['#FF7A1A', '#8B5CF6'], glow: true },
+  { level: 32, minXp: 955000, name: 'أسطوري 2', frameColors: ['#FF7A1A', '#8B5CF6'], glow: true },
+  { level: 33, minXp: 1200000, name: 'أسطوري 3', frameColors: ['#FF7A1A', '#8B5CF6'], glow: true },
+  { level: 34, minXp: 1500000, name: 'أسطوري 4', frameColors: ['#FF7A1A', '#8B5CF6'], glow: true },
+  { level: 35, minXp: 2000000, name: 'أسطوري 5', frameColors: ['#FF7A1A', '#8B5CF6'], glow: true },
+  { level: 36, minXp: 2500000, name: 'ملكي 1', frameColors: ['#D4537E', '#8B5CF6'], glow: true },
+  { level: 37, minXp: 3300000, name: 'ملكي 2', frameColors: ['#D4537E', '#8B5CF6'], glow: true },
+  { level: 38, minXp: 4400000, name: 'ملكي 3', frameColors: ['#D4537E', '#8B5CF6'], glow: true },
+  { level: 39, minXp: 5700000, name: 'ملكي 4', frameColors: ['#D4537E', '#8B5CF6'], glow: true },
+  { level: 40, minXp: 7600000, name: 'ملكي 5', frameColors: ['#D4537E', '#8B5CF6'], glow: true },
+  { level: 41, minXp: 10000000, name: 'إمبراطوري 1', frameColors: ['#FAC775', '#FF7A1A'], glow: true },
+  { level: 42, minXp: 12500000, name: 'إمبراطوري 2', frameColors: ['#FAC775', '#FF7A1A'], glow: true },
+  { level: 43, minXp: 15500000, name: 'إمبراطوري 3', frameColors: ['#FAC775', '#FF7A1A'], glow: true },
+  { level: 44, minXp: 19300000, name: 'إمبراطوري 4', frameColors: ['#FAC775', '#FF7A1A'], glow: true },
+  { level: 45, minXp: 24100000, name: 'إمبراطوري 5', frameColors: ['#FAC775', '#FF7A1A'], glow: true },
+  { level: 46, minXp: 30000000, name: 'خرافي 1', frameColors: ['#8B5CF6', '#D4537E'], glow: true },
+  { level: 47, minXp: 38200000, name: 'خرافي 2', frameColors: ['#8B5CF6', '#D4537E'], glow: true },
+  { level: 48, minXp: 48600000, name: 'خرافي 3', frameColors: ['#8B5CF6', '#D4537E'], glow: true },
+  { level: 49, minXp: 61800000, name: 'خرافي 4', frameColors: ['#8B5CF6', '#D4537E'], glow: true },
+  { level: 50, minXp: 100000000, name: 'خرافي 5', frameColors: ['#8B5CF6', '#D4537E'], glow: true },];
 
 export const getTier = (xp: number): LevelTier => {
   let current = TIERS[0];
@@ -216,7 +255,10 @@ export const AvatarFrame: React.FC<{ xp: number; kind: LevelKind; size: number; 
   children,
 }) => {
   const tier = getTier(xp);
-  const ringWidth = 3 + Math.min(tier.level, 5); // كل ما زاد اللفل زاد سمك الإطار
+  // كل مستوى رئيسي (١-١٠) فيه ٥ درجات فرعية - نحسب سمك الإطار على أساس
+  // المستوى الرئيسي حتى يتدرج بالسمك تدريجياً عبر كل الخمسين مستوى وليس بأول خمسة فقط
+  const mainTierIndex = Math.ceil(tier.level / 5);
+  const ringWidth = 3 + Math.min(mainTierIndex, 5);
 
   return (
     <div
