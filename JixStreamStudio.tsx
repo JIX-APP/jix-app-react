@@ -194,6 +194,17 @@ export const JixStreamStudio: React.FC<JixStreamStudioProps> = ({ isOpen, onClos
 
       if (videoRef.current) {
         videoTrack.play(videoRef.current);
+
+        // إصلاح خلل معروف بمتصفح Safari على iOS: المتصفح أحياناً ما يرسم
+        // أول فريمات الكاميرا فعلياً حتى لو المسار شغال، ويضل الفيديو
+        // عالق على إطار أسود لين يصير أي حدث يجبره يعيد الرسم (زي تبديل
+        // الوضع يدوياً). هذا نفس الأثر لكن تلقائي وغير محسوس للمستخدم.
+        setTimeout(() => {
+          videoTrack.setEnabled(false);
+          setTimeout(() => {
+            videoTrack.setEnabled(true);
+          }, 100);
+        }, 800);
       }
 
       await client.publish([audioTrack, videoTrack]);
