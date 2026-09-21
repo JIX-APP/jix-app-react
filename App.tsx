@@ -15,6 +15,13 @@ import { supabase } from './supabaseClient';
 import { getPKBattle } from './JixPK';
 import { JixPKChallengeNotification } from './JixPKChallengeNotification';
 import { JixPKBattleView, JixPKResultOverlay } from './JixPKBattleView';
+import { JixStories } from './JixStories';
+import { JixStoryUpload } from './JixStoryUpload';
+import { JixDMList } from './JixDMList';
+import { JixDMConversation } from './JixDMConversation';
+import { JixDMCall } from './JixDMCall';
+import { JixDMCallNotification } from './JixDMCallNotification';
+import { JixGroupChat } from './JixGroupChat';
 
 interface CurrentUser {
   id: string;
@@ -90,6 +97,28 @@ function App() {
   const [pkHostAName, setPkHostAName] = useState('');
   const [pkHostBName, setPkHostBName] = useState('');
   const [pkWinnerName, setPkWinnerName] = useState<string | null | undefined>(undefined);
+
+  // القصص
+  const [isStoryUploadOpen, setIsStoryUploadOpen] = useState(false);
+
+  // تبويب الرسائل: محادثات خاصة أو دردشة عامة
+  const [messagesTab, setMessagesTab] = useState<'dms' | 'group'>('dms');
+
+  // المحادثة الخاصة المفتوحة حالياً (لو موجودة تفتح فوق كل شي)
+  const [openConversation, setOpenConversation] = useState<{
+    conversationId: string;
+    otherUserId: string;
+    otherUserName: string;
+  } | null>(null);
+
+  // المكالمة النشطة حالياً (صادرة أو واردة بعد القبول)
+  const [activeCall, setActiveCall] = useState<{
+    callId: string;
+    agoraChannel: string;
+    callType: 'voice' | 'video';
+    otherUserName: string;
+    isIncoming: boolean;
+  } | null>(null);
 
   useEffect(() => {
     if (!pkBattleId) return;
@@ -242,6 +271,31 @@ function App() {
     setViewingProfileUserId(targetUserId);
   };
 
+  // بدء مكالمة صوتية/مرئية من داخل محادثة خاصة مفتوحة
+  const handleStartCall = async (callType: 'voice' | 'video') => {
+    if (!openConversation || !user) return;
+
+    const { data, error } = await supabase.rpc('start_dm_call', {
+      p_conversation_id: openConversation.conversationId,
+      p_callee_id: openConversation.otherUserId,
+      p_call_type: callType,
+    });
+
+    if (error || !data || data.length === 0) {
+      console.error('[JIX] فشل بدء المكالمة:', error);
+      return;
+    }
+
+    const row = data[0] as { call_id: string; agora_channel: string };
+    setActiveCall({
+      callId: row.call_id,
+      agoraChannel: row.agora_channel,
+      callType,
+      otherUserName: openConversation.otherUserName,
+      isIncoming: false,
+    });
+  };
+
   const handleStartEditName = () => {
     if (!user) return;
     setNameDraft(user.name);
@@ -332,15 +386,27 @@ function App() {
   return (
     <div className="h-[100dvh] max-w-[430px] mx-auto relative bg-[#0E0E12] text-white overflow-hidden">
       {screen === 'Home' && (
-        <header className="absolute top-0 inset-x-0 z-30 flex items-center justify-between px-4 pt-4 pb-3 bg-gradient-to-b from-black/60 to-transparent">
-          <span className="font-black text-sm">JIX</span>
-          {isCheckingSession ? (
-            <Loader2 className="w-4 h-4 animate-spin text-[#8B5CF6]" />
-          ) : (
-            <button className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center backdrop-blur">
-              <Search className="w-4 h-4" />
-            </button>
-          )}
+        <header className="absolute top-0 inset-x-0 z-30 flex flex-col bg-gradient-to-b from-black/60 to-transparent">
+          <div className="flex items-center justify-between px-4 pt-4 pb-2">
+            <span className="font-black text-sm">JIX</span>
+            {isCheckingSession ? (
+              <Loader2 className="w-4 h-4 animate-spin text-[#8B5CF6]" />
+            ) : (
+              <button className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center backdrop-blur">
+                <Search className="w-4 h-4" />
+              </button>
+            )}
+          </div>
+          <JixStories
+            currentUserId={user?.id ?? null}
+            onOpenUpload={() => {
+              if (!user) {
+                setIsAuthOpen(true);
+                return;
+              }
+              setIsStoryUploadOpen(true);
+            }}
+          />
         </header>
       )}
 
@@ -403,12 +469,53 @@ function App() {
         )}
       </div>
 
-      <div className={`absolute inset-0 pt-6 pb-24 px-4 ${screen === 'Messages' ? '' : 'hidden'}`}>
-        <h2 className="font-black text-lg mb-6">الرسائل</h2>
-        <div className="flex flex-col items-center justify-center py-16 text-center">
-          <MessageCircle className="w-10 h-10 text-[#6B6B76] mb-3" />
-          <p className="text-sm text-[#9A9A9E]">لسه مفيش أي رسائل</p>
+      <div className={`absolute inset-0 pt-6 pb-24 flex flex-col ${screen === 'Messages' ? '' : 'hidden'}`}>
+        <h2 className="font-black text-lg mb-3 px-4">الرسائل</h2>
+
+        <div className="flex gap-2 px-4 mb-3">
+          <button
+            onClick={() => setMessagesTab('dms')}
+            className={`px-4 py-1.5 rounded-full text-xs font-bold transition ${
+              messagesTab === 'dms' ? 'bg-gradient-to-r from-[#FF7A1A] to-[#8B5CF6] text-white' : 'bg-white/5 text-gray-400'
+            }`}
+          >
+            المحادثات
+          </button>
+          <button
+            onClick={() => setMessagesTab('group')}
+            className={`px-4 py-1.5 rounded-full text-xs font-bold transition ${
+              messagesTab === 'group' ? 'bg-gradient-to-r from-[#FF7A1A] to-[#8B5CF6] text-white' : 'bg-white/5 text-gray-400'
+            }`}
+          >
+            الدردشة العامة
+          </button>
         </div>
+
+        {!user ? (
+          <div className="flex flex-col items-center justify-center py-16 text-center px-4">
+            <MessageCircle className="w-10 h-10 text-[#6B6B76] mb-3" />
+            <p className="text-sm text-[#9A9A9E] mb-4">سجّل الدخول عشان تشوف رسائلك</p>
+            <button
+              onClick={() => setIsAuthOpen(true)}
+              className="px-6 py-3 bg-gradient-to-r from-[#FF7A1A] to-[#8B5CF6] rounded-2xl font-black text-sm"
+            >
+              تسجيل الدخول
+            </button>
+          </div>
+        ) : messagesTab === 'dms' ? (
+          <div className="flex-1 overflow-y-auto">
+            <JixDMList
+              currentUserId={user.id}
+              onOpenConversation={(conversationId, otherUserId, otherUserName) =>
+                setOpenConversation({ conversationId, otherUserId, otherUserName })
+              }
+            />
+          </div>
+        ) : (
+          <div className="flex-1 overflow-hidden">
+            <JixGroupChat currentUserId={user.id} onOpenProfile={handleOpenProfile} />
+          </div>
+        )}
       </div>
 
       <div className={`absolute inset-0 pt-6 pb-24 px-4 overflow-y-auto ${screen === 'Profile' ? '' : 'hidden'}`}>
@@ -690,6 +797,51 @@ function App() {
         currentUserId={user?.id ?? null}
         onAccepted={(battleId) => setPkBattleId(battleId)}
       />
+
+      <JixStoryUpload
+        isOpen={isStoryUploadOpen}
+        onClose={() => setIsStoryUploadOpen(false)}
+        onUploaded={() => setIsStoryUploadOpen(false)}
+      />
+
+      {/* شاشة محادثة خاصة مفتوحة - تفتح فوق كل شي */}
+      {openConversation && user && (
+        <JixDMConversation
+          conversationId={openConversation.conversationId}
+          currentUserId={user.id}
+          otherUserId={openConversation.otherUserId}
+          otherUserName={openConversation.otherUserName}
+          onBack={() => setOpenConversation(null)}
+          onStartCall={handleStartCall}
+        />
+      )}
+
+      {/* إشعار مكالمة واردة - يظهر بأي مكان بالتطبيق */}
+      <JixDMCallNotification
+        currentUserId={user?.id ?? null}
+        onAccepted={(call) =>
+          setActiveCall({
+            callId: call.callId,
+            agoraChannel: call.agoraChannel,
+            callType: call.callType,
+            otherUserName: call.callerName,
+            isIncoming: true,
+          })
+        }
+      />
+
+      {/* شاشة المكالمة النشطة - صوتية أو مرئية */}
+      {activeCall && user && (
+        <JixDMCall
+          callId={activeCall.callId}
+          agoraChannel={activeCall.agoraChannel}
+          callType={activeCall.callType}
+          otherUserName={activeCall.otherUserName}
+          currentUserId={user.id}
+          isIncoming={activeCall.isIncoming}
+          onEnd={() => setActiveCall(null)}
+        />
+      )}
 
       {pkBattleId && pkWinnerName === undefined && (
         <JixPKBattleView
