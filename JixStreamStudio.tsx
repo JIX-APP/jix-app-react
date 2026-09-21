@@ -8,7 +8,6 @@ import { LevelBadge, useLevelXp } from './JixLevelSystem';
 import { JixLiveComments } from './JixLiveComments';
 import { JixModeratorManager } from './JixModeratorManager';
 import { JixCohostSlot } from './JixCohostSlot';
-import { JixLiveMvpBadge } from './JixMvpBadge';
 
 interface Viewer {
   id: string;
@@ -555,7 +554,6 @@ export const JixStreamStudio: React.FC<JixStreamStudioProps> = ({ isOpen, onClos
               </span>
             )}
             <LevelBadge xp={hostReceiverXp} kind="receiver" />
-            {liveId && <JixLiveMvpBadge liveId={liveId} size={32} />}
           </div>
 
           {isLive && (
