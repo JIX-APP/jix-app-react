@@ -15,13 +15,15 @@ import { supabase } from './supabaseClient';
 import { getPKBattle } from './JixPK';
 import { JixPKChallengeNotification } from './JixPKChallengeNotification';
 import { JixPKBattleView, JixPKResultOverlay } from './JixPKBattleView';
-import { JixStories } from './JixStories';
-import { JixStoryUpload } from './JixStoryUpload';
-import { JixDMList } from './JixDMList';
-import { JixDMConversation } from './JixDMConversation';
+import {
+  JixStories,
+  JixStoryUpload,
+  JixDMList,
+  JixDMConversation,
+  JixDMCallNotification,
+  JixGroupChat,
+} from './JixNewFeatures';
 import { JixDMCall } from './JixDMCall';
-import { JixDMCallNotification } from './JixDMCallNotification';
-import { JixGroupChat } from './JixGroupChat';
 
 interface CurrentUser {
   id: string;
