@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Send, MoreVertical, VolumeX, Clock, Ban } from 'lucide-react';
 import { supabase } from './supabaseClient';
+import { JixMvpBadge, useLiveMvpTiers } from './JixMvpBadge';
 
 interface LiveCommentMsg {
   id: string;
@@ -51,6 +52,7 @@ export const JixLiveComments: React.FC<JixLiveCommentsProps> = ({
   const lastSentTextRef = useRef<string>('');
 
   const canModerate = isHost || isModerator;
+  const mvpTiers = useLiveMvpTiers(liveId);
 
   useEffect(() => {
     const channel = supabase.channel(`live_comments_${channelName}`, {
@@ -186,14 +188,25 @@ export const JixLiveComments: React.FC<JixLiveCommentsProps> = ({
         <div className="mt-auto flex flex-col gap-1.5">
           {messages.map((msg) => (
             <div key={msg.id} className="relative flex items-start gap-1">
-              <div className="bg-black/50 backdrop-blur-sm rounded-2xl px-3 py-1.5 max-w-[85%] w-fit">
-                <button
-                  onClick={() => onOpenProfile?.(msg.senderId)}
-                  className="text-[11px] font-black text-[#F5B93E]"
-                >
-                  {msg.senderName}:{' '}
-                </button>
-                <span className="text-[11px] text-white">{msg.text}</span>
+              <div className="bg-black/50 backdrop-blur-sm rounded-2xl px-3 py-1.5 max-w-[85%] w-fit flex items-center gap-1.5">
+                {mvpTiers[msg.senderId] && (
+                  <JixMvpBadge
+                    tier={mvpTiers[msg.senderId].tier}
+                    avatarUrl={mvpTiers[msg.senderId].avatarUrl}
+                    fallbackLetter={msg.senderName[0]}
+                    size={20}
+                    onClick={() => onOpenProfile?.(msg.senderId)}
+                  />
+                )}
+                <div>
+                  <button
+                    onClick={() => onOpenProfile?.(msg.senderId)}
+                    className="text-[11px] font-black text-[#F5B93E]"
+                  >
+                    {msg.senderName}:{' '}
+                  </button>
+                  <span className="text-[11px] text-white">{msg.text}</span>
+                </div>
               </div>
 
               {canModerate && msg.senderId !== currentUserId && (
