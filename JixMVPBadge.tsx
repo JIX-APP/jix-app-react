@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
+import { supabase } from './supabaseClient';
 
 export type MvpTier =
   | 'bronze'
@@ -77,5 +78,100 @@ export const JixMvpBadge: React.FC<JixMvpBadgeProps> = ({
         style={{ width: size, height: size }}
       />
     </button>
+  );
+};
+
+// ============================================================
+// مكوّن جاهز يربط JixMvpBadge ببيانات صاحب MVP الحالي لبث معيّن
+// يجيب صاحب MVP + مستواه من جدول live_streams، ويحدّث نفسه لحظياً
+// كل ما تغيّر صاحب MVP (بعد أي هدية جديدة تستدعي claim_mvp)
+// ============================================================
+
+// نفس عتبات دالة get_mvp_tier بقاعدة البيانات بالضبط - لازم تبقى متطابقة
+const getTierFromAmount = (amount: number): MvpTier | null => {
+  if (amount >= 1000000) return 'legendary';
+  if (amount >= 750000) return 'iron';
+  if (amount >= 500000) return 'imperial';
+  if (amount >= 100000) return 'platinum';
+  if (amount >= 50000) return 'gold';
+  if (amount >= 10000) return 'silver';
+  if (amount >= 1000) return 'bronze';
+  return null;
+};
+
+interface JixLiveMvpBadgeProps {
+  liveId: string;
+  size?: number;
+  onOpenProfile?: (userId: string) => void;
+}
+
+export const JixLiveMvpBadge: React.FC<JixLiveMvpBadgeProps> = ({ liveId, size = 32, onOpenProfile }) => {
+  const [holderId, setHolderId] = useState<string | null>(null);
+  const [amount, setAmount] = useState(0);
+  const [holderProfile, setHolderProfile] = useState<{
+    avatar_url: string | null;
+    full_name: string | null;
+    handle: string | null;
+  } | null>(null);
+
+  // جلب حالة MVP الحالية + الاشتراك بالتحديثات اللحظية لنفس صف البث
+  useEffect(() => {
+    if (!liveId) return;
+
+    supabase
+      .from('live_streams')
+      .select('mvp_holder_id, mvp_amount')
+      .eq('id', liveId)
+      .maybeSingle()
+      .then(({ data }) => {
+        setHolderId(data?.mvp_holder_id ?? null);
+        setAmount(data?.mvp_amount ?? 0);
+      });
+
+    const channel = supabase
+      .channel(`live_mvp_${liveId}`)
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'live_streams', filter: `id=eq.${liveId}` },
+        (payload) => {
+          const row = payload.new as { mvp_holder_id: string | null; mvp_amount: number };
+          setHolderId(row.mvp_holder_id ?? null);
+          setAmount(row.mvp_amount ?? 0);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [liveId]);
+
+  // جلب بروفايل صاحب MVP الحالي كل ما تغيّر
+  useEffect(() => {
+    if (!holderId) {
+      setHolderProfile(null);
+      return;
+    }
+    supabase
+      .from('profiles')
+      .select('avatar_url, full_name, handle')
+      .eq('id', holderId)
+      .maybeSingle()
+      .then(({ data }) => setHolderProfile(data ?? null));
+  }, [holderId]);
+
+  if (!holderId) return null;
+
+  const tier = getTierFromAmount(amount);
+  const name = holderProfile?.full_name || holderProfile?.handle || 'م';
+
+  return (
+    <JixMvpBadge
+      tier={tier}
+      avatarUrl={holderProfile?.avatar_url ?? null}
+      fallbackLetter={name[0]}
+      size={size}
+      onClick={() => onOpenProfile?.(holderId)}
+    />
   );
 };
