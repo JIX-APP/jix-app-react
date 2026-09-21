@@ -10,6 +10,7 @@ import { JixReportButton } from './JixReportButton';
 import { JixPKChallengeButton } from './JixPKChallengeButton';
 import { JixLiveComments } from './JixLiveComments';
 import { JixCohostSlot } from './JixCohostSlot';
+import { JixLiveMvpBadge } from './JixMvpBadge';
 
 interface JixWatchStreamProps {
   isOpen: boolean;
@@ -458,6 +459,7 @@ export const JixWatchStream: React.FC<JixWatchStreamProps> = ({
             {hostUsername}
           </button>
           <LevelBadge xp={hostReceiverXp} kind="receiver" />
+          <JixLiveMvpBadge liveId={liveId} size={28} onOpenProfile={onOpenProfile} />
           {currentUserId && currentUserId !== hostId && onPKBattleStarted && (
             <JixPKChallengeButton
               targetUserId={hostId}
