@@ -81,10 +81,11 @@ export const JixMvpBadge: React.FC<JixMvpBadgeProps> = ({
   );
 };
 
+
 // ============================================================
-// مكوّن جاهز يربط JixMvpBadge ببيانات صاحب MVP الحالي لبث معيّن
-// يجيب صاحب MVP + مستواه من جدول live_streams، ويحدّث نفسه لحظياً
-// كل ما تغيّر صاحب MVP (بعد أي هدية جديدة تستدعي claim_mvp)
+// خطّاف يجيب كل الداعمين المؤهلين (وصلوا 1000 كوين فأكثر) بهذا البث
+// مع مستوى كل واحد لحاله - بدون أي "فوز وحيد"، كل داعم إطاره مستقل
+// ويحتفظ فيه طول ما يقعد بالبث، ويتحدث لحظياً كل ما تجي هدية جديدة
 // ============================================================
 
 // نفس عتبات دالة get_mvp_tier بقاعدة البيانات بالضبط - لازم تبقى متطابقة
@@ -99,45 +100,42 @@ const getTierFromAmount = (amount: number): MvpTier | null => {
   return null;
 };
 
-interface JixLiveMvpBadgeProps {
-  liveId: string;
-  size?: number;
-  onOpenProfile?: (userId: string) => void;
+export interface UserMvpInfo {
+  tier: MvpTier;
+  avatarUrl: string | null;
 }
 
-export const JixLiveMvpBadge: React.FC<JixLiveMvpBadgeProps> = ({ liveId, size = 32, onOpenProfile }) => {
-  const [holderId, setHolderId] = useState<string | null>(null);
-  const [amount, setAmount] = useState(0);
-  const [holderProfile, setHolderProfile] = useState<{
-    avatar_url: string | null;
-    full_name: string | null;
-    handle: string | null;
-  } | null>(null);
+// يرجع خريطة { userId: { tier, avatarUrl } } لكل داعمي البث المؤهلين
+export function useLiveMvpTiers(liveId: string): Record<string, UserMvpInfo> {
+  const [tiersByUser, setTiersByUser] = useState<Record<string, UserMvpInfo>>({});
 
-  // جلب حالة MVP الحالية + الاشتراك بالتحديثات اللحظية لنفس صف البث
   useEffect(() => {
     if (!liveId) return;
 
-    supabase
-      .from('live_streams')
-      .select('mvp_holder_id, mvp_amount')
-      .eq('id', liveId)
-      .maybeSingle()
-      .then(({ data }) => {
-        setHolderId(data?.mvp_holder_id ?? null);
-        setAmount(data?.mvp_amount ?? 0);
+    const load = async () => {
+      const { data } = await supabase
+        .from('live_mvp_contributions')
+        .select('user_id, total_amount, profiles(avatar_url)')
+        .eq('live_id', liveId);
+
+      const map: Record<string, UserMvpInfo> = {};
+      (data || []).forEach((row: any) => {
+        const tier = getTierFromAmount(row.total_amount);
+        if (tier) {
+          map[row.user_id] = { tier, avatarUrl: row.profiles?.avatar_url ?? null };
+        }
       });
+      setTiersByUser(map);
+    };
+
+    load();
 
     const channel = supabase
-      .channel(`live_mvp_${liveId}`)
+      .channel(`live_mvp_tiers_${liveId}`)
       .on(
         'postgres_changes',
-        { event: 'UPDATE', schema: 'public', table: 'live_streams', filter: `id=eq.${liveId}` },
-        (payload) => {
-          const row = payload.new as { mvp_holder_id: string | null; mvp_amount: number };
-          setHolderId(row.mvp_holder_id ?? null);
-          setAmount(row.mvp_amount ?? 0);
-        }
+        { event: '*', schema: 'public', table: 'live_mvp_contributions', filter: `live_id=eq.${liveId}` },
+        () => load()
       )
       .subscribe();
 
@@ -146,32 +144,5 @@ export const JixLiveMvpBadge: React.FC<JixLiveMvpBadgeProps> = ({ liveId, size =
     };
   }, [liveId]);
 
-  // جلب بروفايل صاحب MVP الحالي كل ما تغيّر
-  useEffect(() => {
-    if (!holderId) {
-      setHolderProfile(null);
-      return;
-    }
-    supabase
-      .from('profiles')
-      .select('avatar_url, full_name, handle')
-      .eq('id', holderId)
-      .maybeSingle()
-      .then(({ data }) => setHolderProfile(data ?? null));
-  }, [holderId]);
-
-  if (!holderId) return null;
-
-  const tier = getTierFromAmount(amount);
-  const name = holderProfile?.full_name || holderProfile?.handle || 'م';
-
-  return (
-    <JixMvpBadge
-      tier={tier}
-      avatarUrl={holderProfile?.avatar_url ?? null}
-      fallbackLetter={name[0]}
-      size={size}
-      onClick={() => onOpenProfile?.(holderId)}
-    />
-  );
-};
+  return tiersByUser;
+}
