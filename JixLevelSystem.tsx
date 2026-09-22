@@ -179,16 +179,20 @@ export const LevelBadge: React.FC<{ xp: number; kind: LevelKind; size?: 'sm' | '
     <div className="relative inline-block">
       <button
         onClick={() => setIsOpen((v) => !v)}
-        className={`inline-flex items-center gap-1 rounded-full font-black ${
-          isSmall ? 'px-1.5 py-0.5 text-[9px]' : 'px-2.5 py-1 text-xs'
+        className={`inline-flex items-center gap-1.5 rounded-full font-black ${
+          isSmall ? 'px-2 py-1 text-xs' : 'px-3 py-1.5 text-sm'
         }`}
         style={{
           background: `linear-gradient(90deg, ${tier.frameColors[0]}, ${tier.frameColors[1]})`,
-          color: '#fff',
         }}
       >
         <TierIcon kind={kind} level={tier.level} size={iconSize} />
-        Lv.{tier.level}
+        <span
+          className="bg-clip-text text-transparent"
+          style={{ backgroundImage: 'linear-gradient(90deg, #8B5CF6, #3B82F6)' }}
+        >
+          Lv.{tier.level}
+        </span>
       </button>
 
       {isOpen && (
