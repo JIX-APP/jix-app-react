@@ -23,6 +23,8 @@ export const JixUploadVideo: React.FC<JixUploadVideoProps> = ({ isOpen, onClose,
   const [isUploading, setIsUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isRecorderOpen, setIsRecorderOpen] = useState(false);
+  // يختفي مربع اختيار/معاينة الصورة أو الفيديو وقت الكتابة في الوصف، عشان يفضى المجال للوحة المفاتيح (نفس فكرة تيك توك)
+  const [isCaptionFocused, setIsCaptionFocused] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   if (!isOpen) return null;
@@ -37,11 +39,11 @@ export const JixUploadVideo: React.FC<JixUploadVideoProps> = ({ isOpen, onClose,
     setPreviewUrl(URL.createObjectURL(selected));
   };
 
-  // يستقبل الفيديو المسجّل حديثاً من شاشة التصوير بالفلاتر ويعامله بنفس طريقة ملف مُختار عادي
-  const handleRecorded = (recordedFile: File) => {
-    setFile(recordedFile);
-    setIsImage(false);
-    setPreviewUrl(URL.createObjectURL(recordedFile));
+  // يستقبل الصورة أو الفيديو الملتقط حديثاً من شاشة التصوير بالفلاتر ويعامله بنفس طريقة ملف مُختار عادي
+  const handleCaptured = (capturedFile: File, type: 'image' | 'video') => {
+    setFile(capturedFile);
+    setIsImage(type === 'image');
+    setPreviewUrl(URL.createObjectURL(capturedFile));
     setIsRecorderOpen(false);
   };
 
@@ -151,28 +153,58 @@ export const JixUploadVideo: React.FC<JixUploadVideoProps> = ({ isOpen, onClose,
           </div>
         )}
 
-        {!previewUrl ? (
-          <div className="grid grid-cols-2 gap-2.5 mb-4">
+        {/* مربع اختيار/معاينة الصورة أو الفيديو + التصنيفات - يختفي تلقائيًا وقت الكتابة في الوصف عشان يفضى المجال */}
+        <div
+          className={`overflow-hidden transition-all duration-300 ease-out ${
+            isCaptionFocused ? 'max-h-0 opacity-0' : 'max-h-[700px] opacity-100'
+          }`}
+        >
+          {!previewUrl ? (
+            <div className="grid grid-cols-2 gap-2.5 mb-4">
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                className="aspect-[9/12] rounded-2xl border-2 border-dashed border-gray-700 flex flex-col items-center justify-center gap-3 hover:border-[#8B5CF6] transition"
+              >
+                <Camera className="w-10 h-10 text-gray-500" />
+                <span className="text-sm text-gray-400 text-center px-2">اختر من المعرض</span>
+              </button>
+              <button
+                onClick={() => setIsRecorderOpen(true)}
+                className="aspect-[9/12] rounded-2xl border-2 border-dashed border-[#8B5CF6]/50 flex flex-col items-center justify-center gap-3 hover:border-[#8B5CF6] transition"
+              >
+                <Sparkles className="w-10 h-10 text-[#8B5CF6]" />
+                <span className="text-sm text-gray-400 text-center px-2">صوّر بالفلاتر</span>
+              </button>
+            </div>
+          ) : isImage ? (
+            <img src={previewUrl} className="w-full aspect-[9/12] object-cover rounded-2xl mb-4 bg-black" />
+          ) : (
+            <video src={previewUrl} controls className="w-full aspect-[9/12] object-cover rounded-2xl mb-4 bg-black" />
+          )}
+
+          {previewUrl && (
             <button
               onClick={() => fileInputRef.current?.click()}
-              className="aspect-[9/12] rounded-2xl border-2 border-dashed border-gray-700 flex flex-col items-center justify-center gap-3 hover:border-[#8B5CF6] transition"
+              className="w-full mb-4 py-2 text-xs font-bold text-[#8B5CF6] bg-white/5 rounded-xl"
             >
-              <Camera className="w-10 h-10 text-gray-500" />
-              <span className="text-sm text-gray-400 text-center px-2">اختر من المعرض</span>
+              تغيير الصورة/الفيديو
             </button>
-            <button
-              onClick={() => setIsRecorderOpen(true)}
-              className="aspect-[9/12] rounded-2xl border-2 border-dashed border-[#8B5CF6]/50 flex flex-col items-center justify-center gap-3 hover:border-[#8B5CF6] transition"
-            >
-              <Sparkles className="w-10 h-10 text-[#8B5CF6]" />
-              <span className="text-sm text-gray-400 text-center px-2">صوّر بالفلاتر</span>
-            </button>
+          )}
+
+          <div className="flex flex-wrap gap-2 mb-1">
+            {CATEGORIES.map((cat) => (
+              <button
+                key={cat}
+                onClick={() => setCategory(cat)}
+                className={`px-3 py-1.5 rounded-full text-xs font-bold transition ${
+                  category === cat ? 'bg-gradient-to-r from-[#FF7A1A] to-[#8B5CF6] text-white' : 'bg-white/5 text-gray-400'
+                }`}
+              >
+                {cat}
+              </button>
+            ))}
           </div>
-        ) : isImage ? (
-          <img src={previewUrl} className="w-full aspect-[9/12] object-cover rounded-2xl mb-4 bg-black" />
-        ) : (
-          <video src={previewUrl} controls className="w-full aspect-[9/12] object-cover rounded-2xl mb-4 bg-black" />
-        )}
+        </div>
 
         {/* accept يشمل صور وفيديو مع بعض - الجوال يعرض تلقائيًا خيار الكاميرا أو المعرض */}
         <input
@@ -183,36 +215,15 @@ export const JixUploadVideo: React.FC<JixUploadVideoProps> = ({ isOpen, onClose,
           className="hidden"
         />
 
-        {previewUrl && (
-          <button
-            onClick={() => fileInputRef.current?.click()}
-            className="w-full mb-4 py-2 text-xs font-bold text-[#8B5CF6] bg-white/5 rounded-xl"
-          >
-            تغيير الصورة/الفيديو
-          </button>
-        )}
-
         <textarea
           value={caption}
           onChange={(e) => setCaption(e.target.value)}
+          onFocus={() => setIsCaptionFocused(true)}
+          onBlur={() => setIsCaptionFocused(false)}
           placeholder="اكتب وصف... استخدم # للهاشتاقات"
-          rows={3}
-          className="w-full px-4 py-3 bg-[#171923] border border-gray-800 rounded-2xl text-white text-sm focus:border-[#8B5CF6] outline-none mb-4 resize-none"
+          rows={isCaptionFocused ? 6 : 3}
+          className="w-full px-4 py-3 bg-[#171923] border border-gray-800 rounded-2xl text-white text-sm focus:border-[#8B5CF6] outline-none mb-4 resize-none transition-all duration-300"
         />
-
-        <div className="flex flex-wrap gap-2 mb-5">
-          {CATEGORIES.map((cat) => (
-            <button
-              key={cat}
-              onClick={() => setCategory(cat)}
-              className={`px-3 py-1.5 rounded-full text-xs font-bold transition ${
-                category === cat ? 'bg-gradient-to-r from-[#FF7A1A] to-[#8B5CF6] text-white' : 'bg-white/5 text-gray-400'
-              }`}
-            >
-              {cat}
-            </button>
-          ))}
-        </div>
 
         <button
           onClick={handleUpload}
@@ -227,7 +238,7 @@ export const JixUploadVideo: React.FC<JixUploadVideoProps> = ({ isOpen, onClose,
       <JixVideoRecorder
         isOpen={isRecorderOpen}
         onClose={() => setIsRecorderOpen(false)}
-        onRecorded={handleRecorded}
+        onCaptured={handleCaptured}
       />
     </div>
   );
