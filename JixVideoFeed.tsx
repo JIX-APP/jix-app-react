@@ -28,16 +28,20 @@ interface VideoRow {
   comments_count: number;
   shares_count: number;
   is_hidden: boolean;
+  created_at: string;
   profiles: { handle: string | null; full_name: string | null; avatar_url: string | null } | null;
 }
+
+export type JixFeedMode = 'latest' | 'popular' | 'following';
 
 interface JixVideoFeedProps {
   currentUserId: string | null;
   refreshKey: number;
+  feedMode: JixFeedMode;
   onOpenProfile?: (userId: string) => void;
 }
 
-export const JixVideoFeed: React.FC<JixVideoFeedProps> = ({ currentUserId, refreshKey, onOpenProfile }) => {
+export const JixVideoFeed: React.FC<JixVideoFeedProps> = ({ currentUserId, refreshKey, feedMode, onOpenProfile }) => {
   const [posts, setPosts] = useState<VideoRow[]>([]);
   const [likedIds, setLikedIds] = useState<Set<string>>(new Set());
   const [followedIds, setFollowedIds] = useState<Set<string>>(new Set());
@@ -52,15 +56,45 @@ export const JixVideoFeed: React.FC<JixVideoFeedProps> = ({ currentUserId, refre
 
   useEffect(() => {
     fetchPosts();
-  }, [refreshKey]);
+  }, [refreshKey, feedMode]);
 
   const isImagePost = (post: VideoRow) => !!post.thumbnail_url && post.thumbnail_url === post.video_url;
 
   const fetchPosts = async () => {
-    const { data } = await supabase
+    // وضع "متابعة" - نجيب أول شي قائمة اللي تتابعهم، ونعرض بس منشوراتهم
+    // (نفس منطق تيك توك: متابعة أحادية الاتجاه، مو صداقة متبادلة)
+    let followingUserIds: string[] | null = null;
+    if (feedMode === 'following') {
+      if (!currentUserId) {
+        setPosts([]);
+        return;
+      }
+      const { data: followingRows } = await supabase
+        .from('follows')
+        .select('following_id')
+        .eq('follower_id', currentUserId);
+      followingUserIds = (followingRows || []).map((f) => f.following_id);
+      if (followingUserIds.length === 0) {
+        setPosts([]);
+        return;
+      }
+    }
+
+    let query = supabase
       .from('videos')
-      .select('id, user_id, video_url, thumbnail_url, caption, likes_count, comments_count, shares_count, is_hidden, profiles(handle, full_name, avatar_url)')
-      .order('created_at', { ascending: false });
+      .select('id, user_id, video_url, thumbnail_url, caption, likes_count, comments_count, shares_count, is_hidden, created_at, profiles(handle, full_name, avatar_url)');
+
+    if (feedMode === 'popular') {
+      // "الأكثر رواجًا" - نقتصر على آخر 7 أيام عشان ما يكون نفس المنشورات القديمة دايمًا فوق
+      const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+      query = query.gte('created_at', sevenDaysAgo).order('likes_count', { ascending: false });
+    } else if (feedMode === 'following' && followingUserIds) {
+      query = query.in('user_id', followingUserIds).order('created_at', { ascending: false });
+    } else {
+      query = query.order('created_at', { ascending: false });
+    }
+
+    const { data } = await query;
 
     const allPosts = (data as unknown as VideoRow[]) || [];
     const visiblePosts = allPosts.filter((p) => !p.is_hidden || p.user_id === currentUserId);
@@ -172,8 +206,15 @@ export const JixVideoFeed: React.FC<JixVideoFeedProps> = ({ currentUserId, refre
   if (posts.length === 0) {
     return (
       <div className="h-full flex flex-col items-center justify-center px-8 text-center">
-        <p className="text-sm text-[#9A9A9E]">لسه مفيش منشورات</p>
-        <p className="text-xs text-[#6B6B76] mt-1">أول منشور هيظهر هنا لما حد ينشر</p>
+        {feedMode === 'popular' && (
+          <p className="text-sm text-[#9A9A9E]">ما فيه منشورات رائجة خلال آخر أسبوع</p>
+        )}
+        {feedMode === 'following' && (
+          <p className="text-sm text-[#9A9A9E]">لسه ما تتابع أي حد، تابع مستخدمين عشان تشوف منشوراتهم هنا</p>
+        )}
+        {feedMode === 'latest' && (
+          <p className="text-xs text-[#6B6B76]">أول منشور هيظهر هنا لما حد ينشر</p>
+        )}
       </div>
     );
   }
