@@ -15,6 +15,7 @@ import {
   Eye,
 } from 'lucide-react';
 import { supabase } from './supabaseClient';
+import { JixStoryRing } from './JixStoryRing';
 import { JixComments } from './JixComments';
 import { JixReportButton } from './JixReportButton';
 
@@ -255,16 +256,26 @@ export const JixVideoFeed: React.FC<JixVideoFeedProps> = ({ currentUserId, refre
           {/* شريط أيقونات التفاعل - يمين */}
           <div className="absolute bottom-24 right-3 flex flex-col items-center gap-5 z-10">
             <div className="relative">
-              <button
-                onClick={() => onOpenProfile?.(post.user_id)}
-                className="w-10 h-10 rounded-full bg-gradient-to-br from-[#FF7A1A] to-[#8B5CF6] flex items-center justify-center text-xs font-black overflow-hidden"
+              {/* حلقة تيك توك: حمراء + LIVE لو فاتح بث، ملونة لو عنده ستوري */}
+              <JixStoryRing
+                userId={post.user_id}
+                currentUserId={currentUserId}
+                size={40}
+                userName={post.profiles?.full_name || post.profiles?.handle || 'مستخدم JIX'}
+                avatarUrl={post.profiles?.avatar_url ?? null}
+                livePillPosition="top"
               >
-                {post.profiles?.avatar_url ? (
-                  <img src={post.profiles.avatar_url} className="w-full h-full object-cover" />
-                ) : (
-                  (post.profiles?.full_name || post.profiles?.handle || 'م')[0]
-                )}
-              </button>
+                <button
+                  onClick={() => onOpenProfile?.(post.user_id)}
+                  className="w-10 h-10 rounded-full bg-gradient-to-br from-[#FF7A1A] to-[#8B5CF6] flex items-center justify-center text-xs font-black overflow-hidden"
+                >
+                  {post.profiles?.avatar_url ? (
+                    <img src={post.profiles.avatar_url} className="w-full h-full object-cover" />
+                  ) : (
+                    (post.profiles?.full_name || post.profiles?.handle || 'م')[0]
+                  )}
+                </button>
+              </JixStoryRing>
               {currentUserId && post.user_id !== currentUserId && (
                 <button
                   onClick={() => handleFollow(post.user_id)}
