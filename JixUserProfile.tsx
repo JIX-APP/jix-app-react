@@ -11,6 +11,7 @@ import {
   Share2,
   Volume2,
   VolumeX,
+  Users,
 } from 'lucide-react';
 import { supabase } from './supabaseClient';
 import { LevelBadge, AvatarFrame, useLevelXp } from './JixLevelSystem';
@@ -21,6 +22,8 @@ interface JixUserProfileProps {
   onClose: () => void;
   userId: string;
   currentUserId: string | null;
+  // فتح محادثة مع هذا المستخدم (للأصدقاء فقط)، ولو فيه callType يبدأ مكالمة مباشرة
+  onOpenChat?: (otherUserId: string, otherUserName: string, callType?: 'voice' | 'video') => void;
 }
 
 // حساب العمر بدقة من تاريخ الميلاد
@@ -55,11 +58,13 @@ interface PostRow {
   shares_count: number;
 }
 
-export const JixUserProfile: React.FC<JixUserProfileProps> = ({ isOpen, onClose, userId, currentUserId }) => {
+export const JixUserProfile: React.FC<JixUserProfileProps> = ({ isOpen, onClose, userId, currentUserId, onOpenChat }) => {
   const [profile, setProfile] = useState<ProfileData | null>(null);
   const [posts, setPosts] = useState<PostRow[]>([]);
   const [likedIds, setLikedIds] = useState<Set<string>>(new Set());
   const [isFollowing, setIsFollowing] = useState(false);
+  // هل هو يتابعني بالمقابل؟ لو الاثنين يتابعون بعض = أصدقاء
+  const [isFollowedBack, setIsFollowedBack] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isFollowBusy, setIsFollowBusy] = useState(false);
   const [viewingIndex, setViewingIndex] = useState<number | null>(null);
@@ -106,6 +111,14 @@ export const JixUserProfile: React.FC<JixUserProfileProps> = ({ isOpen, onClose,
         .eq('following_id', userId)
         .maybeSingle();
       setIsFollowing(!!followData);
+
+      const { data: followBackData } = await supabase
+        .from('follows')
+        .select('follower_id')
+        .eq('follower_id', userId)
+        .eq('following_id', currentUserId)
+        .maybeSingle();
+      setIsFollowedBack(!!followBackData);
     }
 
     setIsLoading(false);
@@ -215,9 +228,33 @@ export const JixUserProfile: React.FC<JixUserProfileProps> = ({ isOpen, onClose,
                   isFollowing ? 'bg-white/5 text-white' : 'bg-gradient-to-r from-[#FF7A1A] to-[#8B5CF6] text-white'
                 }`}
               >
-                {isFollowing ? <UserCheck className="w-4 h-4" /> : <UserPlus className="w-4 h-4" />}
-                {isFollowing ? 'متابَع' : 'متابعة'}
+                {isFollowing && isFollowedBack ? (
+                  <Users className="w-4 h-4" />
+                ) : isFollowing ? (
+                  <UserCheck className="w-4 h-4" />
+                ) : (
+                  <UserPlus className="w-4 h-4" />
+                )}
+                {isFollowing && isFollowedBack
+                  ? 'أصدقاء'
+                  : isFollowing
+                  ? 'متابَع'
+                  : isFollowedBack
+                  ? 'رد المتابعة'
+                  : 'متابعة'}
               </button>
+            )}
+
+            {/* زر رسالة - يظهر بس للأصدقاء، وأزرار الاتصال موجودة داخل المحادثة نفسها */}
+            {currentUserId && currentUserId !== userId && isFollowing && isFollowedBack && (
+              <div className="flex items-center gap-2 mt-2.5">
+                <button
+                  onClick={() => onOpenChat?.(userId, profile.full_name || profile.handle || 'مستخدم JIX')}
+                  className="px-5 py-2 rounded-2xl bg-white/5 text-white text-xs font-black flex items-center gap-1.5"
+                >
+                  <MessageCircle className="w-4 h-4" /> رسالة
+                </button>
+              </div>
             )}
           </div>
 
