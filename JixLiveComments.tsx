@@ -3,6 +3,27 @@ import { Send, MoreVertical, VolumeX, Clock, Ban } from 'lucide-react';
 import { supabase } from './supabaseClient';
 import { JixMvpBadge, useLiveMvpTiers } from './JixMvpBadge';
 
+// يحسب ارتفاع لوحة المفاتيح الحالي عشان نرفع شريط كتابة التعليق فوقها
+function useKeyboardInset() {
+  const [inset, setInset] = useState(0);
+  useEffect(() => {
+    const vv = window.visualViewport;
+    if (!vv) return;
+    const handler = () => {
+      const offset = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
+      setInset(offset);
+    };
+    vv.addEventListener('resize', handler);
+    vv.addEventListener('scroll', handler);
+    handler();
+    return () => {
+      vv.removeEventListener('resize', handler);
+      vv.removeEventListener('scroll', handler);
+    };
+  }, []);
+  return inset;
+}
+
 interface LiveCommentMsg {
   id: string;
   senderId: string;
@@ -52,6 +73,7 @@ export const JixLiveComments: React.FC<JixLiveCommentsProps> = ({
   const lastSentTextRef = useRef<string>('');
 
   const canModerate = isHost || isModerator;
+  const keyboardInset = useKeyboardInset();
   const mvpTiers = useLiveMvpTiers(liveId);
 
   useEffect(() => {
@@ -248,7 +270,7 @@ export const JixLiveComments: React.FC<JixLiveCommentsProps> = ({
       </div>
 
       {currentUserId && !mutedUserIds.has(currentUserId) && (
-        <div className="absolute bottom-6 left-3 right-20 z-10">
+        <div className="absolute left-3 right-20 z-10" style={{ bottom: 24 + keyboardInset }}>
           {duplicateWarning && (
             <p className="text-[10px] text-red-400 font-bold mb-1 px-1">
               لا يمكنك إرسال نفس التعليق مرتين متتاليتين
