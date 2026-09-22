@@ -27,6 +27,8 @@ interface JixStoryRingProps {
   onAddStory?: () => void;
   // مكان علامة LIVE: تحت الصورة (افتراضي) أو فوقها (بالفيديوهات عشان زر المتابعة تحت)
   livePillPosition?: 'bottom' | 'top';
+  // زر إضافي بالزاوية السفلية اليسرى (مثل زر الكاميرا لتغيير صورتك)
+  bottomLeftSlot?: React.ReactNode;
   children: React.ReactNode;
 }
 
@@ -45,6 +47,7 @@ export const JixStoryRing: React.FC<JixStoryRingProps> = ({
   avatarUrl,
   onAddStory,
   livePillPosition = 'bottom',
+  bottomLeftSlot,
   children,
 }) => {
   const { openLive } = useJixPresence();
@@ -75,7 +78,7 @@ export const JixStoryRing: React.FC<JixStoryRingProps> = ({
 
   return (
     <>
-      <div className="relative" style={{ width: size, height: size }}>
+      <div className="relative flex items-center justify-center" style={{ width: size, height: size }}>
         {showRing && (
           <div
             className={`absolute rounded-full pointer-events-none ${isLive ? 'animate-pulse' : ''}`}
@@ -115,6 +118,8 @@ export const JixStoryRing: React.FC<JixStoryRingProps> = ({
             LIVE
           </span>
         )}
+
+        {bottomLeftSlot && <div className="absolute -bottom-1 -left-1 z-10">{bottomLeftSlot}</div>}
 
         {onAddStory && (
           <button
