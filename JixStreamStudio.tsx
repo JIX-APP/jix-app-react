@@ -781,37 +781,39 @@ export const JixStreamStudio: React.FC<JixStreamStudioProps> = ({ isOpen, onClos
           hostId={hostUserId ?? ''}
         />
 
-        <div
-          className="absolute left-1/2 -translate-x-1/2 flex items-center gap-3 bg-black/60 backdrop-blur-md px-4 py-2 rounded-full border border-white/10 z-10"
-          style={{ bottom: 96 + keyboardInset }}
-        >
-          <button onClick={toggleMic} className={`p-3 rounded-full ${isMicMuted ? 'bg-red-600' : 'bg-white/10'}`}>
-            {isMicMuted ? <MicOff className="w-5 h-5 text-white" /> : <Mic className="w-5 h-5 text-white" />}
-          </button>
-          <button onClick={handleModeSwitch} disabled={isSwitching} className="p-3 rounded-full bg-white/10 disabled:opacity-50">
-            {streamMode === 'camera' ? <Image className="w-5 h-5 text-[#F5B93E]" /> : <Camera className="w-5 h-5 text-emerald-400" />}
-          </button>
-          {streamMode === 'camera' && isLive && (
-            <button
-              onClick={handleFlipCamera}
-              disabled={isSwitchingCamera}
-              className="p-3 rounded-full bg-white/10 disabled:opacity-50"
-            >
-              <SwitchCamera className="w-5 h-5 text-white" />
+        {/* أزرار التحكم (مايك/وضع الكاميرا/تبديل الكاميرا/فلاتر) - أيقونات صغيرة بزاوية
+            الشاشة اليمنى العلوية، نفس مكان وشكل تيك توك بالضبط، بدل شريط عائم يغطي الشاشة.
+            تختفي تلقائيًا وقت فتح لوحة المفاتيح للكتابة بالتعليقات */}
+        {keyboardInset === 0 && (
+          <div className="absolute top-20 right-4 flex flex-col items-center gap-3 z-10">
+            <button onClick={toggleMic} className={`w-10 h-10 rounded-full flex items-center justify-center ${isMicMuted ? 'bg-red-600' : 'bg-black/50'}`}>
+              {isMicMuted ? <MicOff className="w-4 h-4 text-white" /> : <Mic className="w-4 h-4 text-white" />}
             </button>
-          )}
-          {streamMode === 'camera' && (
-            <button
-              onClick={() => setIsFilterBarOpen((v) => !v)}
-              className={`p-3 rounded-full ${isFilterBarOpen ? 'bg-gradient-to-br from-[#FF7A1A] to-[#8B5CF6]' : 'bg-white/10'}`}
-            >
-              <span className="text-base leading-none">🎨</span>
+            <button onClick={handleModeSwitch} disabled={isSwitching} className="w-10 h-10 rounded-full flex items-center justify-center bg-black/50 disabled:opacity-50">
+              {streamMode === 'camera' ? <Image className="w-4 h-4 text-[#F5B93E]" /> : <Camera className="w-4 h-4 text-emerald-400" />}
             </button>
-          )}
-        </div>
+            {streamMode === 'camera' && isLive && (
+              <button
+                onClick={handleFlipCamera}
+                disabled={isSwitchingCamera}
+                className="w-10 h-10 rounded-full flex items-center justify-center bg-black/50 disabled:opacity-50"
+              >
+                <SwitchCamera className="w-4 h-4 text-white" />
+              </button>
+            )}
+            {streamMode === 'camera' && (
+              <button
+                onClick={() => setIsFilterBarOpen((v) => !v)}
+                className={`w-10 h-10 rounded-full flex items-center justify-center ${isFilterBarOpen ? 'bg-gradient-to-br from-[#FF7A1A] to-[#8B5CF6]' : 'bg-black/50'}`}
+              >
+                <span className="text-base leading-none">🎨</span>
+              </button>
+            )}
+          </div>
+        )}
 
-        {streamMode === 'camera' && isFilterBarOpen && (
-          <div className="absolute inset-x-0 z-10" style={{ bottom: 160 + keyboardInset }}>
+        {streamMode === 'camera' && isFilterBarOpen && keyboardInset === 0 && (
+          <div className="absolute inset-x-0 z-10" style={{ bottom: 80 }}>
             <JixFilterPicker
               colorFilterId={colorFilterId}
               arFilterId={arFilterId}
