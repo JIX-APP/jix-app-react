@@ -99,6 +99,9 @@ export const JixStreamStudio: React.FC<JixStreamStudioProps> = ({ isOpen, onClos
     arFilterId
   );
   const filteredVideoTrackRef = useRef<any>(null);
+  // مسار فيديو وضع "صورة" (أفتار ثابت) - يُبنى مرة وحدة ويُعاد استخدامه، يخلي التبديل
+  // بين الكاميرا والصورة أثناء البث الحي فوري بدون ما يوقف البث أو يطلع المشاهدين
+  const avatarVideoTrackRef = useRef<any>(null);
   const facingModeRef = useRef<'user' | 'environment'>('user');
   const [isSwitchingCamera, setIsSwitchingCamera] = useState(false);
   const keyboardInset = useKeyboardInset();
@@ -347,7 +350,10 @@ export const JixStreamStudio: React.FC<JixStreamStudioProps> = ({ isOpen, onClos
 
     try {
       const client = clientRef.current;
-      const publishedVideo = filteredVideoTrackRef.current || localVideoTrackRef.current;
+      const publishedVideo =
+        streamMode === 'avatar'
+          ? avatarVideoTrackRef.current
+          : filteredVideoTrackRef.current || localVideoTrackRef.current;
       const tracks = [localAudioTrackRef.current, publishedVideo].filter(Boolean) as any[];
 
       if (client && tracks.length > 0) {
@@ -361,10 +367,12 @@ export const JixStreamStudio: React.FC<JixStreamStudioProps> = ({ isOpen, onClos
       localAudioTrackRef.current?.close();
       localVideoTrackRef.current?.close(); // يسكر مسار الكاميرا الخام (المصدر)
       filteredVideoTrackRef.current?.close(); // يسكر مسار الـ canvas المنشور فعلياً
+      avatarVideoTrackRef.current?.close(); // يسكر مسار صورة الأفتار لو كان مستخدم
       if (sourceVideoElRef.current) sourceVideoElRef.current.srcObject = null;
       localAudioTrackRef.current = null;
       localVideoTrackRef.current = null;
       filteredVideoTrackRef.current = null;
+      avatarVideoTrackRef.current = null;
 
       if (client) {
         try {
@@ -549,13 +557,95 @@ export const JixStreamStudio: React.FC<JixStreamStudioProps> = ({ isOpen, onClos
     setIsSwitching(true);
     try {
       if (streamMode === 'camera') {
-        await stopLiveStream();
+        if (isLive) await switchToAvatarTrack();
         setStreamMode('avatar');
       } else {
+        if (isLive) await switchToCameraTrack();
         setStreamMode('camera');
       }
     } finally {
       setIsSwitching(false);
+    }
+  };
+
+  // يبني مسار فيديو ثابت من صورة الأفتار (Canvas) - يُستخدم بدل الكاميرا بوضع "صورة"
+  const createAvatarVideoTrack = async () => {
+    if (avatarVideoTrackRef.current) return avatarVideoTrackRef.current;
+
+    const canvas = document.createElement('canvas');
+    canvas.width = 640;
+    canvas.height = 640;
+    const ctx = canvas.getContext('2d');
+
+    await new Promise<void>((resolve) => {
+      const img = new window.Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = () => {
+        if (ctx) {
+          ctx.fillStyle = '#12141f';
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+          const size = Math.min(img.width, img.height);
+          const sx = (img.width - size) / 2;
+          const sy = (img.height - size) / 2;
+          ctx.drawImage(img, sx, sy, size, size, 0, 0, canvas.width, canvas.height);
+        }
+        resolve();
+      };
+      img.onerror = () => resolve();
+      img.src = currentUser.avatar;
+    });
+
+    const canvasStream = (canvas as any).captureStream(1);
+    const nativeTrack = canvasStream.getVideoTracks()[0];
+    const track = AgoraRTC.createCustomVideoTrack({ mediaStreamTrack: nativeTrack });
+    avatarVideoTrackRef.current = track;
+    return track;
+  };
+
+  // تبديل حي من الكاميرا إلى وضع الصورة وسط البث - نبدّل المسار المنشور، وبعدها
+  // نطفي الكاميرا فعليًا (تسكير المسار) عشان توفير البطارية وما تشتغل وهي مو محتاجة
+  const switchToAvatarTrack = async () => {
+    const client = clientRef.current;
+    if (!client) return;
+    try {
+      const currentPublished = filteredVideoTrackRef.current || localVideoTrackRef.current;
+      const avatarTrack = await createAvatarVideoTrack();
+      if (currentPublished) await client.unpublish([currentPublished]);
+      await client.publish([avatarTrack]);
+
+      // نطفي الكاميرا فعليًا (مو بس نوقف نشرها) - توفير بطارية أثناء وضع الصورة
+      localVideoTrackRef.current?.close();
+      filteredVideoTrackRef.current?.close();
+      localVideoTrackRef.current = null;
+      filteredVideoTrackRef.current = null;
+      if (sourceVideoElRef.current) sourceVideoElRef.current.srcObject = null;
+    } catch (err) {
+      console.error('[JIX] فشل التبديل لوضع الصورة:', err);
+      setConnectionError('تعذر التبديل لوضع الصورة، حاول مرة أخرى');
+    }
+  };
+
+  // تبديل حي من وضع الصورة رجوع للكاميرا - الكاميرا كانت مطفية فعليًا (توفير بطارية)
+  // فلازم نعيد تشغيلها وطلب إذنها من جديد، فيه تأخير بسيط (نص ثانية تقريبًا) وهذا متوقع
+  const switchToCameraTrack = async () => {
+    const client = clientRef.current;
+    if (!client) return;
+    try {
+      const newVideoTrack = await AgoraRTC.createCameraVideoTrack({ facingMode: facingModeRef.current });
+
+      if (avatarVideoTrackRef.current) await client.unpublish([avatarVideoTrackRef.current]);
+      await client.publish([newVideoTrack]);
+
+      if (videoRef.current) newVideoTrack.play(videoRef.current);
+      if (sourceVideoElRef.current) {
+        sourceVideoElRef.current.srcObject = new MediaStream([newVideoTrack.getMediaStreamTrack()]);
+        sourceVideoElRef.current.play().catch(() => {});
+      }
+
+      localVideoTrackRef.current = newVideoTrack;
+    } catch (err) {
+      console.error('[JIX] فشل الرجوع لوضع الكاميرا:', err);
+      setConnectionError('تعذر الرجوع لوضع الكاميرا، حاول مرة أخرى');
     }
   };
 
