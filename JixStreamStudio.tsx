@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { X, Mic, MicOff, Camera, Image, Users, UserX, VolumeX, Coins, ChevronDown, Shield, UserPlus2, Check, Bell } from 'lucide-react';
+import { X, Mic, MicOff, Camera, Image, Users, UserX, VolumeX, Coins, ChevronDown, Shield, UserPlus2, Check, Bell, SwitchCamera } from 'lucide-react';
 import AgoraRTC, { IAgoraRTCClient, ICameraVideoTrack, IMicrophoneAudioTrack, IAgoraRTCRemoteUser } from 'agora-rtc-sdk-ng';
 import { supabase } from './supabaseClient';
 import { jixAudio } from './jixAudioFx';
@@ -99,6 +99,8 @@ export const JixStreamStudio: React.FC<JixStreamStudioProps> = ({ isOpen, onClos
     arFilterId
   );
   const filteredVideoTrackRef = useRef<any>(null);
+  const facingModeRef = useRef<'user' | 'environment'>('user');
+  const [isSwitchingCamera, setIsSwitchingCamera] = useState(false);
   const keyboardInset = useKeyboardInset();
   const clientRef = useRef<IAgoraRTCClient | null>(null);
   const localVideoTrackRef = useRef<ICameraVideoTrack | null>(null);
@@ -184,6 +186,48 @@ export const JixStreamStudio: React.FC<JixStreamStudioProps> = ({ isOpen, onClos
     }
   };
 
+  // يعيد إنشاء مسار الكاميرا بالكامل من الصفر (نفس بالضبط اللي يصير لما
+  // تبدّل يدويًا من فيديو لصورة ورجوع) - هذا هو الإصلاح الحقيقي لمشكلة
+  // الشاشة السوداء، مو مجرد تعطيل/تفعيل نفس المسار القديم
+  const recreateVideoTrack = async (newFacingMode?: 'user' | 'environment') => {
+    if (!clientRef.current || !localVideoTrackRef.current) return;
+    setIsSwitchingCamera(true);
+    try {
+      const targetFacing = newFacingMode || facingModeRef.current;
+      const oldVideoTrack = localVideoTrackRef.current;
+      const oldFilteredTrack = filteredVideoTrackRef.current;
+
+      const newVideoTrack = await AgoraRTC.createCameraVideoTrack({ facingMode: targetFacing });
+
+      const currentlyPublished = oldFilteredTrack || oldVideoTrack;
+      await clientRef.current.unpublish([currentlyPublished]);
+      await clientRef.current.publish([newVideoTrack]);
+
+      if (videoRef.current) newVideoTrack.play(videoRef.current);
+
+      if (sourceVideoElRef.current) {
+        sourceVideoElRef.current.srcObject = new MediaStream([newVideoTrack.getMediaStreamTrack()]);
+        sourceVideoElRef.current.play().catch(() => {});
+      }
+
+      oldVideoTrack.close();
+      if (oldFilteredTrack) oldFilteredTrack.close();
+
+      localVideoTrackRef.current = newVideoTrack;
+      filteredVideoTrackRef.current = null;
+      facingModeRef.current = targetFacing;
+    } catch (err) {
+      console.error('[JIX] فشل إعادة تهيئة الكاميرا:', err);
+    } finally {
+      setIsSwitchingCamera(false);
+    }
+  };
+
+  // قلب الكاميرا يدويًا (أمامية ↔ خلفية)
+  const handleFlipCamera = () => {
+    recreateVideoTrack(facingModeRef.current === 'user' ? 'environment' : 'user');
+  };
+
   const startLiveStream = async () => {
     if (isBusyRef.current) return;
     isBusyRef.current = true;
@@ -226,42 +270,30 @@ export const JixStreamStudio: React.FC<JixStreamStudioProps> = ({ isOpen, onClos
       localAudioTrackRef.current = audioTrack;
       localVideoTrackRef.current = videoTrack;
 
-      // ما ننشر مسار الكاميرا الخام مباشرة - نمرره أول لعنصر فيديو مخفي
-      // يقرأ منه محرك الفلاتر (useFilteredCanvas) ويرسم كل فريم على canvas
-      // مع الفلتر المختار، وبعدين ننشر بث الـ canvas نفسه لـ Agora
+      // نمرر الكاميرا دايمًا لعنصر الفيديو المخفي عشان محرك الفلاتر يكون
+      // جاهز فورًا لو المستخدم فعّل فلتر بعدين وهو شغال بالبث
       if (sourceVideoElRef.current) {
         const rawTrack = videoTrack.getMediaStreamTrack();
         sourceVideoElRef.current.srcObject = new MediaStream([rawTrack]);
-        await sourceVideoElRef.current.play().catch(() => {});
-
-        // إصلاح خلل معروف بمتصفح Safari على iOS: المتصفح أحياناً ما يرسم
-        // أول فريمات الكاميرا فعلياً حتى لو المسار شغال، ويضل الفيديو
-        // عالق على إطار أسود لين يصير أي حدث يجبره يعيد الرسم (زي تبديل
-        // الوضع يدوياً). هذا نفس الأثر لكن تلقائي وغير محسوس للمستخدم.
-        setTimeout(() => {
-          videoTrack.setEnabled(false);
-          setTimeout(() => {
-            videoTrack.setEnabled(true);
-          }, 100);
-        }, 800);
+        sourceVideoElRef.current.play().catch(() => {});
       }
 
-      // ننتظر لحظة بسيطة حتى يبدأ الـ canvas يرسم أول فريم فعلي قبل ما نجهز بث منه
-      await new Promise((resolve) => setTimeout(resolve, 400));
-
-      const canvasStream = getFilteredStream(24);
-      const canvasVideoTrackNative = canvasStream?.getVideoTracks()[0];
-
-      let publishedVideoTrack: any = videoTrack;
-      if (canvasVideoTrackNative) {
-        const customTrack = AgoraRTC.createCustomVideoTrack({ mediaStreamTrack: canvasVideoTrackNative });
-        filteredVideoTrackRef.current = customTrack;
-        publishedVideoTrack = customTrack;
+      // المسار الافتراضي: نعرض وننشر الكاميرا الخام مباشرة (نفس الطريقة
+      // المضمونة الأصلية) - الفلاتر تشتغل بس لو المستخدم فعّلها بنفسه
+      // بعدين وهو شغال بالبث (يصير تبديل حي بمكان ثاني بالكود)
+      if (videoRef.current) {
+        videoTrack.play(videoRef.current);
       }
 
-      await client.publish([audioTrack, publishedVideoTrack]);
+      await client.publish([audioTrack, videoTrack]);
       setIsLive(true);
       await registerLiveRow(channelName, tokenData.uid);
+
+      // إصلاح تلقائي لخلل الشاشة السوداء بأول ثوانٍ: نعيد تهيئة مسار
+      // الكاميرا بالكامل بعد ثانية ونص، بنفس أثر التبديل اليدوي بالضبط
+      setTimeout(() => {
+        recreateVideoTrack();
+      }, 1500);
     } catch (err) {
       console.error('[JIX] فشل بدء البث:', err);
       setConnectionError(`خطأ: ${(err as Error).message || 'غير معروف'}`);
@@ -270,6 +302,43 @@ export const JixStreamStudio: React.FC<JixStreamStudioProps> = ({ isOpen, onClos
       isBusyRef.current = false;
     }
   };
+
+  // تبديل حي بين الكاميرا الخام والـ canvas المفلتر - يشتغل بس لما المستخدم
+  // يفعّل/يلغي فلتر فعليًا وهو شغال بالبث (المسار الافتراضي دايمًا الكاميرا الخام)
+  useEffect(() => {
+    const client = clientRef.current;
+    if (!isLive || !client || !localVideoTrackRef.current) return;
+
+    const hasActiveFilter = colorFilterId !== 'normal' || arFilterId !== 'none';
+
+    const swapPublishedTrack = async () => {
+      try {
+        if (hasActiveFilter && !filteredVideoTrackRef.current) {
+          // ننتظر لحظة بسيطة حتى يرسم الـ canvas أول فريم فعلي بالفلتر الجديد
+          await new Promise((resolve) => setTimeout(resolve, 300));
+          const canvasStream = getFilteredStream(24);
+          const canvasVideoTrackNative = canvasStream?.getVideoTracks()[0];
+          if (!canvasVideoTrackNative) return;
+
+          const customTrack = AgoraRTC.createCustomVideoTrack({ mediaStreamTrack: canvasVideoTrackNative });
+          await client.unpublish([localVideoTrackRef.current]);
+          await client.publish([customTrack]);
+          filteredVideoTrackRef.current = customTrack;
+        } else if (!hasActiveFilter && filteredVideoTrackRef.current) {
+          const oldFilteredTrack = filteredVideoTrackRef.current;
+          await client.unpublish([oldFilteredTrack]);
+          await client.publish([localVideoTrackRef.current]);
+          oldFilteredTrack.close();
+          filteredVideoTrackRef.current = null;
+        }
+      } catch (err) {
+        console.error('[JIX] فشل تبديل الفلتر أثناء البث:', err);
+      }
+    };
+
+    swapPublishedTrack();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [colorFilterId, arFilterId, isLive]);
 
   const stopLiveStream = async () => {
     if (isBusyRef.current) return;
@@ -581,7 +650,6 @@ export const JixStreamStudio: React.FC<JixStreamStudioProps> = ({ isOpen, onClos
       <div className={`relative ${hasCohosts ? 'h-1/2' : 'flex-1'} flex items-center justify-center`}>
         {streamMode === 'camera' ? (
           <>
-            {/* عنصر فيديو مخفي - يقرأ منه محرك الفلاتر فقط، ما يُعرض للمستخدم */}
             {/* عنصر فيديو مخفي - يقرأ منه محرك الفلاتر فقط، ما يُعرض للمستخدم.
                 مهم: لا نستخدم display:none (كلاس hidden) لأنه يوقف معالجة
                 الفريمات فعليًا بمتصفحات الجوال - نخفيه بوضعه خارج الشاشة بدل هذا */}
@@ -591,8 +659,16 @@ export const JixStreamStudio: React.FC<JixStreamStudioProps> = ({ isOpen, onClos
               playsInline
               style={{ position: 'fixed', top: '-9999px', left: '-9999px', width: 1, height: 1 }}
             />
-            {/* الكانفاس المفلتر - هذا اللي المستخدم يشوفه فعلياً وهو نفسه اللي يُبث */}
-            <canvas ref={canvasRef} className="w-full h-full object-cover" />
+            {/* المسار الافتراضي: الكاميرا الخام مباشرة (مضمون الشغل) */}
+            <div
+              ref={videoRef}
+              className="w-full h-full"
+              style={{ display: colorFilterId !== 'normal' || arFilterId !== 'none' ? 'none' : 'block' }}
+            />
+            {/* الكانفاس المفلتر - يظهر بس لما فيه فلتر فعّال */}
+            {(colorFilterId !== 'normal' || arFilterId !== 'none') && (
+              <canvas ref={canvasRef} className="w-full h-full object-cover" />
+            )}
           </>
         ) : (
           <div className="text-center p-8">
@@ -706,7 +782,7 @@ export const JixStreamStudio: React.FC<JixStreamStudioProps> = ({ isOpen, onClos
 
         <div
           className="absolute left-1/2 -translate-x-1/2 flex items-center gap-3 bg-black/60 backdrop-blur-md px-4 py-2 rounded-full border border-white/10 z-10"
-          style={{ bottom: 32 + keyboardInset }}
+          style={{ bottom: 96 + keyboardInset }}
         >
           <button onClick={toggleMic} className={`p-3 rounded-full ${isMicMuted ? 'bg-red-600' : 'bg-white/10'}`}>
             {isMicMuted ? <MicOff className="w-5 h-5 text-white" /> : <Mic className="w-5 h-5 text-white" />}
@@ -714,6 +790,15 @@ export const JixStreamStudio: React.FC<JixStreamStudioProps> = ({ isOpen, onClos
           <button onClick={handleModeSwitch} disabled={isSwitching} className="p-3 rounded-full bg-white/10 disabled:opacity-50">
             {streamMode === 'camera' ? <Image className="w-5 h-5 text-[#F5B93E]" /> : <Camera className="w-5 h-5 text-emerald-400" />}
           </button>
+          {streamMode === 'camera' && isLive && (
+            <button
+              onClick={handleFlipCamera}
+              disabled={isSwitchingCamera}
+              className="p-3 rounded-full bg-white/10 disabled:opacity-50"
+            >
+              <SwitchCamera className="w-5 h-5 text-white" />
+            </button>
+          )}
           {streamMode === 'camera' && (
             <button
               onClick={() => setIsFilterBarOpen((v) => !v)}
@@ -725,7 +810,7 @@ export const JixStreamStudio: React.FC<JixStreamStudioProps> = ({ isOpen, onClos
         </div>
 
         {streamMode === 'camera' && isFilterBarOpen && (
-          <div className="absolute inset-x-0 z-10" style={{ bottom: 96 + keyboardInset }}>
+          <div className="absolute inset-x-0 z-10" style={{ bottom: 160 + keyboardInset }}>
             <JixFilterPicker
               colorFilterId={colorFilterId}
               arFilterId={arFilterId}
