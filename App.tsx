@@ -21,7 +21,6 @@ import {
   JixDMList,
   JixDMConversation,
   JixDMCallNotification,
-  JixGroupChat,
 } from './JixNewFeatures';
 import { JixDMCall } from './JixDMCall';
 
@@ -102,9 +101,6 @@ function App() {
 
   // القصص
   const [isStoryUploadOpen, setIsStoryUploadOpen] = useState(false);
-
-  // تبويب الرسائل: محادثات خاصة أو دردشة عامة
-  const [messagesTab, setMessagesTab] = useState<'dms' | 'group'>('dms');
 
   // المحادثة الخاصة المفتوحة حالياً (لو موجودة تفتح فوق كل شي)
   const [openConversation, setOpenConversation] = useState<{
@@ -434,13 +430,7 @@ function App() {
           <div className="flex justify-center py-16">
             <Loader2 className="w-6 h-6 animate-spin text-[#8B5CF6]" />
           </div>
-        ) : liveStreams.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-16 text-center">
-            <Radio className="w-10 h-10 text-[#6B6B76] mb-3" />
-            <p className="text-sm text-[#9A9A9E]">مفيش أي بث مباشر شغال دلوقتي</p>
-            <p className="text-xs text-[#6B6B76] mt-1">كن أول واحد يبدأ البث!</p>
-          </div>
-        ) : (
+        ) : liveStreams.length === 0 ? null : (
           <div className="grid grid-cols-2 gap-2.5">
             {liveStreams.map((stream) => (
               <div
@@ -474,25 +464,6 @@ function App() {
       <div className={`absolute inset-0 pt-6 pb-24 flex flex-col ${screen === 'Messages' ? '' : 'hidden'}`}>
         <h2 className="font-black text-lg mb-3 px-4">الرسائل</h2>
 
-        <div className="flex gap-2 px-4 mb-3">
-          <button
-            onClick={() => setMessagesTab('dms')}
-            className={`px-4 py-1.5 rounded-full text-xs font-bold transition ${
-              messagesTab === 'dms' ? 'bg-gradient-to-r from-[#FF7A1A] to-[#8B5CF6] text-white' : 'bg-white/5 text-gray-400'
-            }`}
-          >
-            المحادثات
-          </button>
-          <button
-            onClick={() => setMessagesTab('group')}
-            className={`px-4 py-1.5 rounded-full text-xs font-bold transition ${
-              messagesTab === 'group' ? 'bg-gradient-to-r from-[#FF7A1A] to-[#8B5CF6] text-white' : 'bg-white/5 text-gray-400'
-            }`}
-          >
-            الدردشة العامة
-          </button>
-        </div>
-
         {!user ? (
           <div className="flex flex-col items-center justify-center py-16 text-center px-4">
             <MessageCircle className="w-10 h-10 text-[#6B6B76] mb-3" />
@@ -504,7 +475,7 @@ function App() {
               تسجيل الدخول
             </button>
           </div>
-        ) : messagesTab === 'dms' ? (
+        ) : (
           <div className="flex-1 overflow-y-auto">
             <JixDMList
               currentUserId={user.id}
@@ -512,10 +483,6 @@ function App() {
                 setOpenConversation({ conversationId, otherUserId, otherUserName })
               }
             />
-          </div>
-        ) : (
-          <div className="flex-1 overflow-hidden">
-            <JixGroupChat currentUserId={user.id} onOpenProfile={handleOpenProfile} />
           </div>
         )}
       </div>
