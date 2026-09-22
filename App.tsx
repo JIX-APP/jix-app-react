@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Home, Compass, MessageCircle, User, Plus, LogOut, Loader2, Search, Radio, Video, Eye, Pencil, Check, Crown, Calendar, MapPin } from 'lucide-react';
+import { Home, Compass, MessageCircle, User, Plus, LogOut, Loader2, Search, Radio, Video, Eye, Pencil, Check, Crown, Calendar, MapPin, Camera } from 'lucide-react';
 import { JixAuthModal } from './JixAuthModal';
 import { JixStreamStudio } from './JixStreamStudio';
 import { JixWatchStream } from './JixWatchStream';
@@ -715,27 +715,39 @@ function App() {
         ) : (
           <div>
             <div className="flex flex-col items-center text-center mb-6">
-              <AvatarFrame
-                xp={Math.max(supporterXp, receiverXp)}
-                kind={supporterXp >= receiverXp ? 'supporter' : 'receiver'}
-                size={80}
+              {/* الأزرار (+ ستوري / كاميرا) برّا إطار المستوى - قبل كانت داخله وتنقص فما تنضغط */}
+              <JixStoryRing
+                userId={user.id}
+                currentUserId={user.id}
+                size={96}
+                userName={user.name}
+                avatarUrl={user.avatarUrl}
+                onAddStory={() => setIsStoryUploadOpen(true)}
+                bottomLeftSlot={
+                  <label
+                    htmlFor="jix-avatar-upload-input"
+                    className="w-7 h-7 rounded-full bg-[#171923] border-2 border-[#0E0E12] flex items-center justify-center cursor-pointer"
+                    aria-label="تغيير الصورة"
+                  >
+                    <Camera className="w-3.5 h-3.5 text-white" />
+                  </label>
+                }
               >
-                <JixStoryRing
-                  userId={user.id}
-                  currentUserId={user.id}
+                <AvatarFrame
+                  xp={Math.max(supporterXp, receiverXp)}
+                  kind={supporterXp >= receiverXp ? 'supporter' : 'receiver'}
                   size={80}
-                  userName={user.name}
-                  avatarUrl={user.avatarUrl}
-                  onAddStory={() => setIsStoryUploadOpen(true)}
                 >
                   <JixAvatarUpload
                     userId={user.id}
                     currentAvatarUrl={user.avatarUrl}
                     fallbackLetter={user.name[0]}
+                    inputId="jix-avatar-upload-input"
+                    hideCameraButton
                     onUpdated={(newUrl) => setUser((prev) => (prev ? { ...prev, avatarUrl: newUrl } : prev))}
                   />
-                </JixStoryRing>
-              </AvatarFrame>
+                </AvatarFrame>
+              </JixStoryRing>
               {isEditingName ? (
                 <div className="flex flex-col items-center gap-1 mb-1">
                   <div className="flex items-center gap-2">
