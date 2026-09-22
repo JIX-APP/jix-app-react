@@ -16,6 +16,8 @@ import {
 import { supabase } from './supabaseClient';
 import { LevelBadge, AvatarFrame, useLevelXp } from './JixLevelSystem';
 import { JixComments } from './JixComments';
+import { JixStoryRing } from './JixStoryRing';
+import { JixProfileStats } from './JixProfileStats';
 
 interface JixUserProfileProps {
   isOpen: boolean;
@@ -24,6 +26,8 @@ interface JixUserProfileProps {
   currentUserId: string | null;
   // فتح محادثة مع هذا المستخدم (للأصدقاء فقط)، ولو فيه callType يبدأ مكالمة مباشرة
   onOpenChat?: (otherUserId: string, otherUserName: string, callType?: 'voice' | 'video') => void;
+  // فتح بروفايل مستخدم ثاني من قائمة المتابعين
+  onOpenProfile?: (userId: string) => void;
 }
 
 // حساب العمر بدقة من تاريخ الميلاد
@@ -58,7 +62,7 @@ interface PostRow {
   shares_count: number;
 }
 
-export const JixUserProfile: React.FC<JixUserProfileProps> = ({ isOpen, onClose, userId, currentUserId, onOpenChat }) => {
+export const JixUserProfile: React.FC<JixUserProfileProps> = ({ isOpen, onClose, userId, currentUserId, onOpenChat, onOpenProfile }) => {
   const [profile, setProfile] = useState<ProfileData | null>(null);
   const [posts, setPosts] = useState<PostRow[]>([]);
   const [likedIds, setLikedIds] = useState<Set<string>>(new Set());
@@ -184,13 +188,21 @@ export const JixUserProfile: React.FC<JixUserProfileProps> = ({ isOpen, onClose,
               kind={supporterXp >= receiverXp ? 'supporter' : 'receiver'}
               size={90}
             >
-              <div className="w-full h-full rounded-full bg-gradient-to-br from-[#FF7A1A] to-[#8B5CF6] flex items-center justify-center text-2xl font-black overflow-hidden">
-                {profile.avatar_url ? (
-                  <img src={profile.avatar_url} className="w-full h-full object-cover" />
-                ) : (
-                  (profile.full_name || profile.handle || 'م')[0]
-                )}
-              </div>
+              <JixStoryRing
+                userId={userId}
+                currentUserId={currentUserId}
+                size={90}
+                userName={profile.full_name || profile.handle || 'مستخدم JIX'}
+                avatarUrl={profile.avatar_url}
+              >
+                <div className="w-full h-full rounded-full bg-gradient-to-br from-[#FF7A1A] to-[#8B5CF6] flex items-center justify-center text-2xl font-black overflow-hidden">
+                  {profile.avatar_url ? (
+                    <img src={profile.avatar_url} className="w-full h-full object-cover" />
+                  ) : (
+                    (profile.full_name || profile.handle || 'م')[0]
+                  )}
+                </div>
+              </JixStoryRing>
             </AvatarFrame>
 
             <p className="font-black text-lg text-white mt-3">
@@ -219,6 +231,12 @@ export const JixUserProfile: React.FC<JixUserProfileProps> = ({ isOpen, onClose,
                 </span>
               )}
             </div>
+
+            <JixProfileStats
+              userId={userId}
+              refreshKey={isFollowing ? 1 : 0}
+              onOpenProfile={onOpenProfile}
+            />
 
             {currentUserId && currentUserId !== userId && (
               <button
