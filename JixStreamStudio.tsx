@@ -10,6 +10,28 @@ import { JixModeratorManager } from './JixModeratorManager';
 import { JixCohostSlot } from './JixCohostSlot';
 import { useFilteredCanvas, JixFilterPicker, ArFilterId } from './JixCameraFilters';
 
+// يحسب ارتفاع لوحة المفاتيح الحالي (لو مفتوحة) عشان نرفع العناصر السفلية فوقها
+// بدل ما تغطيها لوحة المفاتيح بالكامل زي ما كان يصير
+function useKeyboardInset() {
+  const [inset, setInset] = useState(0);
+  useEffect(() => {
+    const vv = window.visualViewport;
+    if (!vv) return;
+    const handler = () => {
+      const offset = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
+      setInset(offset);
+    };
+    vv.addEventListener('resize', handler);
+    vv.addEventListener('scroll', handler);
+    handler();
+    return () => {
+      vv.removeEventListener('resize', handler);
+      vv.removeEventListener('scroll', handler);
+    };
+  }, []);
+  return inset;
+}
+
 interface Viewer {
   id: string;
   name: string;
@@ -77,6 +99,7 @@ export const JixStreamStudio: React.FC<JixStreamStudioProps> = ({ isOpen, onClos
     arFilterId
   );
   const filteredVideoTrackRef = useRef<any>(null);
+  const keyboardInset = useKeyboardInset();
   const clientRef = useRef<IAgoraRTCClient | null>(null);
   const localVideoTrackRef = useRef<ICameraVideoTrack | null>(null);
   const localAudioTrackRef = useRef<IMicrophoneAudioTrack | null>(null);
@@ -559,7 +582,15 @@ export const JixStreamStudio: React.FC<JixStreamStudioProps> = ({ isOpen, onClos
         {streamMode === 'camera' ? (
           <>
             {/* عنصر فيديو مخفي - يقرأ منه محرك الفلاتر فقط، ما يُعرض للمستخدم */}
-            <video ref={sourceVideoElRef} muted playsInline className="hidden" />
+            {/* عنصر فيديو مخفي - يقرأ منه محرك الفلاتر فقط، ما يُعرض للمستخدم.
+                مهم: لا نستخدم display:none (كلاس hidden) لأنه يوقف معالجة
+                الفريمات فعليًا بمتصفحات الجوال - نخفيه بوضعه خارج الشاشة بدل هذا */}
+            <video
+              ref={sourceVideoElRef}
+              muted
+              playsInline
+              style={{ position: 'fixed', top: '-9999px', left: '-9999px', width: 1, height: 1 }}
+            />
             {/* الكانفاس المفلتر - هذا اللي المستخدم يشوفه فعلياً وهو نفسه اللي يُبث */}
             <canvas ref={canvasRef} className="w-full h-full object-cover" />
           </>
@@ -625,7 +656,7 @@ export const JixStreamStudio: React.FC<JixStreamStudioProps> = ({ isOpen, onClos
 
         <button
           onClick={() => setIsViewersOpen(true)}
-          className="absolute bottom-24 left-4 flex items-center gap-1.5 bg-black/50 px-3 py-2 rounded-full z-10"
+          className="absolute top-20 left-4 flex items-center gap-1.5 bg-black/50 px-3 py-2 rounded-full z-10"
         >
           <Users className="w-4 h-4 text-white" />
           <span className="text-xs font-bold text-white">{viewers.length}</span>
@@ -634,7 +665,7 @@ export const JixStreamStudio: React.FC<JixStreamStudioProps> = ({ isOpen, onClos
         {isLive && (
           <button
             onClick={() => setIsModeratorManagerOpen(true)}
-            className="absolute bottom-24 left-20 flex items-center gap-1.5 bg-black/50 px-3 py-2 rounded-full z-10"
+            className="absolute top-20 left-20 flex items-center gap-1.5 bg-black/50 px-3 py-2 rounded-full z-10"
           >
             <Shield className="w-4 h-4 text-[#8B5CF6]" />
           </button>
@@ -644,7 +675,7 @@ export const JixStreamStudio: React.FC<JixStreamStudioProps> = ({ isOpen, onClos
         {isLive && (
           <button
             onClick={() => setIsRequestsOpen(true)}
-            className="absolute bottom-24 left-36 flex items-center gap-1.5 bg-black/50 px-3 py-2 rounded-full z-10"
+            className="absolute top-20 left-36 flex items-center gap-1.5 bg-black/50 px-3 py-2 rounded-full z-10"
           >
             <Bell className="w-4 h-4 text-[#F5B93E]" />
             {cohostRequests.length > 0 && (
@@ -673,7 +704,10 @@ export const JixStreamStudio: React.FC<JixStreamStudioProps> = ({ isOpen, onClos
           hostId={hostUserId ?? ''}
         />
 
-        <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex items-center gap-3 bg-black/60 backdrop-blur-md px-4 py-2 rounded-full border border-white/10 z-10">
+        <div
+          className="absolute left-1/2 -translate-x-1/2 flex items-center gap-3 bg-black/60 backdrop-blur-md px-4 py-2 rounded-full border border-white/10 z-10"
+          style={{ bottom: 32 + keyboardInset }}
+        >
           <button onClick={toggleMic} className={`p-3 rounded-full ${isMicMuted ? 'bg-red-600' : 'bg-white/10'}`}>
             {isMicMuted ? <MicOff className="w-5 h-5 text-white" /> : <Mic className="w-5 h-5 text-white" />}
           </button>
@@ -691,7 +725,7 @@ export const JixStreamStudio: React.FC<JixStreamStudioProps> = ({ isOpen, onClos
         </div>
 
         {streamMode === 'camera' && isFilterBarOpen && (
-          <div className="absolute bottom-24 inset-x-0 z-10">
+          <div className="absolute inset-x-0 z-10" style={{ bottom: 96 + keyboardInset }}>
             <JixFilterPicker
               colorFilterId={colorFilterId}
               arFilterId={arFilterId}
