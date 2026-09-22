@@ -89,7 +89,8 @@ export const JixMvpBadge: React.FC<JixMvpBadgeProps> = ({
 // ============================================================
 
 // نفس عتبات دالة get_mvp_tier بقاعدة البيانات بالضبط - لازم تبقى متطابقة
-const getTierFromAmount = (amount: number): MvpTier | null => {
+// مُصدّرة (export) عشان تُستخدم برضو بشاشة "توب داعمين/مذيعين" اليومي والأسبوعي
+export const getTierFromAmount = (amount: number): MvpTier | null => {
   if (amount >= 1000000) return 'legendary';
   if (amount >= 750000) return 'iron';
   if (amount >= 500000) return 'imperial';
