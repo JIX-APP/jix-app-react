@@ -296,18 +296,22 @@ function App() {
     setViewingProfileUserId(targetUserId);
   };
 
-  // بدء مكالمة صوتية/مرئية من داخل محادثة خاصة مفتوحة
-  const handleStartCall = async (callType: 'voice' | 'video') => {
-    if (!openConversation || !user) return;
-
+  // بدء مكالمة صوتية/مرئية - قاعدة البيانات ترفضها لو ما كنتوا أصدقاء
+  const startCallWith = async (
+    conversationId: string,
+    otherUserId: string,
+    otherUserName: string,
+    callType: 'voice' | 'video'
+  ) => {
     const { data, error } = await supabase.rpc('start_dm_call', {
-      p_conversation_id: openConversation.conversationId,
-      p_callee_id: openConversation.otherUserId,
+      p_conversation_id: conversationId,
+      p_callee_id: otherUserId,
       p_call_type: callType,
     });
 
     if (error || !data || data.length === 0) {
       console.error('[JIX] فشل بدء المكالمة:', error);
+      alert(error?.message || 'تعذر بدء المكالمة');
       return;
     }
 
@@ -316,9 +320,45 @@ function App() {
       callId: row.call_id,
       agoraChannel: row.agora_channel,
       callType,
-      otherUserName: openConversation.otherUserName,
+      otherUserName,
       isIncoming: false,
     });
+  };
+
+  // بدء مكالمة من داخل محادثة خاصة مفتوحة
+  const handleStartCall = async (callType: 'voice' | 'video') => {
+    if (!openConversation || !user) return;
+    await startCallWith(
+      openConversation.conversationId,
+      openConversation.otherUserId,
+      openConversation.otherUserName,
+      callType
+    );
+  };
+
+  // فتح محادثة (أو مكالمة مباشرة) مع صديق من صفحة بروفايله
+  const handleOpenChatWithUser = async (
+    otherUserId: string,
+    otherUserName: string,
+    callType?: 'voice' | 'video'
+  ) => {
+    if (!user) {
+      setIsAuthOpen(true);
+      return;
+    }
+    const { data: conversationId, error } = await supabase.rpc('get_or_create_dm_conversation', {
+      p_other_user_id: otherUserId,
+    });
+    if (error || !conversationId) {
+      alert(error?.message || 'تعذر فتح المحادثة');
+      return;
+    }
+
+    setViewingProfileUserId(null);
+    setOpenConversation({ conversationId: conversationId as string, otherUserId, otherUserName });
+    if (callType) {
+      await startCallWith(conversationId as string, otherUserId, otherUserName, callType);
+    }
   };
 
   const handleStartEditName = () => {
@@ -853,6 +893,7 @@ function App() {
           onClose={() => setViewingProfileUserId(null)}
           userId={viewingProfileUserId}
           currentUserId={user?.id ?? null}
+          onOpenChat={handleOpenChatWithUser}
         />
       )}
 
