@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Home, Compass, MessageCircle, User, Plus, LogOut, Loader2, Search, Radio, Video, Eye, Pencil, Check, Crown, Calendar, MapPin } from 'lucide-react';
 import { JixAuthModal } from './JixAuthModal';
 import { JixStreamStudio } from './JixStreamStudio';
@@ -16,6 +16,8 @@ import { getPKBattle } from './JixPK';
 import { JixPKChallengeNotification } from './JixPKChallengeNotification';
 import { JixPKBattleView, JixPKResultOverlay } from './JixPKBattleView';
 import { JixStoryRing } from './JixStoryRing';
+import { JixPresenceProvider } from './JixPresence';
+import { JixLiveNotifier } from './JixLiveNotifier';
 import { JixProfileStats } from './JixProfileStats';
 import {
   JixStoryUpload,
@@ -110,6 +112,10 @@ function App() {
   const [isStoryUploadOpen, setIsStoryUploadOpen] = useState(false);
   // يزيد بعد رفع ستوري جديدة عشان حلقة الستوري حول الصورة تتحدث فورًا
   const [storyRefreshKey, setStoryRefreshKey] = useState(0);
+  // مين عنده ستوري خلال آخر 24 ساعة (للحلقة الملونة حول الصور بكل التطبيق)
+  const [storyUserIds, setStoryUserIds] = useState<Set<string>>(new Set());
+  // اللي أتابعهم - عشان شريط "فاتحين بث الحين" بتبويب متابعة
+  const [followingIds, setFollowingIds] = useState<string[]>([]);
 
   // المحادثة الخاصة المفتوحة حالياً (لو موجودة تفتح فوق كل شي)
   const [openConversation, setOpenConversation] = useState<{
@@ -282,6 +288,58 @@ function App() {
     return () => clearTimeout(timer);
   }, [discoverSearch]);
 
+  // ===== الحضور: مين فاتح بث ومين عنده ستوري =====
+  const liveByUser = useMemo(() => {
+    const map: Record<string, LiveStreamRow> = {};
+    for (const stream of liveStreams) map[stream.user_id] = stream;
+    return map;
+  }, [liveStreams]);
+
+  const fetchStoryUsers = async () => {
+    const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+    const { data } = await supabase.from('stories').select('user_id').gte('created_at', since);
+    setStoryUserIds(new Set((data || []).map((r: { user_id: string }) => r.user_id)));
+  };
+
+  useEffect(() => {
+    fetchStoryUsers();
+    // تحديث دوري بسيط عشان الستوريات الجديدة/المنتهية تنعكس بدون إعادة فتح التطبيق
+    const interval = window.setInterval(fetchStoryUsers, 2 * 60 * 1000);
+    return () => window.clearInterval(interval);
+  }, [storyRefreshKey]);
+
+  // اللي أتابعهم - نجيبهم لما أفتح تبويب "متابعة"
+  useEffect(() => {
+    if (!user || feedMode !== 'following') return;
+    supabase
+      .from('follows')
+      .select('following_id')
+      .eq('follower_id', user.id)
+      .then(({ data }) => setFollowingIds((data || []).map((r) => r.following_id)));
+  }, [user?.id, feedMode]);
+
+  const followedLiveStreams = liveStreams.filter((stream) => followingIds.includes(stream.user_id));
+
+  // دخول بث شخص من أي مكان (حلقة LIVE، إشعار، شريط المتابعة)
+  const openLive = async (hostUserId: string) => {
+    if (!user) {
+      setIsAuthOpen(true);
+      return;
+    }
+    let stream: LiveStreamRow | undefined = liveByUser[hostUserId];
+    if (!stream) {
+      // ممكن الإشعار يوصل قبل ما القائمة تتحدث - نجيبه مباشرة
+      const { data } = await supabase.from('live_streams').select('*').eq('user_id', hostUserId).maybeSingle();
+      stream = (data as LiveStreamRow) ?? undefined;
+    }
+    if (!stream) {
+      alert('البث انتهى');
+      return;
+    }
+    setViewingProfileUserId(null);
+    setWatchingStream(stream);
+  };
+
   const handleVipStoreClick = () => {
     if (!user) {
       setIsAuthOpen(true);
@@ -452,7 +510,9 @@ function App() {
   };
 
   return (
+    <JixPresenceProvider value={{ liveByUser, storyUserIds, openLive, refreshStories: fetchStoryUsers }}>
     <div className="h-[100dvh] max-w-[430px] mx-auto relative bg-[#0E0E12] text-white overflow-hidden">
+      <JixLiveNotifier currentUserId={user?.id ?? null} />
       {screen === 'Home' && (
         <header className="absolute top-0 inset-x-0 z-30 flex flex-col bg-gradient-to-b from-black/60 to-transparent">
           <div className="flex items-center justify-between px-4 pt-4 pb-2">
@@ -494,6 +554,30 @@ function App() {
               </button>
             )}
           </div>
+
+          {feedMode === 'following' && followedLiveStreams.length > 0 && (
+            <div className="flex gap-3 px-4 pb-2 pt-1 overflow-x-auto" style={{ scrollbarWidth: 'none' }}>
+              {followedLiveStreams.map((stream) => (
+                <button
+                  key={stream.id}
+                  onClick={() => openLive(stream.user_id)}
+                  className="flex flex-col items-center gap-1.5 shrink-0 w-14"
+                >
+                  <div className="relative">
+                    <div className="w-12 h-12 rounded-full p-[2px] bg-[#FF2D55] animate-pulse">
+                      <div className="w-full h-full rounded-full bg-gradient-to-br from-[#FF7A1A] to-[#8B5CF6] flex items-center justify-center font-black text-white border-2 border-black">
+                        {stream.username[0]}
+                      </div>
+                    </div>
+                    <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 px-1 rounded bg-[#FF2D55] text-[7px] font-black text-white leading-tight">
+                      LIVE
+                    </span>
+                  </div>
+                  <span className="text-[10px] text-white truncate w-full text-center">{stream.username}</span>
+                </button>
+              ))}
+            </div>
+          )}
         </header>
       )}
 
@@ -643,7 +727,6 @@ function App() {
                   userName={user.name}
                   avatarUrl={user.avatarUrl}
                   onAddStory={() => setIsStoryUploadOpen(true)}
-                  refreshKey={storyRefreshKey}
                 >
                   <JixAvatarUpload
                     userId={user.id}
@@ -967,6 +1050,7 @@ function App() {
         />
       )}
     </div>
+    </JixPresenceProvider>
   );
 }
 
