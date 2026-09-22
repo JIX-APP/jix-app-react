@@ -189,7 +189,7 @@ export const LevelBadge: React.FC<{ xp: number; kind: LevelKind; size?: 'sm' | '
         <TierIcon kind={kind} level={tier.level} size={iconSize} />
         <span
           className="bg-clip-text text-transparent"
-          style={{ backgroundImage: 'linear-gradient(90deg, #8B5CF6, #3B82F6)' }}
+          style={{ backgroundImage: 'linear-gradient(90deg, #FF7A1A, #8B5CF6)' }}
         >
           Lv.{tier.level}
         </span>
