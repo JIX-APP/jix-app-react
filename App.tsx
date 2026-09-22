@@ -3,7 +3,7 @@ import { Home, Compass, MessageCircle, User, Plus, LogOut, Loader2, Search, Radi
 import { JixAuthModal } from './JixAuthModal';
 import { JixStreamStudio } from './JixStreamStudio';
 import { JixWatchStream } from './JixWatchStream';
-import { JixVideoFeed } from './JixVideoFeed';
+import { JixVideoFeed, JixFeedMode } from './JixVideoFeed';
 import { JixUploadVideo } from './JixUploadVideo';
 import { JixAvatarUpload } from './JixAvatarUpload';
 import { JixVipStore } from './JixVipStore';
@@ -64,6 +64,7 @@ const calculateAge = (dob: string): number => {
 
 function App() {
   const [screen, setScreen] = useState<ScreenName>('Home');
+  const [feedMode, setFeedMode] = useState<JixFeedMode>('latest');
   const [isAuthOpen, setIsAuthOpen] = useState(false);
   const [isStudioOpen, setIsStudioOpen] = useState(false);
   const [isUploadOpen, setIsUploadOpen] = useState(false);
@@ -73,6 +74,11 @@ function App() {
   const [isCheckingSession, setIsCheckingSession] = useState(true);
   const [liveStreams, setLiveStreams] = useState<LiveStreamRow[]>([]);
   const [isLoadingLive, setIsLoadingLive] = useState(true);
+  const [discoverSearch, setDiscoverSearch] = useState('');
+  const [discoverSearchResults, setDiscoverSearchResults] = useState<
+    { id: string; handle: string | null; full_name: string | null; avatar_url: string | null }[]
+  >([]);
+  const [isSearchingUsers, setIsSearchingUsers] = useState(false);
   const [watchingStream, setWatchingStream] = useState<LiveStreamRow | null>(null);
   const [isEditingName, setIsEditingName] = useState(false);
   const [nameDraft, setNameDraft] = useState('');
@@ -252,6 +258,27 @@ function App() {
     setIsUploadOpen(true);
   };
 
+  // بحث عن مستخدمين بشاشة اكتشف - يبحث بالاسم أو المعرّف، مع تأخير بسيط (debounce)
+  useEffect(() => {
+    const query = discoverSearch.trim();
+    if (!query) {
+      setDiscoverSearchResults([]);
+      setIsSearchingUsers(false);
+      return;
+    }
+    setIsSearchingUsers(true);
+    const timer = setTimeout(async () => {
+      const { data } = await supabase
+        .from('profiles')
+        .select('id, handle, full_name, avatar_url')
+        .or(`handle.ilike.%${query}%,full_name.ilike.%${query}%`)
+        .limit(20);
+      setDiscoverSearchResults(data || []);
+      setIsSearchingUsers(false);
+    }, 350);
+    return () => clearTimeout(timer);
+  }, [discoverSearch]);
+
   const handleVipStoreClick = () => {
     if (!user) {
       setIsAuthOpen(true);
@@ -387,10 +414,39 @@ function App() {
         <header className="absolute top-0 inset-x-0 z-30 flex flex-col bg-gradient-to-b from-black/60 to-transparent">
           <div className="flex items-center justify-between px-4 pt-4 pb-2">
             <span className="font-black text-sm">JIX</span>
+            <div className="flex items-center gap-4">
+              <button
+                onClick={() => setFeedMode('following')}
+                className={`text-xs font-black transition-opacity ${
+                  feedMode === 'following' ? 'text-white opacity-100' : 'text-white/60 opacity-70'
+                }`}
+              >
+                متابعة
+              </button>
+              <button
+                onClick={() => setFeedMode('latest')}
+                className={`text-xs font-black transition-opacity ${
+                  feedMode === 'latest' ? 'text-white opacity-100' : 'text-white/60 opacity-70'
+                }`}
+              >
+                الأحدث
+              </button>
+              <button
+                onClick={() => setFeedMode('popular')}
+                className={`text-xs font-black transition-opacity ${
+                  feedMode === 'popular' ? 'text-white opacity-100' : 'text-white/60 opacity-70'
+                }`}
+              >
+                رائج
+              </button>
+            </div>
             {isCheckingSession ? (
               <Loader2 className="w-4 h-4 animate-spin text-[#8B5CF6]" />
             ) : (
-              <button className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center backdrop-blur">
+              <button
+                onClick={() => setScreen('Discover')}
+                className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center backdrop-blur"
+              >
                 <Search className="w-4 h-4" />
               </button>
             )}
@@ -412,6 +468,7 @@ function App() {
         <JixVideoFeed
           currentUserId={user?.id ?? null}
           refreshKey={videoFeedKey}
+          feedMode={feedMode}
           onOpenProfile={handleOpenProfile}
         />
       </div>
@@ -420,10 +477,47 @@ function App() {
         <div className="flex items-center gap-2 bg-white/5 rounded-full px-4 py-3 mb-6">
           <Search className="w-4 h-4 text-[#6B6B76]" />
           <input
+            value={discoverSearch}
+            onChange={(e) => setDiscoverSearch(e.target.value)}
             placeholder="ابحث عن مستخدم أو بث..."
             className="bg-transparent outline-none text-sm flex-1 placeholder:text-[#6B6B76] text-white"
           />
         </div>
+
+        {discoverSearch.trim() ? (
+          <div className="mb-6">
+            {isSearchingUsers ? (
+              <div className="flex justify-center py-8">
+                <Loader2 className="w-5 h-5 animate-spin text-[#8B5CF6]" />
+              </div>
+            ) : discoverSearchResults.length === 0 ? (
+              <p className="text-xs text-[#6B6B76] text-center py-8">ما فيه نتائج لـ"{discoverSearch}"</p>
+            ) : (
+              <div className="space-y-2">
+                {discoverSearchResults.map((result) => (
+                  <button
+                    key={result.id}
+                    onClick={() => handleOpenProfile(result.id)}
+                    className="w-full flex items-center gap-3 bg-white/5 rounded-2xl p-2.5 text-right"
+                  >
+                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#FF7A1A] to-[#8B5CF6] flex items-center justify-center font-black text-white shrink-0 overflow-hidden">
+                      {result.avatar_url ? (
+                        <img src={result.avatar_url} className="w-full h-full object-cover" />
+                      ) : (
+                        (result.full_name || result.handle || '?')[0]
+                      )}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-sm font-bold truncate">{result.full_name || result.handle}</p>
+                      {result.handle && <p className="text-[10px] text-[#6B6B76] truncate">@{result.handle}</p>}
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        ) : null}
+
         <p className="text-xs font-bold text-[#6B6B76] mb-3">بثوث مباشرة الآن</p>
 
         {isLoadingLive ? (
@@ -544,17 +638,24 @@ function App() {
                   </button>
                 </div>
               )}
+              {user.accountNumber !== null && (
+                <p className="text-[10px] text-[#8B5CF6] font-bold mt-0.5" dir="ltr">
+                  ID: {user.accountNumber}
+                </p>
+              )}
               <div className="flex items-center gap-2 mt-2">
                 <LevelBadge xp={supporterXp} kind="supporter" size="md" />
                 <LevelBadge xp={receiverXp} kind="receiver" size="md" />
-                {user.accountNumber !== null && (
-                  <span className="inline-flex items-center rounded-full font-black px-3 py-1.5 text-sm bg-white/5" dir="ltr">
-                    <span
-                      className="bg-clip-text text-transparent"
-                      style={{ backgroundImage: 'linear-gradient(90deg, #FF7A1A, #8B5CF6)' }}
-                    >
-                      ID: {user.accountNumber}
+                {user.gender && user.dateOfBirth && (
+                  <span
+                    className="inline-flex items-center gap-1.5 rounded-full font-black px-2.5 py-1 text-xs text-white"
+                    style={{ background: 'linear-gradient(135deg, #FF7A1A, #8B5CF6)' }}
+                  >
+                    <span style={{ fontSize: '14px', lineHeight: 1 }}>
+                      {user.gender === 'male' ? '♂' : '♀'}
                     </span>
+                    <span className="w-px h-2.5 bg-white/40" />
+                    {calculateAge(user.dateOfBirth)}
                   </span>
                 )}
               </div>
