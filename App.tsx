@@ -552,18 +552,6 @@ function App() {
               <div className="flex items-center gap-2 mt-2">
                 <LevelBadge xp={supporterXp} kind="supporter" size="md" />
                 <LevelBadge xp={receiverXp} kind="receiver" size="md" />
-                {user.gender && user.dateOfBirth && (
-                  <span
-                    className="inline-flex items-center gap-1.5 rounded-full font-black px-2.5 py-1 text-xs text-white"
-                    style={{ background: 'linear-gradient(135deg, #FF7A1A, #8B5CF6)' }}
-                  >
-                    <span style={{ fontSize: '14px', lineHeight: 1 }}>
-                      {user.gender === 'male' ? '♂' : '♀'}
-                    </span>
-                    <span className="w-px h-2.5 bg-white/40" />
-                    {calculateAge(user.dateOfBirth)}
-                  </span>
-                )}
               </div>
             </div>
 
