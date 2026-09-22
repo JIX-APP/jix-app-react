@@ -5,18 +5,23 @@ import { useFilteredCanvas, JixFilterPicker, ArFilterId } from './JixCameraFilte
 interface JixVideoRecorderProps {
   isOpen: boolean;
   onClose: () => void;
-  onRecorded: (file: File) => void;
+  // type يوضح إذا الملف الناتج صورة أو فيديو، عشان الشاشة اللي فوق (JixUploadVideo) تتعامل معه صح
+  onCaptured: (file: File, type: 'image' | 'video') => void;
 }
+
+type CaptureMode = 'photo' | 'video';
 
 const MAX_RECORD_SECONDS = 60;
 
-export const JixVideoRecorder: React.FC<JixVideoRecorderProps> = ({ isOpen, onClose, onRecorded }) => {
+export const JixVideoRecorder: React.FC<JixVideoRecorderProps> = ({ isOpen, onClose, onCaptured }) => {
   const sourceVideoElRef = useRef<HTMLVideoElement>(null);
   const [colorFilterId, setColorFilterId] = useState('normal');
   const [arFilterId, setArFilterId] = useState<ArFilterId>('none');
   const [isFilterBarOpen, setIsFilterBarOpen] = useState(false);
   const { canvasRef, getStream } = useFilteredCanvas(sourceVideoElRef, colorFilterId, arFilterId);
 
+  // وضع الالتقاط: صورة أو فيديو - نفس فكرة تيك توك (زر تبديل فوق زر الالتقاط مباشرة)
+  const [mode, setMode] = useState<CaptureMode>('video');
   const [isRecording, setIsRecording] = useState(false);
   const [seconds, setSeconds] = useState(0);
   const [error, setError] = useState<string | null>(null);
@@ -59,6 +64,14 @@ export const JixVideoRecorder: React.FC<JixVideoRecorderProps> = ({ isOpen, onCl
     };
   }, [isOpen]);
 
+  // إعادة الضبط كل ما نفتح الشاشة من جديد (وضع افتراضي = فيديو، بدون تسجيل شغّال)
+  useEffect(() => {
+    if (isOpen) {
+      setMode('video');
+      setError(null);
+    }
+  }, [isOpen]);
+
   const handleStartRecording = () => {
     const canvasStream = getStream(30);
     const audioTrack = cameraStreamRef.current?.getAudioTracks()[0];
@@ -87,7 +100,7 @@ export const JixVideoRecorder: React.FC<JixVideoRecorderProps> = ({ isOpen, onCl
     recorder.onstop = () => {
       const blob = new Blob(chunksRef.current, { type: mimeType });
       const file = new File([blob], `recording_${Date.now()}.webm`, { type: mimeType });
-      onRecorded(file);
+      onCaptured(file, 'video');
       resetAndClose();
     };
 
@@ -113,6 +126,42 @@ export const JixVideoRecorder: React.FC<JixVideoRecorderProps> = ({ isOpen, onCl
     setIsRecording(false);
   };
 
+  // التقاط صورة ثابتة من نفس الكانفاس المفلتر (يشمل فلاتر الألوان وفلاتر الوجه المرسومة حياً)
+  const handleCapturePhoto = () => {
+    const canvas = canvasRef.current;
+    if (!canvas || !canvas.width || !canvas.height) {
+      setError('تعذر التقاط الصورة، حاول مرة أخرى');
+      return;
+    }
+
+    canvas.toBlob(
+      (blob) => {
+        if (!blob) {
+          setError('تعذر التقاط الصورة، حاول مرة أخرى');
+          return;
+        }
+        const file = new File([blob], `photo_${Date.now()}.jpg`, { type: 'image/jpeg' });
+        onCaptured(file, 'image');
+        resetAndClose();
+      },
+      'image/jpeg',
+      0.92
+    );
+  };
+
+  // زر الالتقاط الرئيسي: يتصرف حسب الوضع الحالي (صورة = التقاط فوري، فيديو = بدء/إيقاف تسجيل)
+  const handleShutterPress = () => {
+    if (mode === 'photo') {
+      handleCapturePhoto();
+      return;
+    }
+    if (isRecording) {
+      handleStopRecording();
+    } else {
+      handleStartRecording();
+    }
+  };
+
   const resetAndClose = () => {
     if (timerRef.current) clearInterval(timerRef.current);
     setIsRecording(false);
@@ -129,7 +178,7 @@ export const JixVideoRecorder: React.FC<JixVideoRecorderProps> = ({ isOpen, onCl
       <canvas ref={canvasRef} className="absolute inset-0 w-full h-full object-cover" />
 
       <div className="absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-black/70 to-transparent pointer-events-none" />
-      <div className="absolute inset-x-0 bottom-0 h-48 bg-gradient-to-t from-black/70 to-transparent pointer-events-none" />
+      <div className="absolute inset-x-0 bottom-0 h-56 bg-gradient-to-t from-black/70 to-transparent pointer-events-none" />
 
       <div className="absolute top-4 inset-x-4 flex items-center justify-between z-10">
         <button onClick={resetAndClose} className="w-9 h-9 rounded-full bg-black/50 flex items-center justify-center">
@@ -160,7 +209,7 @@ export const JixVideoRecorder: React.FC<JixVideoRecorderProps> = ({ isOpen, onCl
       )}
 
       {isFilterBarOpen && !isRecording && (
-        <div className="absolute bottom-28 inset-x-0 z-10">
+        <div className="absolute bottom-36 inset-x-0 z-10">
           <JixFilterPicker
             colorFilterId={colorFilterId}
             arFilterId={arFilterId}
@@ -170,22 +219,50 @@ export const JixVideoRecorder: React.FC<JixVideoRecorderProps> = ({ isOpen, onCl
         </div>
       )}
 
+      {/* مفتاح التبديل بين صورة/فيديو - نفس مكان وشكل تيك توك، فوق زر الالتقاط مباشرة */}
+      {!isRecording && (
+        <div className="absolute bottom-24 inset-x-0 flex items-center justify-center gap-7 z-10">
+          <button
+            type="button"
+            onClick={() => setMode('photo')}
+            className={`text-[13px] font-black tracking-wide transition-colors ${
+              mode === 'photo' ? 'text-white' : 'text-gray-400'
+            }`}
+          >
+            صورة
+          </button>
+          <button
+            type="button"
+            onClick={() => setMode('video')}
+            className={`text-[13px] font-black tracking-wide transition-colors ${
+              mode === 'video' ? 'text-white' : 'text-gray-400'
+            }`}
+          >
+            فيديو
+          </button>
+        </div>
+      )}
+
       <div className="absolute bottom-8 inset-x-0 flex items-center justify-center z-10">
         <button
-          onClick={isRecording ? handleStopRecording : handleStartRecording}
+          onClick={handleShutterPress}
           className="w-16 h-16 rounded-full border-4 border-white flex items-center justify-center"
         >
-          {isRecording ? (
+          {mode === 'video' && isRecording ? (
             <Square className="w-6 h-6 text-red-600 fill-red-600" />
-          ) : (
+          ) : mode === 'video' ? (
             <Circle className="w-12 h-12 text-red-600 fill-red-600" />
+          ) : (
+            <Circle className="w-12 h-12 text-white fill-white" />
           )}
         </button>
       </div>
 
-      <p className="absolute bottom-1 inset-x-0 text-center text-[10px] text-gray-400 z-10">
-        حتى {MAX_RECORD_SECONDS} ثانية
-      </p>
+      {mode === 'video' && (
+        <p className="absolute bottom-1 inset-x-0 text-center text-[10px] text-gray-400 z-10">
+          حتى {MAX_RECORD_SECONDS} ثانية
+        </p>
+      )}
     </div>
   );
 };
