@@ -70,7 +70,6 @@ export const JixStreamStudio: React.FC<JixStreamStudioProps> = ({ isOpen, onClos
   // الصورة المستخدمة بوضع "صورة" - تبدأ بصورة البروفايل، لكن المذيع يقدر يختار
   // أي صورة من جواله وتصير هي المعروضة بدلها
   const [avatarImageUrl, setAvatarImageUrl] = useState(currentUser.avatar);
-  const avatarFileInputRef = useRef<HTMLInputElement>(null);
   const [isMicMuted, setIsMicMuted] = useState(false);
   const [isLive, setIsLive] = useState(false);
   const [isSwitching, setIsSwitching] = useState(false);
@@ -799,20 +798,21 @@ export const JixStreamStudio: React.FC<JixStreamStudioProps> = ({ isOpen, onClos
             <div className="absolute inset-x-0 bottom-28 flex flex-col items-center gap-2">
               <p className="text-white font-black text-lg drop-shadow-lg">{currentUser.name}</p>
               <p className="text-[#F5B93E] text-xs font-bold drop-shadow-lg">بث بصورة ثابتة</p>
-              <button
-                onClick={() => avatarFileInputRef.current?.click()}
+              <label
+                htmlFor="jix-avatar-photo-input"
                 className="mt-1 flex items-center gap-1.5 bg-black/60 backdrop-blur-sm px-4 py-2 rounded-full border border-white/20"
               >
                 <Image className="w-4 h-4 text-[#8B5CF6]" />
                 <span className="text-xs font-bold text-white">تغيير الصورة</span>
-              </button>
+              </label>
             </div>
           </div>
         )}
 
-        {/* منتقي صور مخفي - يفتح معرض صور الجوال لاختيار صورة بث وضع "صورة" */}
+        {/* منتقي صور مخفي - يفتح معرض صور الجوال لاختيار صورة بث وضع "صورة"
+            نستخدم label+htmlFor بدل ref.click() - أكثر موثوقية على سفاري آيفون */}
         <input
-          ref={avatarFileInputRef}
+          id="jix-avatar-photo-input"
           type="file"
           accept="image/*"
           onChange={handleAvatarFileChange}
@@ -871,37 +871,31 @@ export const JixStreamStudio: React.FC<JixStreamStudioProps> = ({ isOpen, onClos
           );
         })()}
 
-        <button
-          onClick={() => setIsViewersOpen(true)}
-          className="absolute top-20 left-4 flex items-center gap-1.5 bg-black/50 px-3 py-2 rounded-full z-10"
-        >
-          <Users className="w-4 h-4 text-white" />
-          <span className="text-xs font-bold text-white">{viewers.length}</span>
-        </button>
-
-        {isLive && (
-          <button
-            onClick={() => setIsModeratorManagerOpen(true)}
-            className="absolute top-20 left-20 flex items-center gap-1.5 bg-black/50 px-3 py-2 rounded-full z-10"
-          >
-            <Shield className="w-4 h-4 text-[#8B5CF6]" />
+        {/* مجموعة أدوات المشاهدين - عدد المشاهدين دايمًا ظاهر، وزرّي الإشراف
+            (المشرفين/طلبات الصعود) يظهروا جنبه بس لما تضغط عليه، بنفس المكان */}
+        <div className="absolute top-20 left-4 flex items-center gap-1.5 bg-black/50 px-3 py-2 rounded-full z-10">
+          <button onClick={() => setIsViewersOpen(true)} className="flex items-center gap-1.5">
+            <Users className="w-4 h-4 text-white" />
+            <span className="text-xs font-bold text-white">{viewers.length}</span>
           </button>
-        )}
 
-        {/* زر طلبات الصعود - مع عداد لو فيه طلبات جديدة */}
-        {isLive && (
-          <button
-            onClick={() => setIsRequestsOpen(true)}
-            className="absolute top-20 left-36 flex items-center gap-1.5 bg-black/50 px-3 py-2 rounded-full z-10"
-          >
-            <Bell className="w-4 h-4 text-[#F5B93E]" />
-            {cohostRequests.length > 0 && (
-              <span className="w-4 h-4 rounded-full bg-red-600 text-[9px] font-black flex items-center justify-center text-white">
-                {cohostRequests.length}
-              </span>
-            )}
-          </button>
-        )}
+          {isLive && isViewersOpen && (
+            <>
+              <span className="w-px h-4 bg-white/20 mx-0.5" />
+              <button onClick={() => setIsModeratorManagerOpen(true)}>
+                <Shield className="w-4 h-4 text-[#8B5CF6]" />
+              </button>
+              <button onClick={() => setIsRequestsOpen(true)} className="relative">
+                <Bell className="w-4 h-4 text-[#F5B93E]" />
+                {cohostRequests.length > 0 && (
+                  <span className="absolute -top-1.5 -left-1.5 w-3.5 h-3.5 rounded-full bg-red-600 text-[8px] font-black flex items-center justify-center text-white">
+                    {cohostRequests.length}
+                  </span>
+                )}
+              </button>
+            </>
+          )}
+        </div>
 
         {isLive && hostUserId && (
           <JixLiveComments
