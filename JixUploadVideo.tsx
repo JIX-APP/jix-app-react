@@ -1,7 +1,8 @@
 import React, { useRef, useState } from 'react';
-import { X, Upload, Loader2, Camera } from 'lucide-react';
+import { X, Upload, Loader2, Camera, Sparkles } from 'lucide-react';
 import { supabase } from './supabaseClient';
 import { checkText } from './JixModeration';
+import { JixVideoRecorder } from './JixVideoRecorder';
 
 const MODERATE_IMAGE_URL = 'https://wfvhzlpvtgnydhmsxcqr.supabase.co/functions/v1/moderate-image';
 
@@ -21,6 +22,7 @@ export const JixUploadVideo: React.FC<JixUploadVideoProps> = ({ isOpen, onClose,
   const [category, setCategory] = useState(CATEGORIES[0]);
   const [isUploading, setIsUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isRecorderOpen, setIsRecorderOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   if (!isOpen) return null;
@@ -33,6 +35,14 @@ export const JixUploadVideo: React.FC<JixUploadVideoProps> = ({ isOpen, onClose,
     setFile(selected);
     setIsImage(selected.type.startsWith('image/'));
     setPreviewUrl(URL.createObjectURL(selected));
+  };
+
+  // يستقبل الفيديو المسجّل حديثاً من شاشة التصوير بالفلاتر ويعامله بنفس طريقة ملف مُختار عادي
+  const handleRecorded = (recordedFile: File) => {
+    setFile(recordedFile);
+    setIsImage(false);
+    setPreviewUrl(URL.createObjectURL(recordedFile));
+    setIsRecorderOpen(false);
   };
 
   const extractHashtags = (text: string): string[] => {
@@ -142,13 +152,22 @@ export const JixUploadVideo: React.FC<JixUploadVideoProps> = ({ isOpen, onClose,
         )}
 
         {!previewUrl ? (
-          <button
-            onClick={() => fileInputRef.current?.click()}
-            className="w-full aspect-[9/12] rounded-2xl border-2 border-dashed border-gray-700 flex flex-col items-center justify-center gap-3 hover:border-[#8B5CF6] transition mb-4"
-          >
-            <Camera className="w-10 h-10 text-gray-500" />
-            <span className="text-sm text-gray-400">التقط صورة/فيديو أو اختر من المعرض</span>
-          </button>
+          <div className="grid grid-cols-2 gap-2.5 mb-4">
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              className="aspect-[9/12] rounded-2xl border-2 border-dashed border-gray-700 flex flex-col items-center justify-center gap-3 hover:border-[#8B5CF6] transition"
+            >
+              <Camera className="w-10 h-10 text-gray-500" />
+              <span className="text-sm text-gray-400 text-center px-2">اختر من المعرض</span>
+            </button>
+            <button
+              onClick={() => setIsRecorderOpen(true)}
+              className="aspect-[9/12] rounded-2xl border-2 border-dashed border-[#8B5CF6]/50 flex flex-col items-center justify-center gap-3 hover:border-[#8B5CF6] transition"
+            >
+              <Sparkles className="w-10 h-10 text-[#8B5CF6]" />
+              <span className="text-sm text-gray-400 text-center px-2">صوّر بالفلاتر</span>
+            </button>
+          </div>
         ) : isImage ? (
           <img src={previewUrl} className="w-full aspect-[9/12] object-cover rounded-2xl mb-4 bg-black" />
         ) : (
@@ -204,6 +223,12 @@ export const JixUploadVideo: React.FC<JixUploadVideoProps> = ({ isOpen, onClose,
           {isUploading ? 'جاري النشر...' : 'نشر'}
         </button>
       </div>
+
+      <JixVideoRecorder
+        isOpen={isRecorderOpen}
+        onClose={() => setIsRecorderOpen(false)}
+        onRecorded={handleRecorded}
+      />
     </div>
   );
 };
