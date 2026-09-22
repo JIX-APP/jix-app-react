@@ -84,7 +84,18 @@ export const JixAuthModal: React.FC<JixAuthModalProps> = ({ isOpen, onClose, onS
     setIsSubmitting(false);
 
     if (otpError) {
-      setError(otpError.message);
+      // نطبع الخطأ كامل بالـ Console (لو أحد فتحه من جهاز فيه أدوات مطوّرين)
+      // ونعرض كل التفاصيل المتوفرة بالشاشة نفسها عشان تقدر تشوفها من الآيفون مباشرة
+      console.error('[JIX] فشل إرسال رمز التحقق - تفاصيل كاملة:', otpError);
+      const details = [
+        `الرسالة: ${otpError.message}`,
+        (otpError as any).status ? `الحالة (status): ${(otpError as any).status}` : null,
+        (otpError as any).code ? `الرمز (code): ${(otpError as any).code}` : null,
+        (otpError as any).name ? `النوع (name): ${(otpError as any).name}` : null,
+      ]
+        .filter(Boolean)
+        .join(' | ');
+      setError(details);
       return;
     }
 
@@ -104,8 +115,16 @@ export const JixAuthModal: React.FC<JixAuthModalProps> = ({ isOpen, onClose, onS
     });
 
     if (verifyError) {
+      console.error('[JIX] فشل التحقق من الرمز - تفاصيل كاملة:', verifyError);
+      const details = [
+        `الرسالة: ${verifyError.message}`,
+        (verifyError as any).status ? `الحالة (status): ${(verifyError as any).status}` : null,
+        (verifyError as any).code ? `الرمز (code): ${(verifyError as any).code}` : null,
+      ]
+        .filter(Boolean)
+        .join(' | ');
       setIsSubmitting(false);
-      setError(verifyError.message);
+      setError(details);
       return;
     }
 
@@ -118,8 +137,17 @@ export const JixAuthModal: React.FC<JixAuthModalProps> = ({ isOpen, onClose, onS
         .eq('id', data.user.id);
 
       if (profileError) {
+        console.error('[JIX] فشل تحديث بيانات البروفايل - تفاصيل كاملة:', profileError);
+        const details = [
+          `الرسالة: ${profileError.message}`,
+          profileError.code ? `الرمز (code): ${profileError.code}` : null,
+          profileError.details ? `التفاصيل: ${profileError.details}` : null,
+          profileError.hint ? `تلميح: ${profileError.hint}` : null,
+        ]
+          .filter(Boolean)
+          .join(' | ');
         setIsSubmitting(false);
-        setError(profileError.message);
+        setError(details);
         return;
       }
     }
