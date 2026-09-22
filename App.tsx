@@ -768,12 +768,18 @@ function App() {
                 <LevelBadge xp={supporterXp} kind="supporter" size="md" />
                 <LevelBadge xp={receiverXp} kind="receiver" size="md" />
                 {user.accountNumber !== null && (
+                  // نفس خانة شارة Lv بالضبط: خلفية رصاصية + نفس الحجم والارتفاع
                   <span
-                    className="text-xs font-black bg-clip-text text-transparent"
-                    style={{ backgroundImage: 'linear-gradient(90deg, #FF7A1A, #8B5CF6)' }}
+                    className="inline-flex items-center rounded-full font-black px-3 py-1.5 text-sm"
+                    style={{ background: 'linear-gradient(90deg, #6B6B76, #4A4A52)' }}
                     dir="ltr"
                   >
-                    ID: {user.accountNumber}
+                    <span
+                      className="bg-clip-text text-transparent flex items-center"
+                      style={{ backgroundImage: 'linear-gradient(90deg, #FF7A1A, #8B5CF6)', height: 30 }}
+                    >
+                      ID: {user.accountNumber}
+                    </span>
                   </span>
                 )}
               </div>
