@@ -309,6 +309,7 @@ export const JixStreamStudio: React.FC<JixStreamStudioProps> = ({ isOpen, onClos
     const client = clientRef.current;
     if (!isLive || !client || !localVideoTrackRef.current) return;
 
+    const currentVideoTrack = localVideoTrackRef.current;
     const hasActiveFilter = colorFilterId !== 'normal' || arFilterId !== 'none';
 
     const swapPublishedTrack = async () => {
@@ -321,13 +322,13 @@ export const JixStreamStudio: React.FC<JixStreamStudioProps> = ({ isOpen, onClos
           if (!canvasVideoTrackNative) return;
 
           const customTrack = AgoraRTC.createCustomVideoTrack({ mediaStreamTrack: canvasVideoTrackNative });
-          await client.unpublish([localVideoTrackRef.current]);
+          await client.unpublish([currentVideoTrack]);
           await client.publish([customTrack]);
           filteredVideoTrackRef.current = customTrack;
         } else if (!hasActiveFilter && filteredVideoTrackRef.current) {
           const oldFilteredTrack = filteredVideoTrackRef.current;
           await client.unpublish([oldFilteredTrack]);
-          await client.publish([localVideoTrackRef.current]);
+          await client.publish([currentVideoTrack]);
           oldFilteredTrack.close();
           filteredVideoTrackRef.current = null;
         }
