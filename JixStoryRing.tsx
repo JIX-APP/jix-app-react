@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { X, Plus, Send } from 'lucide-react';
 import { supabase } from './supabaseClient';
+import { useJixPresence, useUserPresence } from './JixPresence';
 
 // ============================================================
 // الستوري بطريقة تيك توك: ما فيه شريط بالصفحة الرئيسية،
@@ -24,13 +25,18 @@ interface JixStoryRingProps {
   avatarUrl: string | null;
   // لو موجود: يظهر زر + صغير لإضافة ستوري (بروفايلك أنت بس)
   onAddStory?: () => void;
-  refreshKey?: number;
+  // مكان علامة LIVE: تحت الصورة (افتراضي) أو فوقها (بالفيديوهات عشان زر المتابعة تحت)
+  livePillPosition?: 'bottom' | 'top';
   children: React.ReactNode;
 }
 
 const STORY_DURATION_MS = 5000;
 const STORY_LIFETIME_MS = 24 * 60 * 60 * 1000;
 
+// الحلقة حول الصورة بطريقة تيك توك:
+// - حمراء تنبض + LIVE = فاتح بث الحين (لها الأولوية، الضغط يدخلك البث)
+// - برتقالي→بنفسجي = عنده ستوري (الضغط يفتح الستوري)
+// - بدون حلقة = لا هذا ولا ذاك (الضغط يسوي الشي العادي، مثلاً يفتح البروفايل)
 export const JixStoryRing: React.FC<JixStoryRingProps> = ({
   userId,
   currentUserId,
@@ -38,38 +44,45 @@ export const JixStoryRing: React.FC<JixStoryRingProps> = ({
   userName,
   avatarUrl,
   onAddStory,
-  refreshKey = 0,
+  livePillPosition = 'bottom',
   children,
 }) => {
+  const { openLive } = useJixPresence();
+  const { isLive: isLiveRaw, hasStory } = useUserPresence(userId);
+  // بثك أنت ما نعرضه عليك كحلقة (ما له معنى تدخل تشاهد نفسك)
+  const isLive = isLiveRaw && userId !== currentUserId;
   const [stories, setStories] = useState<StoryRow[]>([]);
   const [isViewerOpen, setIsViewerOpen] = useState(false);
 
-  useEffect(() => {
-    if (!userId) return;
+  // نجيب الستوريات نفسها بس لما المستخدم يضغط - مو لكل صورة بالشاشة
+  const openStories = async () => {
     const since = new Date(Date.now() - STORY_LIFETIME_MS).toISOString();
-    supabase
+    const { data } = await supabase
       .from('stories')
       .select('id, user_id, media_url, media_type, created_at')
       .eq('user_id', userId)
       .gte('created_at', since)
-      .order('created_at', { ascending: true })
-      .then(({ data }) => setStories((data as StoryRow[]) || []));
-  }, [userId, refreshKey]);
+      .order('created_at', { ascending: true });
+    const rows = (data as StoryRow[]) || [];
+    if (rows.length === 0) return;
+    setStories(rows);
+    setIsViewerOpen(true);
+  };
 
-  const hasStories = stories.length > 0;
-  const ringGap = 5;
+  const ringGap = size >= 60 ? 5 : 3;
+  const ringWidth = size >= 60 ? 3 : 2;
+  const showRing = isLive || hasStory;
 
   return (
     <>
       <div className="relative" style={{ width: size, height: size }}>
-        {/* الحلقة الملونة - بس لو فيه ستوري */}
-        {hasStories && (
+        {showRing && (
           <div
-            className="absolute rounded-full pointer-events-none"
+            className={`absolute rounded-full pointer-events-none ${isLive ? 'animate-pulse' : ''}`}
             style={{
               inset: -ringGap,
-              padding: 3,
-              background: 'linear-gradient(135deg, #FF7A1A, #8B5CF6)',
+              padding: ringWidth,
+              background: isLive ? '#FF2D55' : 'linear-gradient(135deg, #FF7A1A, #8B5CF6)',
               WebkitMask: 'linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0)',
               WebkitMaskComposite: 'xor',
               maskComposite: 'exclude',
@@ -79,14 +92,28 @@ export const JixStoryRing: React.FC<JixStoryRingProps> = ({
 
         {children}
 
-        {/* منطقة الضغط لفتح الستوري - تغطي وسط الصورة بس، عشان زر الكاميرا بالزاوية يظل شغال */}
-        {hasStories && (
+        {/* منطقة الضغط - تغطي وسط الصورة بس، عشان الأزرار بالزوايا (كاميرا/+/متابعة) تظل شغالة */}
+        {showRing && (
           <button
-            onClick={() => setIsViewerOpen(true)}
+            onClick={() => (isLive ? openLive(userId) : openStories())}
             className="absolute rounded-full"
             style={{ inset: '15%' }}
-            aria-label="عرض الستوري"
+            aria-label={isLive ? 'دخول البث' : 'عرض الستوري'}
           />
+        )}
+
+        {isLive && (
+          <span
+            className="absolute left-1/2 -translate-x-1/2 px-1.5 rounded-md bg-[#FF2D55] text-white font-black leading-none pointer-events-none z-10"
+            style={{
+              fontSize: size >= 60 ? 10 : 7,
+              paddingTop: 2,
+              paddingBottom: 2,
+              ...(livePillPosition === 'bottom' ? { bottom: -ringGap - 4 } : { top: -ringGap - 6 }),
+            }}
+          >
+            LIVE
+          </span>
         )}
 
         {onAddStory && (
@@ -100,7 +127,7 @@ export const JixStoryRing: React.FC<JixStoryRingProps> = ({
         )}
       </div>
 
-      {isViewerOpen && hasStories && (
+      {isViewerOpen && stories.length > 0 && (
         <StoryViewer
           stories={stories}
           ownerId={userId}
