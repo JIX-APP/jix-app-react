@@ -67,6 +67,10 @@ const AGORA_TOKEN_URL = 'https://wfvhzlpvtgnydhmsxcqr.supabase.co/functions/v1/a
 
 export const JixStreamStudio: React.FC<JixStreamStudioProps> = ({ isOpen, onClose, currentUser }) => {
   const [streamMode, setStreamMode] = useState<'camera' | 'avatar'>('camera');
+  // الصورة المستخدمة بوضع "صورة" - تبدأ بصورة البروفايل، لكن المذيع يقدر يختار
+  // أي صورة من جواله وتصير هي المعروضة بدلها
+  const [avatarImageUrl, setAvatarImageUrl] = useState(currentUser.avatar);
+  const avatarFileInputRef = useRef<HTMLInputElement>(null);
   const [isMicMuted, setIsMicMuted] = useState(false);
   const [isLive, setIsLive] = useState(false);
   const [isSwitching, setIsSwitching] = useState(false);
@@ -568,13 +572,13 @@ export const JixStreamStudio: React.FC<JixStreamStudioProps> = ({ isOpen, onClos
     }
   };
 
-  // يبني مسار فيديو ثابت من صورة الأفتار (Canvas) - يُستخدم بدل الكاميرا بوضع "صورة"
-  const createAvatarVideoTrack = async () => {
-    if (avatarVideoTrackRef.current) return avatarVideoTrackRef.current;
-
+  // يبني مسار فيديو ثابت من صورة (Canvas بحجم الشاشة الكامل 9:16) - يُستخدم بدل
+  // الكاميرا بوضع "صورة"، والصورة تُرسم بطريقة "cover" فتغطي الإطار بالكامل
+  // بدون أي تمديد يشوهها (زيادتها تُقص، مو تتمدد)
+  const buildAvatarCanvasTrack = async (imageUrl: string) => {
     const canvas = document.createElement('canvas');
-    canvas.width = 640;
-    canvas.height = 640;
+    canvas.width = 720;
+    canvas.height = 1280;
     const ctx = canvas.getContext('2d');
 
     await new Promise<void>((resolve) => {
@@ -584,22 +588,49 @@ export const JixStreamStudio: React.FC<JixStreamStudioProps> = ({ isOpen, onClos
         if (ctx) {
           ctx.fillStyle = '#12141f';
           ctx.fillRect(0, 0, canvas.width, canvas.height);
-          const size = Math.min(img.width, img.height);
-          const sx = (img.width - size) / 2;
-          const sy = (img.height - size) / 2;
-          ctx.drawImage(img, sx, sy, size, size, 0, 0, canvas.width, canvas.height);
+          const scale = Math.max(canvas.width / img.width, canvas.height / img.height);
+          const drawW = img.width * scale;
+          const drawH = img.height * scale;
+          const dx = (canvas.width - drawW) / 2;
+          const dy = (canvas.height - drawH) / 2;
+          ctx.drawImage(img, dx, dy, drawW, drawH);
         }
         resolve();
       };
       img.onerror = () => resolve();
-      img.src = currentUser.avatar;
+      img.src = imageUrl;
     });
 
     const canvasStream = (canvas as any).captureStream(1);
     const nativeTrack = canvasStream.getVideoTracks()[0];
-    const track = AgoraRTC.createCustomVideoTrack({ mediaStreamTrack: nativeTrack });
-    avatarVideoTrackRef.current = track;
-    return track;
+    return AgoraRTC.createCustomVideoTrack({ mediaStreamTrack: nativeTrack });
+  };
+
+  // يفتح منتقي الصور بجوال المذيع ويحدّث صورة وضع "صورة" فورًا لو كان البث شغال بهذا الوضع
+  const handleAvatarFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = async () => {
+      if (typeof reader.result !== 'string') return;
+      const newImageUrl = reader.result;
+      setAvatarImageUrl(newImageUrl);
+
+      if (isLive && streamMode === 'avatar' && clientRef.current) {
+        try {
+          const newTrack = await buildAvatarCanvasTrack(newImageUrl);
+          const oldTrack = avatarVideoTrackRef.current;
+          if (oldTrack) await clientRef.current.unpublish([oldTrack]);
+          await clientRef.current.publish([newTrack]);
+          oldTrack?.close();
+          avatarVideoTrackRef.current = newTrack;
+        } catch (err) {
+          console.error('[JIX] فشل تحديث صورة البث:', err);
+        }
+      }
+    };
+    reader.readAsDataURL(file);
+    e.target.value = '';
   };
 
   // تبديل حي من الكاميرا إلى وضع الصورة وسط البث - نبدّل المسار المنشور، وبعدها
@@ -609,7 +640,8 @@ export const JixStreamStudio: React.FC<JixStreamStudioProps> = ({ isOpen, onClos
     if (!client) return;
     try {
       const currentPublished = filteredVideoTrackRef.current || localVideoTrackRef.current;
-      const avatarTrack = await createAvatarVideoTrack();
+      const avatarTrack = await buildAvatarCanvasTrack(avatarImageUrl);
+      avatarVideoTrackRef.current = avatarTrack;
       if (currentPublished) await client.unpublish([currentPublished]);
       await client.publish([avatarTrack]);
 
@@ -762,12 +794,30 @@ export const JixStreamStudio: React.FC<JixStreamStudioProps> = ({ isOpen, onClos
             )}
           </>
         ) : (
-          <div className="text-center p-8">
-            <img src={currentUser.avatar} alt="Avatar" className="w-32 h-32 rounded-full border-4 border-[#8B5CF6] mx-auto shadow-2xl animate-pulse mb-4" />
-            <h3 className="text-xl font-bold text-white">{currentUser.name}</h3>
-            <p className="text-[#F5B93E] text-xs mt-1">بث بصورة ثابتة (Avatar Mode)</p>
+          <div className="absolute inset-0">
+            <img src={avatarImageUrl} alt="صورة البث" className="w-full h-full object-cover" />
+            <div className="absolute inset-x-0 bottom-28 flex flex-col items-center gap-2">
+              <p className="text-white font-black text-lg drop-shadow-lg">{currentUser.name}</p>
+              <p className="text-[#F5B93E] text-xs font-bold drop-shadow-lg">بث بصورة ثابتة</p>
+              <button
+                onClick={() => avatarFileInputRef.current?.click()}
+                className="mt-1 flex items-center gap-1.5 bg-black/60 backdrop-blur-sm px-4 py-2 rounded-full border border-white/20"
+              >
+                <Image className="w-4 h-4 text-[#8B5CF6]" />
+                <span className="text-xs font-bold text-white">تغيير الصورة</span>
+              </button>
+            </div>
           </div>
         )}
+
+        {/* منتقي صور مخفي - يفتح معرض صور الجوال لاختيار صورة بث وضع "صورة" */}
+        <input
+          ref={avatarFileInputRef}
+          type="file"
+          accept="image/*"
+          onChange={handleAvatarFileChange}
+          className="hidden"
+        />
 
         <div className="absolute inset-x-0 top-0 h-32 bg-gradient-to-b from-black/70 to-transparent pointer-events-none" />
         <div className="absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-black/70 to-transparent pointer-events-none" />
