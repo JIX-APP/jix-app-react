@@ -15,8 +15,9 @@ import { supabase } from './supabaseClient';
 import { getPKBattle } from './JixPK';
 import { JixPKChallengeNotification } from './JixPKChallengeNotification';
 import { JixPKBattleView, JixPKResultOverlay } from './JixPKBattleView';
+import { JixStoryRing } from './JixStoryRing';
+import { JixProfileStats } from './JixProfileStats';
 import {
-  JixStories,
   JixStoryUpload,
   JixDMList,
   JixDMConversation,
@@ -107,6 +108,8 @@ function App() {
 
   // القصص
   const [isStoryUploadOpen, setIsStoryUploadOpen] = useState(false);
+  // يزيد بعد رفع ستوري جديدة عشان حلقة الستوري حول الصورة تتحدث فورًا
+  const [storyRefreshKey, setStoryRefreshKey] = useState(0);
 
   // المحادثة الخاصة المفتوحة حالياً (لو موجودة تفتح فوق كل شي)
   const [openConversation, setOpenConversation] = useState<{
@@ -491,16 +494,6 @@ function App() {
               </button>
             )}
           </div>
-          <JixStories
-            currentUserId={user?.id ?? null}
-            onOpenUpload={() => {
-              if (!user) {
-                setIsAuthOpen(true);
-                return;
-              }
-              setIsStoryUploadOpen(true);
-            }}
-          />
         </header>
       )}
 
@@ -643,12 +636,22 @@ function App() {
                 kind={supporterXp >= receiverXp ? 'supporter' : 'receiver'}
                 size={80}
               >
-                <JixAvatarUpload
+                <JixStoryRing
                   userId={user.id}
-                  currentAvatarUrl={user.avatarUrl}
-                  fallbackLetter={user.name[0]}
-                  onUpdated={(newUrl) => setUser((prev) => (prev ? { ...prev, avatarUrl: newUrl } : prev))}
-                />
+                  currentUserId={user.id}
+                  size={80}
+                  userName={user.name}
+                  avatarUrl={user.avatarUrl}
+                  onAddStory={() => setIsStoryUploadOpen(true)}
+                  refreshKey={storyRefreshKey}
+                >
+                  <JixAvatarUpload
+                    userId={user.id}
+                    currentAvatarUrl={user.avatarUrl}
+                    fallbackLetter={user.name[0]}
+                    onUpdated={(newUrl) => setUser((prev) => (prev ? { ...prev, avatarUrl: newUrl } : prev))}
+                  />
+                </JixStoryRing>
               </AvatarFrame>
               {isEditingName ? (
                 <div className="flex flex-col items-center gap-1 mb-1">
@@ -678,27 +681,21 @@ function App() {
                   </button>
                 </div>
               )}
-              {user.accountNumber !== null && (
-                <p className="text-[10px] text-[#8B5CF6] font-bold mt-0.5" dir="ltr">
-                  ID: {user.accountNumber}
-                </p>
-              )}
               <div className="flex items-center gap-2 mt-2">
                 <LevelBadge xp={supporterXp} kind="supporter" size="md" />
                 <LevelBadge xp={receiverXp} kind="receiver" size="md" />
-                {user.gender && user.dateOfBirth && (
+                {user.accountNumber !== null && (
                   <span
-                    className="inline-flex items-center gap-1.5 rounded-full font-black px-2.5 py-1 text-xs text-white"
-                    style={{ background: 'linear-gradient(135deg, #FF7A1A, #8B5CF6)' }}
+                    className="text-xs font-black bg-clip-text text-transparent"
+                    style={{ backgroundImage: 'linear-gradient(90deg, #FF7A1A, #8B5CF6)' }}
+                    dir="ltr"
                   >
-                    <span style={{ fontSize: '14px', lineHeight: 1 }}>
-                      {user.gender === 'male' ? '♂' : '♀'}
-                    </span>
-                    <span className="w-px h-2.5 bg-white/40" />
-                    {calculateAge(user.dateOfBirth)}
+                    ID: {user.accountNumber}
                   </span>
                 )}
               </div>
+
+              <JixProfileStats userId={user.id} onOpenProfile={handleOpenProfile} />
             </div>
 
             <div className="space-y-2.5 mb-5">
@@ -894,6 +891,7 @@ function App() {
           userId={viewingProfileUserId}
           currentUserId={user?.id ?? null}
           onOpenChat={handleOpenChatWithUser}
+          onOpenProfile={handleOpenProfile}
         />
       )}
 
@@ -905,7 +903,10 @@ function App() {
       <JixStoryUpload
         isOpen={isStoryUploadOpen}
         onClose={() => setIsStoryUploadOpen(false)}
-        onUploaded={() => setIsStoryUploadOpen(false)}
+        onUploaded={() => {
+          setIsStoryUploadOpen(false);
+          setStoryRefreshKey((k) => k + 1);
+        }}
       />
 
       {/* شاشة محادثة خاصة مفتوحة - تفتح فوق كل شي */}
