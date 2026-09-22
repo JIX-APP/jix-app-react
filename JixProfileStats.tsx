@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { X, Loader2 } from 'lucide-react';
 import { supabase } from './supabaseClient';
+import { JixStoryRing } from './JixStoryRing';
 
 // ============================================================
 // إحصائيات البروفايل بنفس ترتيب تيك توك:
@@ -139,19 +140,33 @@ const FollowListSheet: React.FC<{
             </p>
           ) : (
             users.map((u) => (
-              <button
+              <div
                 key={u.id}
                 onClick={() => onOpenProfile(u.id)}
-                className="w-full flex items-center gap-3 bg-white/5 rounded-2xl p-2.5 text-right"
+                className="w-full flex items-center gap-3 bg-white/5 rounded-2xl p-2.5 text-right cursor-pointer"
               >
-                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#FF7A1A] to-[#8B5CF6] flex items-center justify-center font-black text-white shrink-0 overflow-hidden">
-                  {u.avatar_url ? <img src={u.avatar_url} className="w-full h-full object-cover" /> : (u.full_name || u.handle || '?')[0]}
+                {/* الضغط على الصورة: يدخل البث/الستوري لو فيه، والضغط على باقي الصف يفتح البروفايل */}
+                <div className="shrink-0" onClick={(e) => e.stopPropagation()}>
+                  <JixStoryRing
+                    userId={u.id}
+                    currentUserId={null}
+                    size={40}
+                    userName={u.full_name || u.handle || 'مستخدم JIX'}
+                    avatarUrl={u.avatar_url}
+                  >
+                    <div
+                      onClick={() => onOpenProfile(u.id)}
+                      className="w-10 h-10 rounded-full bg-gradient-to-br from-[#FF7A1A] to-[#8B5CF6] flex items-center justify-center font-black text-white overflow-hidden"
+                    >
+                      {u.avatar_url ? <img src={u.avatar_url} className="w-full h-full object-cover" /> : (u.full_name || u.handle || '?')[0]}
+                    </div>
+                  </JixStoryRing>
                 </div>
                 <div className="min-w-0">
                   <p className="text-sm font-bold text-white truncate">{u.full_name || u.handle}</p>
                   {u.handle && <p className="text-[10px] text-gray-500 truncate">@{u.handle}</p>}
                 </div>
-              </button>
+              </div>
             ))
           )}
         </div>
