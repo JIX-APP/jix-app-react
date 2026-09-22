@@ -9,6 +9,10 @@ interface JixAvatarUploadProps {
   currentAvatarUrl: string | null;
   fallbackLetter: string;
   onUpdated: (newUrl: string) => void;
+  // معرّف حقل اختيار الصورة - عشان زر خارجي (label) يقدر يفتحه
+  inputId?: string;
+  // نخفي زر الكاميرا الداخلي لما يكون فيه زر خارجي (الداخلي ينقص بإطار المستوى)
+  hideCameraButton?: boolean;
 }
 
 export const JixAvatarUpload: React.FC<JixAvatarUploadProps> = ({
@@ -16,6 +20,8 @@ export const JixAvatarUpload: React.FC<JixAvatarUploadProps> = ({
   currentAvatarUrl,
   fallbackLetter,
   onUpdated,
+  inputId = 'jix-avatar-upload-input',
+  hideCameraButton = false,
 }) => {
   const [isUploading, setIsUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -48,7 +54,9 @@ export const JixAvatarUpload: React.FC<JixAvatarUploadProps> = ({
         const modResult = await modResponse.json();
         if (modResult.isFlagged) {
           await supabase.storage.from('videos').remove([filePath]);
-          setError(`تعذر اعتماد الصورة: ${modResult.reason || 'تخالف معايير المجتمع'}`);
+          const msg = `تعذر اعتماد الصورة: ${modResult.reason || 'تخالف معايير المجتمع'}`;
+          setError(msg);
+          if (hideCameraButton) alert(msg);
           setIsUploading(false);
           if (fileInputRef.current) fileInputRef.current.value = '';
           return;
@@ -66,7 +74,9 @@ export const JixAvatarUpload: React.FC<JixAvatarUploadProps> = ({
 
       onUpdated(publicUrl);
     } catch (err) {
-      setError((err as Error).message || 'فشل تحديث الصورة');
+      const msg = (err as Error).message || 'فشل تحديث الصورة';
+      setError(msg);
+      if (hideCameraButton) alert(msg);
     } finally {
       setIsUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = '';
@@ -75,24 +85,42 @@ export const JixAvatarUpload: React.FC<JixAvatarUploadProps> = ({
 
   return (
     <div className="relative w-20 h-20 mx-auto mb-3">
-      <div className="w-20 h-20 rounded-full bg-gradient-to-br from-[#FF7A1A] to-[#8B5CF6] flex items-center justify-center font-black text-2xl overflow-hidden">
+      {/* الضغط على الصورة نفسها يفتح اختيار صورة (كاميرا أو معرض) - label أضمن من click() بسفاري */}
+      <label
+        htmlFor={inputId}
+        className="w-20 h-20 rounded-full bg-gradient-to-br from-[#FF7A1A] to-[#8B5CF6] flex items-center justify-center font-black text-2xl overflow-hidden cursor-pointer relative"
+      >
         {currentAvatarUrl ? (
           <img src={currentAvatarUrl} className="w-full h-full object-cover" />
         ) : (
           fallbackLetter
         )}
-      </div>
+        {isUploading && (
+          <span className="absolute inset-0 bg-black/50 flex items-center justify-center">
+            <Loader2 className="w-6 h-6 animate-spin text-white" />
+          </span>
+        )}
+      </label>
 
-      <button
-        onClick={() => fileInputRef.current?.click()}
-        disabled={isUploading}
-        className="absolute -bottom-1 -left-1 w-7 h-7 rounded-full bg-[#171923] border-2 border-[#0E0E12] flex items-center justify-center"
-      >
-        {isUploading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Camera className="w-3.5 h-3.5" />}
-      </button>
+      {!hideCameraButton && (
+        <label
+          htmlFor={inputId}
+          className="absolute -bottom-1 -left-1 w-7 h-7 rounded-full bg-[#171923] border-2 border-[#0E0E12] flex items-center justify-center cursor-pointer"
+        >
+          {isUploading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Camera className="w-3.5 h-3.5" />}
+        </label>
+      )}
 
       {/* accept صورة بس هنا - الجوال يعرض تلقائيًا كاميرا أو معرض */}
-      <input ref={fileInputRef} type="file" accept="image/*" onChange={handleFileSelect} className="hidden" />
+      <input
+        id={inputId}
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        onChange={handleFileSelect}
+        disabled={isUploading}
+        className="hidden"
+      />
 
       {error && (
         <p className="absolute top-full mt-1 left-1/2 -translate-x-1/2 whitespace-nowrap text-[10px] text-red-400">
