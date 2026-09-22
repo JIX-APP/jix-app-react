@@ -164,23 +164,66 @@ export const LevelBadge: React.FC<{ xp: number; kind: LevelKind; size?: 'sm' | '
   kind,
   size = 'sm',
 }) => {
+  const [isOpen, setIsOpen] = useState(false);
   const tier = getTier(xp);
+  const nextTier = getNextTier(xp);
   const isSmall = size === 'sm';
   const iconSize = isSmall ? 18 : 24;
 
+  const remaining = nextTier ? nextTier.minXp - xp : 0;
+  const percent = nextTier
+    ? Math.min(100, Math.round(((xp - tier.minXp) / (nextTier.minXp - tier.minXp)) * 100))
+    : 100;
+
   return (
-    <span
-      className={`inline-flex items-center gap-1 rounded-full font-black ${
-        isSmall ? 'px-1.5 py-0.5 text-[9px]' : 'px-2.5 py-1 text-xs'
-      }`}
-      style={{
-        background: `linear-gradient(90deg, ${tier.frameColors[0]}, ${tier.frameColors[1]})`,
-        color: '#fff',
-      }}
-    >
-      <TierIcon kind={kind} level={tier.level} size={iconSize} />
-      Lv.{tier.level}
-    </span>
+    <div className="relative inline-block">
+      <button
+        onClick={() => setIsOpen((v) => !v)}
+        className={`inline-flex items-center gap-1 rounded-full font-black ${
+          isSmall ? 'px-1.5 py-0.5 text-[9px]' : 'px-2.5 py-1 text-xs'
+        }`}
+        style={{
+          background: `linear-gradient(90deg, ${tier.frameColors[0]}, ${tier.frameColors[1]})`,
+          color: '#fff',
+        }}
+      >
+        <TierIcon kind={kind} level={tier.level} size={iconSize} />
+        Lv.{tier.level}
+      </button>
+
+      {isOpen && (
+        <>
+          {/* طبقة شفافة تسكّر النافذة لما تضغط بره - قبل النافذة نفسها بترتيب DOM */}
+          <div className="fixed inset-0 z-40" onClick={() => setIsOpen(false)} />
+
+          <div className="absolute top-full mt-2 right-0 z-50 w-56 bg-[#171923] border border-gray-800 rounded-2xl p-3.5 shadow-2xl">
+            <p className="text-xs font-black text-white mb-2">{tier.name}</p>
+            <p className="text-[10px] text-gray-400 mb-2">
+              {kind === 'supporter' ? 'إجمالي الدعم' : 'إجمالي المستقبَل'}: {xp.toLocaleString()} كوين
+            </p>
+
+            {nextTier ? (
+              <>
+                <div className="h-1.5 rounded-full bg-white/10 overflow-hidden mb-1.5">
+                  <div
+                    className="h-full"
+                    style={{
+                      width: `${percent}%`,
+                      background: `linear-gradient(90deg, ${tier.frameColors[0]}, ${tier.frameColors[1]})`,
+                    }}
+                  />
+                </div>
+                <p className="text-[10px] font-bold text-[#F5B93E]">
+                  باقي {remaining.toLocaleString()} كوين لـ{nextTier.name}
+                </p>
+              </>
+            ) : (
+              <p className="text-[10px] font-bold text-[#F5B93E]">أعلى مستوى 🏆</p>
+            )}
+          </div>
+        </>
+      )}
+    </div>
   );
 };
 
@@ -212,6 +255,56 @@ export const AvatarFrame: React.FC<{ xp: number; kind: LevelKind; size: number; 
         style={{ width: size, height: size }}
       >
         {children}
+      </div>
+    </div>
+  );
+};
+
+// شريط تقدّم يوضح المستوى الحالي وكم متبقي بالضبط للمستوى الجاي
+// يستخدم مع أي داعم أو مستقبل - مثالي بصفحة البروفايل أو بعد كل هدية
+export const LevelProgress: React.FC<{ xp: number; kind: LevelKind }> = ({ xp, kind }) => {
+  const tier = getTier(xp);
+  const nextTier = getNextTier(xp);
+
+  // آخر مستوى (خرافي 5) ما له مستوى بعده - نعرض حالة "أقصى مستوى" بدل الشريط
+  if (!nextTier) {
+    return (
+      <div className="w-full">
+        <div className="flex items-center justify-between mb-1.5">
+          <span className="text-xs font-black text-white">{tier.name}</span>
+          <span className="text-[10px] font-bold text-[#F5B93E]">أعلى مستوى 🏆</span>
+        </div>
+        <div className="h-2 rounded-full bg-white/10 overflow-hidden">
+          <div
+            className="h-full w-full"
+            style={{ background: `linear-gradient(90deg, ${tier.frameColors[0]}, ${tier.frameColors[1]})` }}
+          />
+        </div>
+      </div>
+    );
+  }
+
+  const xpIntoCurrentTier = xp - tier.minXp;
+  const xpNeededForNextTier = nextTier.minXp - tier.minXp;
+  const remaining = nextTier.minXp - xp;
+  const percent = Math.min(100, Math.round((xpIntoCurrentTier / xpNeededForNextTier) * 100));
+
+  return (
+    <div className="w-full">
+      <div className="flex items-center justify-between mb-1.5">
+        <span className="text-xs font-black text-white">{tier.name}</span>
+        <span className="text-[10px] font-bold text-gray-400">
+          باقي {remaining.toLocaleString()} كوين لـ{nextTier.name}
+        </span>
+      </div>
+      <div className="h-2 rounded-full bg-white/10 overflow-hidden">
+        <div
+          className="h-full transition-all duration-500"
+          style={{
+            width: `${percent}%`,
+            background: `linear-gradient(90deg, ${tier.frameColors[0]}, ${tier.frameColors[1]})`,
+          }}
+        />
       </div>
     </div>
   );
