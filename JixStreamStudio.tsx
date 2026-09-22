@@ -8,6 +8,7 @@ import { LevelBadge, useLevelXp } from './JixLevelSystem';
 import { JixLiveComments } from './JixLiveComments';
 import { JixModeratorManager } from './JixModeratorManager';
 import { JixCohostSlot } from './JixCohostSlot';
+import { useFilteredCanvas, JixFilterPicker, ArFilterId } from './JixCameraFilters';
 
 interface Viewer {
   id: string;
@@ -66,6 +67,16 @@ export const JixStreamStudio: React.FC<JixStreamStudioProps> = ({ isOpen, onClos
   const [remoteUsersByUid, setRemoteUsersByUid] = useState<Record<number, IAgoraRTCRemoteUser>>({});
 
   const videoRef = useRef<HTMLDivElement>(null);
+  const sourceVideoElRef = useRef<HTMLVideoElement>(null);
+  const [colorFilterId, setColorFilterId] = useState('normal');
+  const [arFilterId, setArFilterId] = useState<ArFilterId>('none');
+  const [isFilterBarOpen, setIsFilterBarOpen] = useState(false);
+  const { canvasRef, getStream: getFilteredStream } = useFilteredCanvas(
+    sourceVideoElRef,
+    colorFilterId,
+    arFilterId
+  );
+  const filteredVideoTrackRef = useRef<any>(null);
   const clientRef = useRef<IAgoraRTCClient | null>(null);
   const localVideoTrackRef = useRef<ICameraVideoTrack | null>(null);
   const localAudioTrackRef = useRef<IMicrophoneAudioTrack | null>(null);
@@ -192,8 +203,13 @@ export const JixStreamStudio: React.FC<JixStreamStudioProps> = ({ isOpen, onClos
       localAudioTrackRef.current = audioTrack;
       localVideoTrackRef.current = videoTrack;
 
-      if (videoRef.current) {
-        videoTrack.play(videoRef.current);
+      // ما ننشر مسار الكاميرا الخام مباشرة - نمرره أول لعنصر فيديو مخفي
+      // يقرأ منه محرك الفلاتر (useFilteredCanvas) ويرسم كل فريم على canvas
+      // مع الفلتر المختار، وبعدين ننشر بث الـ canvas نفسه لـ Agora
+      if (sourceVideoElRef.current) {
+        const rawTrack = videoTrack.getMediaStreamTrack();
+        sourceVideoElRef.current.srcObject = new MediaStream([rawTrack]);
+        await sourceVideoElRef.current.play().catch(() => {});
 
         // إصلاح خلل معروف بمتصفح Safari على iOS: المتصفح أحياناً ما يرسم
         // أول فريمات الكاميرا فعلياً حتى لو المسار شغال، ويضل الفيديو
@@ -207,7 +223,20 @@ export const JixStreamStudio: React.FC<JixStreamStudioProps> = ({ isOpen, onClos
         }, 800);
       }
 
-      await client.publish([audioTrack, videoTrack]);
+      // ننتظر لحظة بسيطة حتى يبدأ الـ canvas يرسم أول فريم فعلي قبل ما نجهز بث منه
+      await new Promise((resolve) => setTimeout(resolve, 400));
+
+      const canvasStream = getFilteredStream(24);
+      const canvasVideoTrackNative = canvasStream?.getVideoTracks()[0];
+
+      let publishedVideoTrack: any = videoTrack;
+      if (canvasVideoTrackNative) {
+        const customTrack = AgoraRTC.createCustomVideoTrack({ mediaStreamTrack: canvasVideoTrackNative });
+        filteredVideoTrackRef.current = customTrack;
+        publishedVideoTrack = customTrack;
+      }
+
+      await client.publish([audioTrack, publishedVideoTrack]);
       setIsLive(true);
       await registerLiveRow(channelName, tokenData.uid);
     } catch (err) {
@@ -225,7 +254,8 @@ export const JixStreamStudio: React.FC<JixStreamStudioProps> = ({ isOpen, onClos
 
     try {
       const client = clientRef.current;
-      const tracks = [localAudioTrackRef.current, localVideoTrackRef.current].filter(Boolean) as any[];
+      const publishedVideo = filteredVideoTrackRef.current || localVideoTrackRef.current;
+      const tracks = [localAudioTrackRef.current, publishedVideo].filter(Boolean) as any[];
 
       if (client && tracks.length > 0) {
         try {
@@ -236,9 +266,12 @@ export const JixStreamStudio: React.FC<JixStreamStudioProps> = ({ isOpen, onClos
       }
 
       localAudioTrackRef.current?.close();
-      localVideoTrackRef.current?.close();
+      localVideoTrackRef.current?.close(); // يسكر مسار الكاميرا الخام (المصدر)
+      filteredVideoTrackRef.current?.close(); // يسكر مسار الـ canvas المنشور فعلياً
+      if (sourceVideoElRef.current) sourceVideoElRef.current.srcObject = null;
       localAudioTrackRef.current = null;
       localVideoTrackRef.current = null;
+      filteredVideoTrackRef.current = null;
 
       if (client) {
         try {
@@ -524,7 +557,12 @@ export const JixStreamStudio: React.FC<JixStreamStudioProps> = ({ isOpen, onClos
     <div className="fixed inset-0 z-50 bg-black flex flex-col">
       <div className={`relative ${hasCohosts ? 'h-1/2' : 'flex-1'} flex items-center justify-center`}>
         {streamMode === 'camera' ? (
-          <div ref={videoRef} className="w-full h-full" />
+          <>
+            {/* عنصر فيديو مخفي - يقرأ منه محرك الفلاتر فقط، ما يُعرض للمستخدم */}
+            <video ref={sourceVideoElRef} muted playsInline className="hidden" />
+            {/* الكانفاس المفلتر - هذا اللي المستخدم يشوفه فعلياً وهو نفسه اللي يُبث */}
+            <canvas ref={canvasRef} className="w-full h-full object-cover" />
+          </>
         ) : (
           <div className="text-center p-8">
             <img src={currentUser.avatar} alt="Avatar" className="w-32 h-32 rounded-full border-4 border-[#8B5CF6] mx-auto shadow-2xl animate-pulse mb-4" />
@@ -642,7 +680,26 @@ export const JixStreamStudio: React.FC<JixStreamStudioProps> = ({ isOpen, onClos
           <button onClick={handleModeSwitch} disabled={isSwitching} className="p-3 rounded-full bg-white/10 disabled:opacity-50">
             {streamMode === 'camera' ? <Image className="w-5 h-5 text-[#F5B93E]" /> : <Camera className="w-5 h-5 text-emerald-400" />}
           </button>
+          {streamMode === 'camera' && (
+            <button
+              onClick={() => setIsFilterBarOpen((v) => !v)}
+              className={`p-3 rounded-full ${isFilterBarOpen ? 'bg-gradient-to-br from-[#FF7A1A] to-[#8B5CF6]' : 'bg-white/10'}`}
+            >
+              <span className="text-base leading-none">🎨</span>
+            </button>
+          )}
         </div>
+
+        {streamMode === 'camera' && isFilterBarOpen && (
+          <div className="absolute bottom-24 inset-x-0 z-10">
+            <JixFilterPicker
+              colorFilterId={colorFilterId}
+              arFilterId={arFilterId}
+              onColorChange={setColorFilterId}
+              onArChange={setArFilterId}
+            />
+          </div>
+        )}
 
         {/* قائمة المشاهدين المنزلقة من الأسفل */}
         {isViewersOpen && (
