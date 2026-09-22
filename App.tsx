@@ -544,14 +544,19 @@ function App() {
                   </button>
                 </div>
               )}
-              {user.accountNumber !== null && (
-                <p className="text-[10px] text-[#8B5CF6] font-bold mt-0.5" dir="ltr">
-                  ID: {user.accountNumber}
-                </p>
-              )}
               <div className="flex items-center gap-2 mt-2">
                 <LevelBadge xp={supporterXp} kind="supporter" size="md" />
                 <LevelBadge xp={receiverXp} kind="receiver" size="md" />
+                {user.accountNumber !== null && (
+                  <span className="inline-flex items-center rounded-full font-black px-3 py-1.5 text-sm bg-white/5" dir="ltr">
+                    <span
+                      className="bg-clip-text text-transparent"
+                      style={{ backgroundImage: 'linear-gradient(90deg, #FF7A1A, #8B5CF6)' }}
+                    >
+                      ID: {user.accountNumber}
+                    </span>
+                  </span>
+                )}
               </div>
             </div>
 
