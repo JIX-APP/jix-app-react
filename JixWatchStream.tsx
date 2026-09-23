@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { X, Loader2, UserPlus2, LogOut } from 'lucide-react';
+import { X, Loader2, UserPlus2, LogOut, Trophy, Users } from 'lucide-react';
 import AgoraRTC, { IAgoraRTCClient, IAgoraRTCRemoteUser } from 'agora-rtc-sdk-ng';
 import { supabase } from './supabaseClient';
 import { JixGiftBar } from './JixGiftBar';
@@ -10,6 +10,7 @@ import { JixReportButton } from './JixReportButton';
 import { JixPKChallengeButton } from './JixPKChallengeButton';
 import { JixLiveComments } from './JixLiveComments';
 import { JixCohostSlot } from './JixCohostSlot';
+import { JixTopChart } from './JixTopChart';
 
 interface JixWatchStreamProps {
   isOpen: boolean;
@@ -54,6 +55,9 @@ export const JixWatchStream: React.FC<JixWatchStreamProps> = ({
   const [giftToast, setGiftToast] = useState<GiftToast | null>(null);
   const [viewerName, setViewerName] = useState<string>('مستخدم JIX');
   const [isModerator, setIsModerator] = useState(false);
+  // زر الكأس (التوبات) + عدد المشاهدين - نفس اللي عند المذيع
+  const [isTopChartOpen, setIsTopChartOpen] = useState(false);
+  const [viewerCount, setViewerCount] = useState(0);
   const [kickedNotice, setKickedNotice] = useState<{ permanent: boolean } | null>(null);
 
   const [cohostSlots, setCohostSlots] = useState<(CohostSlotData | null)[]>([null, null, null]);
@@ -100,6 +104,12 @@ export const JixWatchStream: React.FC<JixWatchStreamProps> = ({
 
     const presenceChannel = supabase.channel(`presence_${liveId}`, {
       config: { presence: { key: currentUserId } },
+    });
+
+    // عدد المشاهدين: نعد كل الموجودين بالبث (ما عدا المذيع)
+    presenceChannel.on('presence', { event: 'sync' }, () => {
+      const keys = Object.keys(presenceChannel.presenceState());
+      setViewerCount(keys.filter((k) => k !== 'host').length);
     });
 
     presenceChannel.subscribe(async (status) => {
@@ -450,6 +460,21 @@ export const JixWatchStream: React.FC<JixWatchStreamProps> = ({
           <X className="w-5 h-5" />
         </button>
 
+        {/* عدد المشاهدين + زر الكأس: يفتح توب المذيعين وتوب الداعمين */}
+        <div className="absolute top-4 left-16 flex items-center gap-1.5 z-10">
+          <div className="flex items-center gap-1.5 bg-black/50 px-3 py-2 rounded-full">
+            <Users className="w-4 h-4 text-white" />
+            <span className="text-xs font-bold text-white">{viewerCount}</span>
+          </div>
+          <button
+            onClick={() => setIsTopChartOpen(true)}
+            className="flex items-center bg-black/50 px-3 py-2 rounded-full"
+            aria-label="التوبات"
+          >
+            <Trophy className="w-4 h-4 text-[#F5B93E]" />
+          </button>
+        </div>
+
         <div className="absolute top-4 right-4 flex items-center gap-1.5 z-10">
           <button
             onClick={() => onOpenProfile?.(hostId)}
@@ -469,6 +494,15 @@ export const JixWatchStream: React.FC<JixWatchStreamProps> = ({
         </div>
 
         {!isConnecting && !error && <JixGiftBar liveId={liveId} hostId={hostId} />}
+
+        <JixTopChart
+          isOpen={isTopChartOpen}
+          onClose={() => setIsTopChartOpen(false)}
+          onOpenProfile={(userId) => {
+            setIsTopChartOpen(false);
+            onOpenProfile?.(userId);
+          }}
+        />
 
         {currentUserId && currentUserId !== hostId && (
           <div className="absolute bottom-4 left-4 z-10">
