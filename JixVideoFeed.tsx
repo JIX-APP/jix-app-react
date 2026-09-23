@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { supabase } from './supabaseClient';
 import { JixStoryRing } from './JixStoryRing';
+import { JixShareSheet } from './JixShareSheet';
 import { JixComments } from './JixComments';
 import { JixReportButton } from './JixReportButton';
 
@@ -40,9 +41,11 @@ interface JixVideoFeedProps {
   refreshKey: number;
   feedMode: JixFeedMode;
   onOpenProfile?: (userId: string) => void;
+  // منشور جاي من رابط مشاركة - يطلع أول واحد بالفيد (مرة وحدة)
+  focusPostId?: string | null;
 }
 
-export const JixVideoFeed: React.FC<JixVideoFeedProps> = ({ currentUserId, refreshKey, feedMode, onOpenProfile }) => {
+export const JixVideoFeed: React.FC<JixVideoFeedProps> = ({ currentUserId, refreshKey, feedMode, onOpenProfile, focusPostId }) => {
   const [posts, setPosts] = useState<VideoRow[]>([]);
   const [likedIds, setLikedIds] = useState<Set<string>>(new Set());
   const [followedIds, setFollowedIds] = useState<Set<string>>(new Set());
@@ -53,11 +56,26 @@ export const JixVideoFeed: React.FC<JixVideoFeedProps> = ({ currentUserId, refre
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [isTogglingVisibility, setIsTogglingVisibility] = useState(false);
+  const [sharingPost, setSharingPost] = useState<VideoRow | null>(null);
+  // نستخدم المنشور المشارَك مرة وحدة بس، بعدها الفيد يرجع طبيعي
+  const pendingFocusRef = useRef<string | null>(focusPostId ?? null);
+  useEffect(() => {
+    if (focusPostId) pendingFocusRef.current = focusPostId;
+  }, [focusPostId]);
   const videoRefs = useRef<Record<string, HTMLVideoElement | null>>({});
 
   useEffect(() => {
     fetchPosts();
-  }, [refreshKey, feedMode]);
+  }, [refreshKey, feedMode, focusPostId]);
+
+  // بعد أي مشاركة ناجحة (لصديق أو خارجية) نسجلها - مرة وحدة لكل مستخدم بكل منشور
+  const registerShare = async (postId: string) => {
+    if (!currentUserId) return;
+    const { data: newCount } = await supabase.rpc('register_video_share', { p_video_id: postId });
+    if (typeof newCount === 'number') {
+      setPosts((prev) => prev.map((p) => (p.id === postId ? { ...p, shares_count: newCount } : p)));
+    }
+  };
 
   const isImagePost = (post: VideoRow) => !!post.thumbnail_url && post.thumbnail_url === post.video_url;
 
@@ -98,7 +116,22 @@ export const JixVideoFeed: React.FC<JixVideoFeedProps> = ({ currentUserId, refre
 
     const { data } = await query;
 
-    const allPosts = (data as unknown as VideoRow[]) || [];
+    let allPosts = (data as unknown as VideoRow[]) || [];
+
+    // منشور من رابط مشاركة: نجيبه ونحطه أول واحد
+    const focusId = pendingFocusRef.current;
+    if (focusId) {
+      pendingFocusRef.current = null;
+      const { data: focused } = await supabase
+        .from('videos')
+        .select('id, user_id, video_url, thumbnail_url, caption, likes_count, comments_count, shares_count, is_hidden, created_at, profiles(handle, full_name, avatar_url)')
+        .eq('id', focusId)
+        .maybeSingle();
+      if (focused) {
+        allPosts = [focused as unknown as VideoRow, ...allPosts.filter((p) => p.id !== focusId)];
+      }
+    }
+
     const visiblePosts = allPosts.filter((p) => !p.is_hidden || p.user_id === currentUserId);
     setPosts(visiblePosts);
 
@@ -223,6 +256,17 @@ export const JixVideoFeed: React.FC<JixVideoFeedProps> = ({ currentUserId, refre
 
   return (
     <div className="h-full overflow-y-scroll snap-y snap-mandatory">
+      {sharingPost && (
+        <JixShareSheet
+          isOpen={!!sharingPost}
+          onClose={() => setSharingPost(null)}
+          currentUserId={currentUserId}
+          kind="post"
+          targetId={sharingPost.id}
+          authorName={sharingPost.profiles?.full_name || sharingPost.profiles?.handle || 'JIX'}
+          onShared={() => registerShare(sharingPost.id)}
+        />
+      )}
       {posts.map((post) => (
         <div key={post.id} className="relative h-full w-full snap-start flex items-center justify-center bg-black">
           {isImagePost(post) ? (
@@ -303,7 +347,7 @@ export const JixVideoFeed: React.FC<JixVideoFeedProps> = ({ currentUserId, refre
               <span className="text-[10px] font-bold">{post.comments_count}</span>
             </button>
 
-            <button className="flex flex-col items-center gap-1">
+            <button onClick={() => setSharingPost(post)} className="flex flex-col items-center gap-1">
               <Share2 className="w-7 h-7 text-white" />
               <span className="text-[10px] font-bold">{post.shares_count}</span>
             </button>
