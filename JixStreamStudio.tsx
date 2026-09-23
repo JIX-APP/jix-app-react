@@ -291,7 +291,10 @@ export const JixStreamStudio: React.FC<JixStreamStudioProps> = ({ isOpen, onClos
       }
 
       const tokenData = await fetchAgoraToken(channelName);
-      if (!tokenData) return;
+      if (!tokenData) {
+        setNeedsTapToStart(true);
+        return;
+      }
 
       const client = AgoraRTC.createClient({ mode: 'live', codec: 'vp8' });
       client.setClientRole('host');
@@ -329,7 +332,8 @@ export const JixStreamStudio: React.FC<JixStreamStudioProps> = ({ isOpen, onClos
     } catch (err) {
       console.error('[JIX] فشل بدء البث:', err);
       setConnectionError(t('err_prefix', { msg: (err as Error).message || t('err_unknown') }));
-      setStreamMode('avatar');
+      // نخلي الكاميرا شغالة ونطلع زر "بث مباشر" للمحاولة من جديد، بدل ما نحوله لوضع الصورة
+      setNeedsTapToStart(true);
     } finally {
       isBusyRef.current = false;
     }
@@ -495,18 +499,56 @@ export const JixStreamStudio: React.FC<JixStreamStudioProps> = ({ isOpen, onClos
     }
   };
 
+  // مراجع لآخر حالة - نحتاجها داخل المحاولات المؤجلة تحت
+  const isOpenRef = useRef(isOpen);
+  const streamModeRef = useRef(streamMode);
+  const isLiveRef = useRef(isLive);
+  isOpenRef.current = isOpen;
+  streamModeRef.current = streamMode;
+  isLiveRef.current = isLive;
+
+  // بدء البث تلقائيًا لما تنفتح الشاشة.
+  // الخلل القديم: كان فيه أمر "إيقاف" ينفذ بالغلط لحظة الفتح، فأمر البدء يشوف
+  // عملية شغالة ويتجاهل نفسه بصمت - وتظل الشاشة سودا لين تضغط المربع الأصفر.
+  // الحين: لو فيه عملية شغالة، ننتظرها تخلص ونحاول من جديد بدل ما نتجاهل.
   useEffect(() => {
-    if (isOpen && streamMode === 'camera' && !isLive && !isBusyRef.current) {
-      startLiveStream();
-    }
     supabase.auth.getSession().then(({ data }) => {
       setHostUserId(data.session?.user.id ?? null);
     });
+    if (!isOpen || streamMode !== 'camera' || isLive) return;
+
+    let cancelled = false;
+    const tryStart = (attempt: number) => {
+      if (cancelled) return;
+      if (!isOpenRef.current || streamModeRef.current !== 'camera' || isLiveRef.current) return;
+      if (isBusyRef.current) {
+        if (attempt < 30) setTimeout(() => tryStart(attempt + 1), 300);
+        return;
+      }
+      startLiveStream();
+    };
+    tryStart(0);
     return () => {
-      if (!isOpen) stopLiveStream();
+      cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, streamMode]);
+
+  // إيقاف البث لما تتسكر الشاشة فعليًا - بس لو فيه بث أو كاميرا شغالة
+  useEffect(() => {
+    if (!isOpen && (clientRef.current || localVideoTrackRef.current || localAudioTrackRef.current)) {
+      stopLiveStream();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen]);
+
+  // لو انمسحت الشاشة كاملة (مثلاً تسجيل خروج) نسكر كل شي
+  useEffect(() => {
+    return () => {
+      if (clientRef.current || localVideoTrackRef.current || localAudioTrackRef.current) stopLiveStream();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     if (!isOpen || !liveId) return;
