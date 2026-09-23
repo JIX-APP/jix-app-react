@@ -9,6 +9,7 @@ import { JixLiveComments } from './JixLiveComments';
 import { JixModeratorManager } from './JixModeratorManager';
 import { JixTopChart } from './JixTopChart';
 import { JixShareSheet } from './JixShareSheet';
+import { useI18n } from './JixLanguage';
 import { JixCohostSlot } from './JixCohostSlot';
 import { useFilteredCanvas, JixFilterPicker, ArFilterId } from './JixCameraFilters';
 
@@ -68,6 +69,7 @@ interface GiftToast {
 const AGORA_TOKEN_URL = 'https://wfvhzlpvtgnydhmsxcqr.supabase.co/functions/v1/agora-token';
 
 export const JixStreamStudio: React.FC<JixStreamStudioProps> = ({ isOpen, onClose, currentUser }) => {
+  const { t } = useI18n();
   const [streamMode, setStreamMode] = useState<'camera' | 'avatar'>('camera');
   // الصورة المستخدمة بوضع "صورة" - تبدأ بصورة البروفايل، لكن المذيع يقدر يختار
   // أي صورة من جواله وتصير هي المعروضة بدلها
@@ -862,7 +864,7 @@ export const JixStreamStudio: React.FC<JixStreamStudioProps> = ({ isOpen, onClos
               <div style={giftLegendaryEnterStyle}>
                 <GiftIcon gift={def} size={140} spinning />
               </div>
-              <p className="mt-3 font-black text-lg text-[#F5B93E]">{def.name}!</p>
+              <p className="mt-3 font-black text-lg text-[#F5B93E]">{t(`gift_${def.id}`)}!</p>
               <p className="text-xs font-bold text-white">هدية بقيمة {giftToast.coinCost} كوين</p>
             </div>
           ) : (
@@ -870,7 +872,7 @@ export const JixStreamStudio: React.FC<JixStreamStudioProps> = ({ isOpen, onClos
               <div style={giftPopStyle}>
                 <GiftIcon gift={def} size={24} />
               </div>
-              <span className="text-xs font-black text-white">هدية {def.name} بقيمة {giftToast.coinCost} كوين!</span>
+              <span className="text-xs font-black text-white">{t('gift_toast_host', { name: t(`gift_${def.id}`), coins: giftToast.coinCost })}</span>
             </div>
           );
         })()}
