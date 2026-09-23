@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { X, Mic, MicOff, Camera, Image, Users, UserX, VolumeX, Coins, ChevronDown, Shield, UserPlus2, Check, Bell, SwitchCamera, Trophy } from 'lucide-react';
+import { X, Mic, MicOff, Camera, Image, Users, UserX, VolumeX, Coins, ChevronDown, Shield, UserPlus2, Check, Bell, SwitchCamera, Trophy, Share2 } from 'lucide-react';
 import AgoraRTC, { IAgoraRTCClient, ICameraVideoTrack, IMicrophoneAudioTrack, IAgoraRTCRemoteUser } from 'agora-rtc-sdk-ng';
 import { supabase } from './supabaseClient';
 import { jixAudio } from './jixAudioFx';
@@ -8,6 +8,7 @@ import { LevelBadge, useLevelXp } from './JixLevelSystem';
 import { JixLiveComments } from './JixLiveComments';
 import { JixModeratorManager } from './JixModeratorManager';
 import { JixTopChart } from './JixTopChart';
+import { JixShareSheet } from './JixShareSheet';
 import { JixCohostSlot } from './JixCohostSlot';
 import { useFilteredCanvas, JixFilterPicker, ArFilterId } from './JixCameraFilters';
 
@@ -83,6 +84,7 @@ export const JixStreamStudio: React.FC<JixStreamStudioProps> = ({ isOpen, onClos
   const [isViewersOpen, setIsViewersOpen] = useState(false);
   const [isModeratorManagerOpen, setIsModeratorManagerOpen] = useState(false);
   const [isTopChartOpen, setIsTopChartOpen] = useState(false);
+  const [isShareOpen, setIsShareOpen] = useState(false);
   const [isRequestsOpen, setIsRequestsOpen] = useState(false);
   const [showExitConfirm, setShowExitConfirm] = useState(false);
   const hostReceiverXp = useLevelXp(hostUserId, 'receiver');
@@ -932,11 +934,32 @@ export const JixStreamStudio: React.FC<JixStreamStudioProps> = ({ isOpen, onClos
 
         <JixTopChart isOpen={isTopChartOpen} onClose={() => setIsTopChartOpen(false)} />
 
+        {hostUserId && (
+          <JixShareSheet
+            isOpen={isShareOpen}
+            onClose={() => setIsShareOpen(false)}
+            currentUserId={hostUserId}
+            kind="live"
+            targetId={hostUserId}
+            authorName={currentUser.name}
+          />
+        )}
+
         {/* أزرار التحكم (وضع الكاميرا/تبديل الكاميرا/فلاتر) - المايك صار داخل مربع التعليق - أيقونات صغيرة بزاوية
             الشاشة اليمنى العلوية، نفس مكان وشكل تيك توك بالضبط، بدل شريط عائم يغطي الشاشة.
             تختفي تلقائيًا وقت فتح لوحة المفاتيح للكتابة بالتعليقات */}
         {keyboardInset === 0 && (
           <div className="absolute top-20 right-4 flex flex-col items-center gap-3 z-10">
+            {/* مشاركة البث - يفتح قائمة المشاركة بالجوال (واتساب، سناب...) */}
+            {isLive && hostUserId && (
+              <button
+                onClick={() => setIsShareOpen(true)}
+                className="w-10 h-10 rounded-full flex items-center justify-center bg-black/50"
+                aria-label="مشاركة البث"
+              >
+                <Share2 className="w-4 h-4 text-white" />
+              </button>
+            )}
             <button onClick={handleModeSwitch} disabled={isSwitching} className="w-10 h-10 rounded-full flex items-center justify-center bg-black/50 disabled:opacity-50">
               {streamMode === 'camera' ? <Image className="w-4 h-4 text-[#F5B93E]" /> : <Camera className="w-4 h-4 text-emerald-400" />}
             </button>
