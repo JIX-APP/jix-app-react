@@ -362,14 +362,26 @@ export const JixStreamStudio: React.FC<JixStreamStudioProps> = ({ isOpen, onClos
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [colorFilterId, arFilterId, isLive]);
 
+  // مهم: فلاتر Agora ما تنربط بالكاميرا إلا لما المستخدم يختار فلتر منها بنفسه.
+  // ربطها دايمًا كان يخلي الشاشة سودا ببداية البث على الآيفون.
+  const agoraEffectsActive = () => beautyLevelRef.current !== 'off' || backgroundModeRef.current !== 'off';
+
   const attachAgoraEffects = async (track: ICameraVideoTrack) => {
+    if (!agoraEffectsActive()) return;
     try {
       if (!agoraEffectsRef.current) agoraEffectsRef.current = new JixAgoraEffects();
       await agoraEffectsRef.current.attach(track);
       await agoraEffectsRef.current.setBeauty(beautyLevelRef.current);
       await agoraEffectsRef.current.setBackground(backgroundModeRef.current);
     } catch (err) {
+      // الجهاز ما قدر يشغلها: نفكها ونرجع الكاميرا طبيعية بدل ما تطلع سودا
       console.error('[JIX] فشل تفعيل فلاتر Agora:', err);
+      agoraEffectsRef.current?.detach();
+      beautyLevelRef.current = 'off';
+      backgroundModeRef.current = 'off';
+      setBeautyLevel('off');
+      setBackgroundMode('off');
+      alert(t('fx_unsupported'));
     }
   };
 
@@ -377,10 +389,23 @@ export const JixStreamStudio: React.FC<JixStreamStudioProps> = ({ isOpen, onClos
   useEffect(() => {
     beautyLevelRef.current = beautyLevel;
     backgroundModeRef.current = backgroundMode;
+    const track = localVideoTrackRef.current;
     const fx = agoraEffectsRef.current;
-    if (!fx) return;
+
+    // طفّى الاثنين: نفك الفلاتر كاملة وترجع الكاميرا الخام مثل قبل
+    if (!agoraEffectsActive()) {
+      fx?.detach();
+      return;
+    }
+    if (!track) return; // البث ما بدأ بعد - بتنربط تلقائيًا أول ما تشتغل الكاميرا
+
+    if (!fx || fx.attachedTrack !== track) {
+      attachAgoraEffects(track);
+      return;
+    }
     fx.setBeauty(beautyLevel).catch((err) => console.error('[JIX] فشل تغيير التجميل:', err));
     fx.setBackground(backgroundMode).catch((err) => console.error('[JIX] فشل تغيير الخلفية:', err));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [beautyLevel, backgroundMode]);
 
   // فلاتر Agora وفلاتر الألوان القديمة ما يشتغلون مع بعض - اختيار واحد يطفي الثاني
