@@ -3,6 +3,7 @@ import { Send, MoreVertical, VolumeX, Clock, Ban, Mic, MicOff } from 'lucide-rea
 import { supabase } from './supabaseClient';
 import { JixMvpBadge, useLiveMvpTiers } from './JixMvpBadge';
 import { useI18n } from './JixLanguage';
+import { detectSourceLang, isWorthTranslating, translateComment } from './JixTranslate';
 
 // يحسب ارتفاع لوحة المفاتيح الحالي عشان نرفع شريط كتابة التعليق فوقها
 function useKeyboardInset() {
@@ -30,6 +31,8 @@ interface LiveCommentMsg {
   senderId: string;
   senderName: string;
   text: string;
+  // لغة جوال الكاتب - تساعد نعرف لغة التعليق عشان نترجمه للمشاهدين
+  lang?: string;
 }
 
 interface ModerationEvent {
@@ -68,7 +71,7 @@ export const JixLiveComments: React.FC<JixLiveCommentsProps> = ({
   micMuted = false,
   onToggleMic,
 }) => {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const [messages, setMessages] = useState<LiveCommentMsg[]>([]);
   const [input, setInput] = useState('');
   const [duplicateWarning, setDuplicateWarning] = useState(false);
@@ -140,6 +143,7 @@ export const JixLiveComments: React.FC<JixLiveCommentsProps> = ({
       senderId: currentUserId,
       senderName: currentUserName,
       text: trimmedText,
+      lang,
     };
 
     channelRef.current.send({
@@ -234,7 +238,7 @@ export const JixLiveComments: React.FC<JixLiveCommentsProps> = ({
                   >
                     {msg.senderName}:{' '}
                   </button>
-                  <span className="text-[11px] text-white">{msg.text}</span>
+                  <TranslatableText text={msg.text} senderLang={msg.lang} viewerLang={lang} isMine={msg.senderId === currentUserId} t={t} />
                 </div>
               </div>
 
@@ -327,6 +331,51 @@ export const JixLiveComments: React.FC<JixLiveCommentsProps> = ({
           </p>
         </div>
       )}
+    </>
+  );
+};
+
+// ============================================================
+// نص التعليق مع ترجمة تلقائية للغة المشاهد (مثل تيك توك)
+// يطلع مترجم مباشرة، وتحته "مترجم · عرض الأصل"
+// ============================================================
+const TranslatableText: React.FC<{
+  text: string;
+  senderLang?: string;
+  viewerLang: string;
+  isMine: boolean;
+  t: (key: string) => string;
+}> = ({ text, senderLang, viewerLang, isMine, t }) => {
+  const [translated, setTranslated] = useState<string | null>(null);
+  const [showOriginal, setShowOriginal] = useState(false);
+
+  useEffect(() => {
+    // تعليقك أنت ما نترجمه، ولا الإيموجي والكلام القصير
+    if (isMine || !isWorthTranslating(text)) return;
+    const source = detectSourceLang(text, senderLang);
+    if (!source || source === viewerLang) return;
+
+    let cancelled = false;
+    translateComment(text, source, viewerLang).then((result) => {
+      if (!cancelled && result) setTranslated(result);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [text, senderLang, viewerLang, isMine]);
+
+  if (!translated) return <span className="text-[11px] text-white">{text}</span>;
+
+  return (
+    <>
+      <span className="text-[11px] text-white">{showOriginal ? text : translated}</span>
+      <button
+        type="button"
+        onClick={() => setShowOriginal((v) => !v)}
+        className="block text-[9px] text-white/50 mt-0.5"
+      >
+        🌐 {t('translated')} · {showOriginal ? t('show_translation') : t('show_original')}
+      </button>
     </>
   );
 };
