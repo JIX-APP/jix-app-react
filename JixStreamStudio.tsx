@@ -68,6 +68,9 @@ const AGORA_TOKEN_URL = 'https://wfvhzlpvtgnydhmsxcqr.supabase.co/functions/v1/a
 
 export const JixStreamStudio: React.FC<JixStreamStudioProps> = ({ isOpen, onClose, currentUser }) => {
   const [streamMode, setStreamMode] = useState<'camera' | 'avatar'>('camera');
+  // الصورة المستخدمة بوضع "صورة" - تبدأ بصورة البروفايل، لكن المذيع يقدر يختار
+  // أي صورة من جواله وتصير هي المعروضة بدلها
+  const [avatarImageUrl, setAvatarImageUrl] = useState(currentUser.avatar);
   const [isMicMuted, setIsMicMuted] = useState(false);
   const [isLive, setIsLive] = useState(false);
   const [isSwitching, setIsSwitching] = useState(false);
@@ -101,6 +104,9 @@ export const JixStreamStudio: React.FC<JixStreamStudioProps> = ({ isOpen, onClos
     arFilterId
   );
   const filteredVideoTrackRef = useRef<any>(null);
+  // مسار فيديو وضع "صورة" (أفتار ثابت) - يُبنى مرة وحدة ويُعاد استخدامه، يخلي التبديل
+  // بين الكاميرا والصورة أثناء البث الحي فوري بدون ما يوقف البث أو يطلع المشاهدين
+  const avatarVideoTrackRef = useRef<any>(null);
   const facingModeRef = useRef<'user' | 'environment'>('user');
   const [isSwitchingCamera, setIsSwitchingCamera] = useState(false);
   const keyboardInset = useKeyboardInset();
@@ -349,7 +355,10 @@ export const JixStreamStudio: React.FC<JixStreamStudioProps> = ({ isOpen, onClos
 
     try {
       const client = clientRef.current;
-      const publishedVideo = filteredVideoTrackRef.current || localVideoTrackRef.current;
+      const publishedVideo =
+        streamMode === 'avatar'
+          ? avatarVideoTrackRef.current
+          : filteredVideoTrackRef.current || localVideoTrackRef.current;
       const tracks = [localAudioTrackRef.current, publishedVideo].filter(Boolean) as any[];
 
       if (client && tracks.length > 0) {
@@ -363,10 +372,12 @@ export const JixStreamStudio: React.FC<JixStreamStudioProps> = ({ isOpen, onClos
       localAudioTrackRef.current?.close();
       localVideoTrackRef.current?.close(); // يسكر مسار الكاميرا الخام (المصدر)
       filteredVideoTrackRef.current?.close(); // يسكر مسار الـ canvas المنشور فعلياً
+      avatarVideoTrackRef.current?.close(); // يسكر مسار صورة الأفتار لو كان مستخدم
       if (sourceVideoElRef.current) sourceVideoElRef.current.srcObject = null;
       localAudioTrackRef.current = null;
       localVideoTrackRef.current = null;
       filteredVideoTrackRef.current = null;
+      avatarVideoTrackRef.current = null;
 
       if (client) {
         try {
@@ -551,13 +562,123 @@ export const JixStreamStudio: React.FC<JixStreamStudioProps> = ({ isOpen, onClos
     setIsSwitching(true);
     try {
       if (streamMode === 'camera') {
-        await stopLiveStream();
+        if (isLive) await switchToAvatarTrack();
         setStreamMode('avatar');
       } else {
+        if (isLive) await switchToCameraTrack();
         setStreamMode('camera');
       }
     } finally {
       setIsSwitching(false);
+    }
+  };
+
+  // يبني مسار فيديو ثابت من صورة (Canvas بحجم الشاشة الكامل 9:16) - يُستخدم بدل
+  // الكاميرا بوضع "صورة"، والصورة تُرسم بطريقة "cover" فتغطي الإطار بالكامل
+  // بدون أي تمديد يشوهها (زيادتها تُقص، مو تتمدد)
+  const buildAvatarCanvasTrack = async (imageUrl: string) => {
+    const canvas = document.createElement('canvas');
+    canvas.width = 720;
+    canvas.height = 1280;
+    const ctx = canvas.getContext('2d');
+
+    await new Promise<void>((resolve) => {
+      const img = new window.Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = () => {
+        if (ctx) {
+          ctx.fillStyle = '#12141f';
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+          const scale = Math.max(canvas.width / img.width, canvas.height / img.height);
+          const drawW = img.width * scale;
+          const drawH = img.height * scale;
+          const dx = (canvas.width - drawW) / 2;
+          const dy = (canvas.height - drawH) / 2;
+          ctx.drawImage(img, dx, dy, drawW, drawH);
+        }
+        resolve();
+      };
+      img.onerror = () => resolve();
+      img.src = imageUrl;
+    });
+
+    const canvasStream = (canvas as any).captureStream(1);
+    const nativeTrack = canvasStream.getVideoTracks()[0];
+    return AgoraRTC.createCustomVideoTrack({ mediaStreamTrack: nativeTrack });
+  };
+
+  // يفتح منتقي الصور بجوال المذيع ويحدّث صورة وضع "صورة" فورًا لو كان البث شغال بهذا الوضع
+  const handleAvatarFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = async () => {
+      if (typeof reader.result !== 'string') return;
+      const newImageUrl = reader.result;
+      setAvatarImageUrl(newImageUrl);
+
+      if (isLive && streamMode === 'avatar' && clientRef.current) {
+        try {
+          const newTrack = await buildAvatarCanvasTrack(newImageUrl);
+          const oldTrack = avatarVideoTrackRef.current;
+          if (oldTrack) await clientRef.current.unpublish([oldTrack]);
+          await clientRef.current.publish([newTrack]);
+          oldTrack?.close();
+          avatarVideoTrackRef.current = newTrack;
+        } catch (err) {
+          console.error('[JIX] فشل تحديث صورة البث:', err);
+        }
+      }
+    };
+    reader.readAsDataURL(file);
+    e.target.value = '';
+  };
+
+  // تبديل حي من الكاميرا إلى وضع الصورة وسط البث - نبدّل المسار المنشور، وبعدها
+  // نطفي الكاميرا فعليًا (تسكير المسار) عشان توفير البطارية وما تشتغل وهي مو محتاجة
+  const switchToAvatarTrack = async () => {
+    const client = clientRef.current;
+    if (!client) return;
+    try {
+      const currentPublished = filteredVideoTrackRef.current || localVideoTrackRef.current;
+      const avatarTrack = await buildAvatarCanvasTrack(avatarImageUrl);
+      avatarVideoTrackRef.current = avatarTrack;
+      if (currentPublished) await client.unpublish([currentPublished]);
+      await client.publish([avatarTrack]);
+
+      // نطفي الكاميرا فعليًا (مو بس نوقف نشرها) - توفير بطارية أثناء وضع الصورة
+      localVideoTrackRef.current?.close();
+      filteredVideoTrackRef.current?.close();
+      localVideoTrackRef.current = null;
+      filteredVideoTrackRef.current = null;
+      if (sourceVideoElRef.current) sourceVideoElRef.current.srcObject = null;
+    } catch (err) {
+      console.error('[JIX] فشل التبديل لوضع الصورة:', err);
+      setConnectionError('تعذر التبديل لوضع الصورة، حاول مرة أخرى');
+    }
+  };
+
+  // تبديل حي من وضع الصورة رجوع للكاميرا - الكاميرا كانت مطفية فعليًا (توفير بطارية)
+  // فلازم نعيد تشغيلها وطلب إذنها من جديد، فيه تأخير بسيط (نص ثانية تقريبًا) وهذا متوقع
+  const switchToCameraTrack = async () => {
+    const client = clientRef.current;
+    if (!client) return;
+    try {
+      const newVideoTrack = await AgoraRTC.createCameraVideoTrack({ facingMode: facingModeRef.current });
+
+      if (avatarVideoTrackRef.current) await client.unpublish([avatarVideoTrackRef.current]);
+      await client.publish([newVideoTrack]);
+
+      if (videoRef.current) newVideoTrack.play(videoRef.current);
+      if (sourceVideoElRef.current) {
+        sourceVideoElRef.current.srcObject = new MediaStream([newVideoTrack.getMediaStreamTrack()]);
+        sourceVideoElRef.current.play().catch(() => {});
+      }
+
+      localVideoTrackRef.current = newVideoTrack;
+    } catch (err) {
+      console.error('[JIX] فشل الرجوع لوضع الكاميرا:', err);
+      setConnectionError('تعذر الرجوع لوضع الكاميرا، حاول مرة أخرى');
     }
   };
 
@@ -674,12 +795,31 @@ export const JixStreamStudio: React.FC<JixStreamStudioProps> = ({ isOpen, onClos
             )}
           </>
         ) : (
-          <div className="text-center p-8">
-            <img src={currentUser.avatar} alt="Avatar" className="w-32 h-32 rounded-full border-4 border-[#8B5CF6] mx-auto shadow-2xl animate-pulse mb-4" />
-            <h3 className="text-xl font-bold text-white">{currentUser.name}</h3>
-            <p className="text-[#F5B93E] text-xs mt-1">بث بصورة ثابتة (Avatar Mode)</p>
+          <div className="absolute inset-0">
+            <img src={avatarImageUrl} alt="صورة البث" className="w-full h-full object-cover" />
+            <div className="absolute inset-x-0 bottom-28 flex flex-col items-center gap-2">
+              <p className="text-white font-black text-lg drop-shadow-lg">{currentUser.name}</p>
+              <p className="text-[#F5B93E] text-xs font-bold drop-shadow-lg">بث بصورة ثابتة</p>
+              <label
+                htmlFor="jix-avatar-photo-input"
+                className="mt-1 flex items-center gap-1.5 bg-black/60 backdrop-blur-sm px-4 py-2 rounded-full border border-white/20"
+              >
+                <Image className="w-4 h-4 text-[#8B5CF6]" />
+                <span className="text-xs font-bold text-white">تغيير الصورة</span>
+              </label>
+            </div>
           </div>
         )}
+
+        {/* منتقي صور مخفي - يفتح معرض صور الجوال لاختيار صورة بث وضع "صورة"
+            نستخدم label+htmlFor بدل ref.click() - أكثر موثوقية على سفاري آيفون */}
+        <input
+          id="jix-avatar-photo-input"
+          type="file"
+          accept="image/*"
+          onChange={handleAvatarFileChange}
+          className="hidden"
+        />
 
         <div className="absolute inset-x-0 top-0 h-32 bg-gradient-to-b from-black/70 to-transparent pointer-events-none" />
         <div className="absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-black/70 to-transparent pointer-events-none" />
@@ -733,45 +873,42 @@ export const JixStreamStudio: React.FC<JixStreamStudioProps> = ({ isOpen, onClos
           );
         })()}
 
-        <button
-          onClick={() => setIsViewersOpen(true)}
-          className="absolute top-20 left-4 flex items-center gap-1.5 bg-black/50 px-3 py-2 rounded-full z-10"
-        >
-          <Users className="w-4 h-4 text-white" />
-          <span className="text-xs font-bold text-white">{viewers.length}</span>
-        </button>
+        {/* مجموعة أدوات المشاهدين - عدد المشاهدين دايمًا ظاهر، وزرّي الإشراف
+            (المشرفين/طلبات الصعود) يظهروا جنبه بس لما تضغط عليه، بنفس المكان */}
+        <div className={`absolute top-20 left-4 flex items-center gap-2 ${isViewersOpen ? 'z-[45]' : 'z-10'}`} dir="ltr">
+        <div className="flex items-center gap-1.5 bg-black/50 px-3 py-2 rounded-full">
+          <button onClick={() => setIsViewersOpen(true)} className="flex items-center gap-1.5">
+            <Users className="w-4 h-4 text-white" />
+            <span className="text-xs font-bold text-white">{viewers.length}</span>
+          </button>
 
-        {/* زر التوبات - يفتح صفحة توب المذيعين وصفحة توب الداعمين (تبويب داخلي) */}
+          {isLive && isViewersOpen && (
+            <>
+              <span className="w-px h-4 bg-white/20 mx-0.5" />
+              <button onClick={() => { setIsViewersOpen(false); setIsModeratorManagerOpen(true); }}>
+                <Shield className="w-4 h-4 text-[#8B5CF6]" />
+              </button>
+              <button onClick={() => { setIsViewersOpen(false); setIsRequestsOpen(true); }} className="relative">
+                <Bell className="w-4 h-4 text-[#F5B93E]" />
+                {cohostRequests.length > 0 && (
+                  <span className="absolute -top-1.5 -left-1.5 w-3.5 h-3.5 rounded-full bg-red-600 text-[8px] font-black flex items-center justify-center text-white">
+                    {cohostRequests.length}
+                  </span>
+                )}
+              </button>
+            </>
+          )}
+        </div>
+
+        {/* زر الكأس - جنب عدد المشاهدين: يفتح توب المذيعين وتوب الداعمين */}
         <button
-          onClick={() => setIsTopChartOpen(true)}
-          className="absolute top-20 left-20 flex items-center gap-1.5 bg-black/50 px-3 py-2 rounded-full z-10"
+          onClick={() => { setIsViewersOpen(false); setIsTopChartOpen(true); }}
+          className="flex items-center bg-black/50 px-3 py-2 rounded-full"
+          aria-label="التوبات"
         >
           <Trophy className="w-4 h-4 text-[#F5B93E]" />
         </button>
-
-        {isLive && (
-          <button
-            onClick={() => setIsModeratorManagerOpen(true)}
-            className="absolute top-20 left-36 flex items-center gap-1.5 bg-black/50 px-3 py-2 rounded-full z-10"
-          >
-            <Shield className="w-4 h-4 text-[#8B5CF6]" />
-          </button>
-        )}
-
-        {/* زر طلبات الصعود - مع عداد لو فيه طلبات جديدة */}
-        {isLive && (
-          <button
-            onClick={() => setIsRequestsOpen(true)}
-            className="absolute top-20 left-52 flex items-center gap-1.5 bg-black/50 px-3 py-2 rounded-full z-10"
-          >
-            <Bell className="w-4 h-4 text-[#F5B93E]" />
-            {cohostRequests.length > 0 && (
-              <span className="w-4 h-4 rounded-full bg-red-600 text-[9px] font-black flex items-center justify-center text-white">
-                {cohostRequests.length}
-              </span>
-            )}
-          </button>
-        )}
+        </div>
 
         {isLive && hostUserId && (
           <JixLiveComments
@@ -782,6 +919,8 @@ export const JixStreamStudio: React.FC<JixStreamStudioProps> = ({ isOpen, onClos
             currentUserName={currentUser.name}
             isHost={true}
             isModerator={false}
+            micMuted={isMicMuted}
+            onToggleMic={toggleMic}
           />
         )}
 
@@ -793,37 +932,36 @@ export const JixStreamStudio: React.FC<JixStreamStudioProps> = ({ isOpen, onClos
 
         <JixTopChart isOpen={isTopChartOpen} onClose={() => setIsTopChartOpen(false)} />
 
-        <div
-          className="absolute left-1/2 -translate-x-1/2 flex items-center gap-3 bg-black/60 backdrop-blur-md px-4 py-2 rounded-full border border-white/10 z-10"
-          style={{ bottom: 96 + keyboardInset }}
-        >
-          <button onClick={toggleMic} className={`p-3 rounded-full ${isMicMuted ? 'bg-red-600' : 'bg-white/10'}`}>
-            {isMicMuted ? <MicOff className="w-5 h-5 text-white" /> : <Mic className="w-5 h-5 text-white" />}
-          </button>
-          <button onClick={handleModeSwitch} disabled={isSwitching} className="p-3 rounded-full bg-white/10 disabled:opacity-50">
-            {streamMode === 'camera' ? <Image className="w-5 h-5 text-[#F5B93E]" /> : <Camera className="w-5 h-5 text-emerald-400" />}
-          </button>
-          {streamMode === 'camera' && isLive && (
-            <button
-              onClick={handleFlipCamera}
-              disabled={isSwitchingCamera}
-              className="p-3 rounded-full bg-white/10 disabled:opacity-50"
-            >
-              <SwitchCamera className="w-5 h-5 text-white" />
+        {/* أزرار التحكم (وضع الكاميرا/تبديل الكاميرا/فلاتر) - المايك صار داخل مربع التعليق - أيقونات صغيرة بزاوية
+            الشاشة اليمنى العلوية، نفس مكان وشكل تيك توك بالضبط، بدل شريط عائم يغطي الشاشة.
+            تختفي تلقائيًا وقت فتح لوحة المفاتيح للكتابة بالتعليقات */}
+        {keyboardInset === 0 && (
+          <div className="absolute top-20 right-4 flex flex-col items-center gap-3 z-10">
+            <button onClick={handleModeSwitch} disabled={isSwitching} className="w-10 h-10 rounded-full flex items-center justify-center bg-black/50 disabled:opacity-50">
+              {streamMode === 'camera' ? <Image className="w-4 h-4 text-[#F5B93E]" /> : <Camera className="w-4 h-4 text-emerald-400" />}
             </button>
-          )}
-          {streamMode === 'camera' && (
-            <button
-              onClick={() => setIsFilterBarOpen((v) => !v)}
-              className={`p-3 rounded-full ${isFilterBarOpen ? 'bg-gradient-to-br from-[#FF7A1A] to-[#8B5CF6]' : 'bg-white/10'}`}
-            >
-              <span className="text-base leading-none">🎨</span>
-            </button>
-          )}
-        </div>
+            {streamMode === 'camera' && isLive && (
+              <button
+                onClick={handleFlipCamera}
+                disabled={isSwitchingCamera}
+                className="w-10 h-10 rounded-full flex items-center justify-center bg-black/50 disabled:opacity-50"
+              >
+                <SwitchCamera className="w-4 h-4 text-white" />
+              </button>
+            )}
+            {streamMode === 'camera' && (
+              <button
+                onClick={() => setIsFilterBarOpen((v) => !v)}
+                className={`w-10 h-10 rounded-full flex items-center justify-center ${isFilterBarOpen ? 'bg-gradient-to-br from-[#FF7A1A] to-[#8B5CF6]' : 'bg-black/50'}`}
+              >
+                <span className="text-base leading-none">🎨</span>
+              </button>
+            )}
+          </div>
+        )}
 
-        {streamMode === 'camera' && isFilterBarOpen && (
-          <div className="absolute inset-x-0 z-10" style={{ bottom: 160 + keyboardInset }}>
+        {streamMode === 'camera' && isFilterBarOpen && keyboardInset === 0 && (
+          <div className="absolute inset-x-0 z-10" style={{ bottom: 80 }}>
             <JixFilterPicker
               colorFilterId={colorFilterId}
               arFilterId={arFilterId}
