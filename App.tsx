@@ -984,7 +984,7 @@ function App() {
         <JixStreamStudio
           isOpen={isStudioOpen}
           onClose={() => setIsStudioOpen(false)}
-          currentUser={{ name: user.name, avatar: user.avatar }}
+          currentUser={{ name: user.name, avatar: user.avatarUrl || user.avatar }}
         />
       )}
 
