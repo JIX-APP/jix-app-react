@@ -72,6 +72,8 @@ const AGORA_TOKEN_URL = 'https://wfvhzlpvtgnydhmsxcqr.supabase.co/functions/v1/a
 export const JixStreamStudio: React.FC<JixStreamStudioProps> = ({ isOpen, onClose, currentUser }) => {
   const { t } = useI18n();
   const [streamMode, setStreamMode] = useState<'camera' | 'avatar'>('camera');
+  // الجوال رفض فتح الكاميرا تلقائيًا - نطلب ضغطة وحدة من المستخدم
+  const [needsTapToStart, setNeedsTapToStart] = useState(false);
   // الصورة المستخدمة بوضع "صورة" - تبدأ بصورة البروفايل، لكن المذيع يقدر يختار
   // أي صورة من جواله وتصير هي المعروضة بدلها
   const [avatarImageUrl, setAvatarImageUrl] = useState(currentUser.avatar);
@@ -252,6 +254,34 @@ export const JixStreamStudio: React.FC<JixStreamStudioProps> = ({ isOpen, onClos
     if (isBusyRef.current) return;
     isBusyRef.current = true;
     setConnectionError(null);
+    setNeedsTapToStart(false);
+
+    // الخطوة 1: الكاميرا والمايك أول شي، قبل أي انتظار للسيرفر.
+    // الآيفون يرفض فتح الكاميرا لو مر وقت طويل بعد آخر ضغطة من المستخدم،
+    // وهذا كان يخلي البث يفشل أول مرة ويحولك لوضع الصورة.
+    let audioTrack = localAudioTrackRef.current;
+    let videoTrack = localVideoTrackRef.current;
+    if (!audioTrack || !videoTrack) {
+      try {
+        [audioTrack, videoTrack] = await AgoraRTC.createMicrophoneAndCameraTracks();
+      } catch (err) {
+        console.error('[JIX] الجوال ما سمح بفتح الكاميرا تلقائيًا:', err);
+        setNeedsTapToStart(true); // يطلع زر "بث مباشر" - ضغطة وحدة تكفي
+        isBusyRef.current = false;
+        return;
+      }
+      localAudioTrackRef.current = audioTrack;
+      localVideoTrackRef.current = videoTrack;
+      attachAgoraEffects(videoTrack);
+
+      // نمرر الكاميرا لعنصر الفيديو المخفي عشان محرك الفلاتر يكون جاهز
+      if (sourceVideoElRef.current) {
+        sourceVideoElRef.current.srcObject = new MediaStream([videoTrack.getMediaStreamTrack()]);
+        sourceVideoElRef.current.play().catch(() => {});
+      }
+      // المعاينة تطلع على طول، حتى قبل ما يكتمل الاتصال
+      if (videoRef.current) videoTrack.play(videoRef.current);
+    }
 
     try {
       const channelName = await getChannelName();
@@ -286,26 +316,7 @@ export const JixStreamStudio: React.FC<JixStreamStudioProps> = ({ isOpen, onClos
 
       await client.join(tokenData.appId, channelName, tokenData.token, tokenData.uid);
 
-      const [audioTrack, videoTrack] = await AgoraRTC.createMicrophoneAndCameraTracks();
-      localAudioTrackRef.current = audioTrack;
-      localVideoTrackRef.current = videoTrack;
-      attachAgoraEffects(videoTrack);
-
-      // نمرر الكاميرا دايمًا لعنصر الفيديو المخفي عشان محرك الفلاتر يكون
-      // جاهز فورًا لو المستخدم فعّل فلتر بعدين وهو شغال بالبث
-      if (sourceVideoElRef.current) {
-        const rawTrack = videoTrack.getMediaStreamTrack();
-        sourceVideoElRef.current.srcObject = new MediaStream([rawTrack]);
-        sourceVideoElRef.current.play().catch(() => {});
-      }
-
-      // المسار الافتراضي: نعرض وننشر الكاميرا الخام مباشرة (نفس الطريقة
-      // المضمونة الأصلية) - الفلاتر تشتغل بس لو المستخدم فعّلها بنفسه
-      // بعدين وهو شغال بالبث (يصير تبديل حي بمكان ثاني بالكود)
-      if (videoRef.current) {
-        videoTrack.play(videoRef.current);
-      }
-
+      // الخطوة 2: ننشر الكاميرا اللي فتحناها فوق
       await client.publish([audioTrack, videoTrack]);
       setIsLive(true);
       await registerLiveRow(channelName, tokenData.uid);
@@ -915,6 +926,17 @@ export const JixStreamStudio: React.FC<JixStreamStudioProps> = ({ isOpen, onClos
 
         <div className="absolute inset-x-0 top-0 h-32 bg-gradient-to-b from-black/70 to-transparent pointer-events-none" />
         <div className="absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-black/70 to-transparent pointer-events-none" />
+
+        {needsTapToStart && !isLive && streamMode === 'camera' && (
+          <div className="absolute inset-0 z-20 flex items-center justify-center">
+            <button
+              onClick={() => startLiveStream()}
+              className="px-8 py-4 rounded-full bg-gradient-to-r from-[#FF7A1A] to-[#8B5CF6] text-white font-black text-base shadow-2xl flex items-center gap-2"
+            >
+              <Camera className="w-5 h-5" /> {t('go_live')}
+            </button>
+          </div>
+        )}
 
         {connectionError && (
           <div className="absolute top-20 left-1/2 -translate-x-1/2 bg-red-600/90 text-white text-xs px-4 py-2 rounded-full z-20 max-w-[85%] text-center">
