@@ -74,8 +74,9 @@ export const JixVideoFeed: React.FC<JixVideoFeedProps> = ({ currentUserId, refre
         .from('follows')
         .select('following_id')
         .eq('follower_id', currentUserId);
-      followingUserIds = (followingRows || []).map((f) => f.following_id);
-      if (followingUserIds.length === 0) {
+      const ids: string[] = (followingRows || []).map((f: { following_id: string }) => f.following_id);
+      followingUserIds = ids;
+      if (ids.length === 0) {
         setPosts([]);
         return;
       }
