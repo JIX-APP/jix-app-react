@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Send, MoreVertical, VolumeX, Clock, Ban } from 'lucide-react';
+import { Send, MoreVertical, VolumeX, Clock, Ban, Mic, MicOff } from 'lucide-react';
 import { supabase } from './supabaseClient';
 import { JixMvpBadge, useLiveMvpTiers } from './JixMvpBadge';
 
@@ -46,6 +46,9 @@ interface JixLiveCommentsProps {
   isModerator: boolean;
   onOpenProfile?: (userId: string) => void;
   onKicked?: (permanent: boolean) => void;
+  // للمذيع: زر المايك داخل مربع التعليق (مثل تيك توك)
+  micMuted?: boolean;
+  onToggleMic?: () => void;
 }
 
 const MAX_MESSAGES = 100;
@@ -61,6 +64,8 @@ export const JixLiveComments: React.FC<JixLiveCommentsProps> = ({
   isModerator,
   onOpenProfile,
   onKicked,
+  micMuted = false,
+  onToggleMic,
 }) => {
   const [messages, setMessages] = useState<LiveCommentMsg[]>([]);
   const [input, setInput] = useState('');
@@ -204,7 +209,7 @@ export const JixLiveComments: React.FC<JixLiveCommentsProps> = ({
 
       <div
         ref={listRef}
-        className="absolute bottom-24 left-3 right-20 top-16 z-10 flex flex-col gap-1.5 overflow-y-auto pointer-events-auto"
+        className="absolute bottom-24 left-3 right-20 top-[45%] z-10 flex flex-col gap-1.5 overflow-y-auto pointer-events-auto"
         style={{ scrollbarWidth: 'none' }}
       >
         <div className="mt-auto flex flex-col gap-1.5">
@@ -277,14 +282,31 @@ export const JixLiveComments: React.FC<JixLiveCommentsProps> = ({
             </p>
           )}
           <div className="flex items-center gap-2">
-            <input
-              value={input}
-              onChange={(e) => setInput(e.target.value.slice(0, MAX_CHARS))}
-              onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-              placeholder="اكتب تعليق..."
-              maxLength={MAX_CHARS}
-              className="flex-1 px-4 py-2 bg-black/40 backdrop-blur-sm border border-white/10 rounded-full text-white text-xs placeholder:text-gray-400 outline-none focus:border-[#8B5CF6]"
-            />
+            <div className="relative flex-1">
+              <input
+                value={input}
+                onChange={(e) => setInput(e.target.value.slice(0, MAX_CHARS))}
+                onKeyDown={(e) => e.key === 'Enter' && handleSend()}
+                placeholder="اكتب تعليق..."
+                maxLength={MAX_CHARS}
+                className={`w-full py-2 bg-black/40 backdrop-blur-sm border border-white/10 rounded-full text-white text-xs placeholder:text-gray-400 outline-none focus:border-[#8B5CF6] ${
+                  onToggleMic ? 'ps-4 pe-10' : 'px-4'
+                }`}
+              />
+              {/* زر المايك داخل المربع - يكتم/يفتح صوت المذيع بالبث */}
+              {onToggleMic && (
+                <button
+                  type="button"
+                  onClick={onToggleMic}
+                  aria-label={micMuted ? 'تشغيل المايك' : 'كتم المايك'}
+                  className={`absolute top-1/2 -translate-y-1/2 end-1 w-7 h-7 rounded-full flex items-center justify-center ${
+                    micMuted ? 'bg-red-600' : 'bg-white/10'
+                  }`}
+                >
+                  {micMuted ? <MicOff className="w-3.5 h-3.5 text-white" /> : <Mic className="w-3.5 h-3.5 text-white" />}
+                </button>
+              )}
+            </div>
             <button
               onClick={handleSend}
               disabled={!input.trim()}
