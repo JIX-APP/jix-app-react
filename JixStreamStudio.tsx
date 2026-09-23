@@ -158,7 +158,7 @@ export const JixStreamStudio: React.FC<JixStreamStudioProps> = ({ isOpen, onClos
       return await response.json();
     } catch (err) {
       console.error('[JIX] فشل جلب توكن Agora:', err);
-      setConnectionError(`خطأ: ${(err as Error).message || 'غير معروف'}`);
+      setConnectionError(t('err_prefix', { msg: (err as Error).message || t('err_unknown') }));
       return null;
     }
   };
@@ -248,7 +248,7 @@ export const JixStreamStudio: React.FC<JixStreamStudioProps> = ({ isOpen, onClos
     try {
       const channelName = await getChannelName();
       if (!channelName) {
-        setConnectionError('خطأ: لم يتم العثور على جلسة الدخول');
+        setConnectionError(t('err_no_session'));
         return;
       }
 
@@ -308,7 +308,7 @@ export const JixStreamStudio: React.FC<JixStreamStudioProps> = ({ isOpen, onClos
       }, 1500);
     } catch (err) {
       console.error('[JIX] فشل بدء البث:', err);
-      setConnectionError(`خطأ: ${(err as Error).message || 'غير معروف'}`);
+      setConnectionError(t('err_prefix', { msg: (err as Error).message || t('err_unknown') }));
       setStreamMode('avatar');
     } finally {
       isBusyRef.current = false;
@@ -499,7 +499,7 @@ export const JixStreamStudio: React.FC<JixStreamStudioProps> = ({ isOpen, onClos
         next[row.slot - 1] = {
           slot: row.slot,
           guestId: row.guest_id,
-          guestName: row.profiles?.full_name || row.profiles?.handle || 'ضيف',
+          guestName: row.profiles?.full_name || row.profiles?.handle || t('guest_default'),
           agoraUid: row.agora_uid,
         };
       });
@@ -535,7 +535,7 @@ export const JixStreamStudio: React.FC<JixStreamStudioProps> = ({ isOpen, onClos
 
       const list: CohostRequest[] = (data || []).map((row: any) => ({
         requesterId: row.requester_id,
-        requesterName: row.profiles?.full_name || row.profiles?.handle || 'مستخدم JIX',
+        requesterName: row.profiles?.full_name || row.profiles?.handle || t('user_default'),
       }));
       setCohostRequests(list);
     };
@@ -658,7 +658,7 @@ export const JixStreamStudio: React.FC<JixStreamStudioProps> = ({ isOpen, onClos
       if (sourceVideoElRef.current) sourceVideoElRef.current.srcObject = null;
     } catch (err) {
       console.error('[JIX] فشل التبديل لوضع الصورة:', err);
-      setConnectionError('تعذر التبديل لوضع الصورة، حاول مرة أخرى');
+      setConnectionError(t('err_switch_photo'));
     }
   };
 
@@ -682,7 +682,7 @@ export const JixStreamStudio: React.FC<JixStreamStudioProps> = ({ isOpen, onClos
       localVideoTrackRef.current = newVideoTrack;
     } catch (err) {
       console.error('[JIX] فشل الرجوع لوضع الكاميرا:', err);
-      setConnectionError('تعذر الرجوع لوضع الكاميرا، حاول مرة أخرى');
+      setConnectionError(t('err_switch_camera'));
     }
   };
 
@@ -800,16 +800,16 @@ export const JixStreamStudio: React.FC<JixStreamStudioProps> = ({ isOpen, onClos
           </>
         ) : (
           <div className="absolute inset-0">
-            <img src={avatarImageUrl} alt="صورة البث" className="w-full h-full object-cover" />
+            <img src={avatarImageUrl} alt={t('live_photo_alt')} className="w-full h-full object-cover" />
             <div className="absolute inset-x-0 bottom-28 flex flex-col items-center gap-2">
               <p className="text-white font-black text-lg drop-shadow-lg">{currentUser.name}</p>
-              <p className="text-[#F5B93E] text-xs font-bold drop-shadow-lg">بث بصورة ثابتة</p>
+              <p className="text-[#F5B93E] text-xs font-bold drop-shadow-lg">{t('live_photo_mode')}</p>
               <label
                 htmlFor="jix-avatar-photo-input"
                 className="mt-1 flex items-center gap-1.5 bg-black/60 backdrop-blur-sm px-4 py-2 rounded-full border border-white/20"
               >
                 <Image className="w-4 h-4 text-[#8B5CF6]" />
-                <span className="text-xs font-bold text-white">تغيير الصورة</span>
+                <span className="text-xs font-bold text-white">{t('change_photo')}</span>
               </label>
             </div>
           </div>
@@ -842,7 +842,7 @@ export const JixStreamStudio: React.FC<JixStreamStudioProps> = ({ isOpen, onClos
           <div className="flex items-center gap-1.5">
             {isLive && (
               <span className="bg-gradient-to-r from-[#FF7A1A] to-[#8B5CF6] text-white text-xs font-bold px-3 py-1 rounded-full animate-pulse">
-                مباشر الآن
+                {t('live_now_badge')}
               </span>
             )}
             <LevelBadge xp={hostReceiverXp} kind="receiver" />
@@ -865,7 +865,7 @@ export const JixStreamStudio: React.FC<JixStreamStudioProps> = ({ isOpen, onClos
                 <GiftIcon gift={def} size={140} spinning />
               </div>
               <p className="mt-3 font-black text-lg text-[#F5B93E]">{t(`gift_${def.id}`)}!</p>
-              <p className="text-xs font-bold text-white">هدية بقيمة {giftToast.coinCost} كوين</p>
+              <p className="text-xs font-bold text-white">{t('gift_worth', { coins: giftToast.coinCost })}</p>
             </div>
           ) : (
             <div className="absolute top-24 left-1/2 -translate-x-1/2 bg-gradient-to-r from-[#FF7A1A] to-[#8B5CF6] px-4 py-2 rounded-full flex items-center gap-2 z-20">
@@ -908,7 +908,7 @@ export const JixStreamStudio: React.FC<JixStreamStudioProps> = ({ isOpen, onClos
         <button
           onClick={() => { setIsViewersOpen(false); setIsTopChartOpen(true); }}
           className="flex items-center bg-black/50 px-3 py-2 rounded-full"
-          aria-label="التوبات"
+          aria-label={t('tops_label')}
         >
           <Trophy className="w-4 h-4 text-[#F5B93E]" />
         </button>
@@ -957,7 +957,7 @@ export const JixStreamStudio: React.FC<JixStreamStudioProps> = ({ isOpen, onClos
               <button
                 onClick={() => setIsShareOpen(true)}
                 className="w-10 h-10 rounded-full flex items-center justify-center bg-black/50"
-                aria-label="مشاركة البث"
+                aria-label={t('share_live')}
               >
                 <Share2 className="w-4 h-4 text-white" />
               </button>
@@ -1005,7 +1005,7 @@ export const JixStreamStudio: React.FC<JixStreamStudioProps> = ({ isOpen, onClos
             >
               <div className="flex items-center justify-between pb-3 border-b border-gray-800">
                 <h4 className="font-bold text-sm flex items-center gap-2 text-white">
-                  <Users className="w-4 h-4 text-[#8B5CF6]" /> إدارة البث والفانزات
+                  <Users className="w-4 h-4 text-[#8B5CF6]" /> {t('manage_live_fans')}
                 </h4>
                 <button onClick={() => setIsViewersOpen(false)} className="p-1 text-gray-400 hover:text-white">
                   <ChevronDown className="w-5 h-5" />
@@ -1013,9 +1013,9 @@ export const JixStreamStudio: React.FC<JixStreamStudioProps> = ({ isOpen, onClos
               </div>
 
               <div className="flex-1 overflow-y-auto py-3 space-y-3">
-                <p className="text-xs text-gray-400">قائمة المشاهدين ({viewers.length}):</p>
+                <p className="text-xs text-gray-400">{t('viewers_list', { n: viewers.length })}</p>
                 {viewers.length === 0 ? (
-                  <p className="text-center text-xs text-gray-500 py-6">ما فيه مشاهدين حاليًا</p>
+                  <p className="text-center text-xs text-gray-500 py-6">{t('no_viewers')}</p>
                 ) : (
                   viewers.map((v) => (
                     <div key={v.id} className="flex items-center justify-between bg-black/40 p-2 rounded-xl border border-gray-800">
@@ -1030,16 +1030,16 @@ export const JixStreamStudio: React.FC<JixStreamStudioProps> = ({ isOpen, onClos
                           <button
                             onClick={() => handleInviteViewer(v.id)}
                             disabled={!findFreeSlot()}
-                            title="دعوة كضيف بالبث"
+                            title={t('invite_guest')}
                             className="p-1.5 rounded-lg bg-[#8B5CF6]/20 text-[#8B5CF6] disabled:opacity-30"
                           >
                             <UserPlus2 className="w-3.5 h-3.5" />
                           </button>
                         )}
-                        <button onClick={() => toggleMuteViewer(v.id)} disabled={v.isMuted} title={v.isMuted ? 'مكتوم بالفعل' : 'كتم الكومنتات'} className={`p-1.5 rounded-lg disabled:opacity-50 ${v.isMuted ? 'bg-[#8B5CF6]/20 text-[#8B5CF6]' : 'bg-gray-800 text-gray-300'}`}>
+                        <button onClick={() => toggleMuteViewer(v.id)} disabled={v.isMuted} title={v.isMuted ? t('already_muted') : t('mute_comments')} className={`p-1.5 rounded-lg disabled:opacity-50 ${v.isMuted ? 'bg-[#8B5CF6]/20 text-[#8B5CF6]' : 'bg-gray-800 text-gray-300'}`}>
                           <VolumeX className="w-3.5 h-3.5" />
                         </button>
-                        <button onClick={() => kickViewer(v.id)} title="طرد نهائي من البث" className="p-1.5 rounded-lg bg-red-600/20 text-red-400 hover:bg-red-600 hover:text-white transition">
+                        <button onClick={() => kickViewer(v.id)} title={t('kick_permanent_title')} className="p-1.5 rounded-lg bg-red-600/20 text-red-400 hover:bg-red-600 hover:text-white transition">
                           <UserX className="w-3.5 h-3.5" />
                         </button>
                       </div>
@@ -1060,7 +1060,7 @@ export const JixStreamStudio: React.FC<JixStreamStudioProps> = ({ isOpen, onClos
             >
               <div className="flex items-center justify-between pb-3 border-b border-gray-800">
                 <h4 className="font-bold text-sm flex items-center gap-2 text-white">
-                  <Bell className="w-4 h-4 text-[#F5B93E]" /> طلبات الصعود كقست
+                  <Bell className="w-4 h-4 text-[#F5B93E]" /> {t('cohost_requests')}
                 </h4>
                 <button onClick={() => setIsRequestsOpen(false)} className="p-1 text-gray-400 hover:text-white">
                   <ChevronDown className="w-5 h-5" />
@@ -1069,7 +1069,7 @@ export const JixStreamStudio: React.FC<JixStreamStudioProps> = ({ isOpen, onClos
 
               <div className="flex-1 overflow-y-auto py-3 space-y-3">
                 {cohostRequests.length === 0 ? (
-                  <p className="text-center text-xs text-gray-500 py-6">ما فيه طلبات حاليًا</p>
+                  <p className="text-center text-xs text-gray-500 py-6">{t('no_requests')}</p>
                 ) : (
                   cohostRequests.map((r) => (
                     <div key={r.requesterId} className="flex items-center justify-between bg-black/40 p-2 rounded-xl border border-gray-800">
@@ -1080,13 +1080,13 @@ export const JixStreamStudio: React.FC<JixStreamStudioProps> = ({ isOpen, onClos
                           disabled={!findFreeSlot()}
                           className="flex items-center gap-1 px-3 py-1.5 rounded-full bg-gradient-to-r from-[#FF7A1A] to-[#8B5CF6] text-white text-[10px] font-bold disabled:opacity-30"
                         >
-                          <Check className="w-3 h-3" /> قبول
+                          <Check className="w-3 h-3" /> {t('accept')}
                         </button>
                         <button
                           onClick={() => handleRejectRequest(r.requesterId)}
                           className="px-3 py-1.5 rounded-full bg-white/10 text-white text-[10px] font-bold"
                         >
-                          رفض
+                          {t('reject')}
                         </button>
                       </div>
                     </div>
@@ -1100,16 +1100,16 @@ export const JixStreamStudio: React.FC<JixStreamStudioProps> = ({ isOpen, onClos
         {showExitConfirm && (
           <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/80 p-4">
             <div className="w-full max-w-sm bg-[#12141f] border border-gray-800 rounded-3xl p-6">
-              <h3 className="font-black text-sm text-white mb-2">إنهاء البث المباشر؟</h3>
+              <h3 className="font-black text-sm text-white mb-2">{t('end_live_q')}</h3>
               <p className="text-xs text-gray-400 mb-5">
-                هل أنت متأكد إنك تبي تخرج وتنهي البث؟ كل من يشاهدك الآن بينقطع اتصاله.
+                {t('end_live_confirm')}
               </p>
               <div className="flex gap-2.5">
                 <button
                   onClick={() => setShowExitConfirm(false)}
                   className="flex-1 py-3 bg-white/5 text-white font-bold text-sm rounded-2xl"
                 >
-                  البقاء بالبث
+                  {t('stay_live')}
                 </button>
                 <button
                   onClick={() => {
@@ -1118,7 +1118,7 @@ export const JixStreamStudio: React.FC<JixStreamStudioProps> = ({ isOpen, onClos
                   }}
                   className="flex-1 py-3 bg-red-600 text-white font-black text-sm rounded-2xl"
                 >
-                  إنهاء البث
+                  {t('end_live')}
                 </button>
               </div>
             </div>
@@ -1133,7 +1133,7 @@ export const JixStreamStudio: React.FC<JixStreamStudioProps> = ({ isOpen, onClos
             if (!slot) {
               return (
                 <div key={i} className="bg-[#1a1c26] rounded-lg flex items-center justify-center">
-                  <span className="text-[9px] text-gray-600">مكان فاضي</span>
+                  <span className="text-[9px] text-gray-600">{t('empty_slot')}</span>
                 </div>
               );
             }
