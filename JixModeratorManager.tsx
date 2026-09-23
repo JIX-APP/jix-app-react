@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { X, Shield, ShieldOff, Loader2 } from 'lucide-react';
 import { supabase } from './supabaseClient';
+import { useI18n } from './JixLanguage';
 
 interface JixModeratorManagerProps {
   isOpen: boolean;
@@ -17,6 +18,7 @@ interface FollowerRow {
 }
 
 export const JixModeratorManager: React.FC<JixModeratorManagerProps> = ({ isOpen, onClose, hostId }) => {
+  const { t } = useI18n();
   const [followers, setFollowers] = useState<FollowerRow[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -81,7 +83,7 @@ export const JixModeratorManager: React.FC<JixModeratorManagerProps> = ({ isOpen
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-800">
-          <h3 className="font-black text-sm text-white">إدارة المشرفين</h3>
+          <h3 className="font-black text-sm text-white">{t('mods_title')}</h3>
           <button onClick={onClose} className="p-1.5 rounded-full bg-white/5">
             <X className="w-4 h-4 text-white" />
           </button>
@@ -89,7 +91,7 @@ export const JixModeratorManager: React.FC<JixModeratorManagerProps> = ({ isOpen
 
         <div className="flex-1 overflow-y-auto px-5 py-3">
           <p className="text-[10px] text-gray-500 mb-3">
-            اختر من متابعيك من تبي تعيّنه مشرف - يقدر يكتم ويطرد مؤقتًا بالبث
+            {t('mods_hint')}
           </p>
 
           {isLoading ? (
@@ -97,7 +99,7 @@ export const JixModeratorManager: React.FC<JixModeratorManagerProps> = ({ isOpen
               <Loader2 className="w-5 h-5 animate-spin text-[#8B5CF6]" />
             </div>
           ) : followers.length === 0 ? (
-            <p className="text-center text-xs text-gray-500 py-10">ما عندك متابعين بعد</p>
+            <p className="text-center text-xs text-gray-500 py-10">{t('no_followers_yet')}</p>
           ) : (
             <div className="space-y-2">
               {followers.map((f) => (
@@ -114,7 +116,7 @@ export const JixModeratorManager: React.FC<JixModeratorManagerProps> = ({ isOpen
                       )}
                     </div>
                     <span className="text-xs font-bold text-white">
-                      {f.full_name || f.handle || 'مستخدم JIX'}
+                      {f.full_name || f.handle || t('user_default')}
                     </span>
                   </div>
 
@@ -132,7 +134,7 @@ export const JixModeratorManager: React.FC<JixModeratorManagerProps> = ({ isOpen
                     ) : (
                       <Shield className="w-3 h-3" />
                     )}
-                    {f.isModerator ? 'إزالة الإشراف' : 'تعيين مشرف'}
+                    {f.isModerator ? t('remove_mod') : t('make_mod')}
                   </button>
                 </div>
               ))}
