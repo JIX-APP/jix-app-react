@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Send, MoreVertical, VolumeX, Clock, Ban, Mic, MicOff } from 'lucide-react';
 import { supabase } from './supabaseClient';
 import { JixMvpBadge, useLiveMvpTiers } from './JixMvpBadge';
+import { useI18n } from './JixLanguage';
 
 // يحسب ارتفاع لوحة المفاتيح الحالي عشان نرفع شريط كتابة التعليق فوقها
 function useKeyboardInset() {
@@ -67,6 +68,7 @@ export const JixLiveComments: React.FC<JixLiveCommentsProps> = ({
   micMuted = false,
   onToggleMic,
 }) => {
+  const { t } = useI18n();
   const [messages, setMessages] = useState<LiveCommentMsg[]>([]);
   const [input, setInput] = useState('');
   const [duplicateWarning, setDuplicateWarning] = useState(false);
@@ -203,7 +205,7 @@ export const JixLiveComments: React.FC<JixLiveCommentsProps> = ({
     <>
       {isMutedNotice && (
         <div className="absolute top-16 left-1/2 -translate-x-1/2 z-30 bg-red-600/90 text-white text-[11px] font-bold px-4 py-2 rounded-full">
-          تم كتمك بواسطة إدارة البث
+          {t('muted_by_admin')}
         </div>
       )}
 
@@ -251,20 +253,20 @@ export const JixLiveComments: React.FC<JixLiveCommentsProps> = ({
                     onClick={() => handleMute(msg.senderId)}
                     className="w-full flex items-center gap-1.5 px-3 py-2 text-[10px] font-bold text-white hover:bg-white/10"
                   >
-                    <VolumeX className="w-3 h-3" /> كتم
+                    <VolumeX className="w-3 h-3" /> {t('mute')}
                   </button>
                   <button
                     onClick={() => handleKickTemp(msg.senderId)}
                     className="w-full flex items-center gap-1.5 px-3 py-2 text-[10px] font-bold text-orange-400 hover:bg-white/10"
                   >
-                    <Clock className="w-3 h-3" /> طرد 5 دقايق
+                    <Clock className="w-3 h-3" /> {t('kick_5min')}
                   </button>
                   {isHost && (
                     <button
                       onClick={() => handleKickPermanent(msg.senderId)}
                       className="w-full flex items-center gap-1.5 px-3 py-2 text-[10px] font-bold text-red-400 hover:bg-white/10"
                     >
-                      <Ban className="w-3 h-3" /> طرد نهائي
+                      <Ban className="w-3 h-3" /> {t('kick_permanent')}
                     </button>
                   )}
                 </div>
@@ -278,7 +280,7 @@ export const JixLiveComments: React.FC<JixLiveCommentsProps> = ({
         <div className="absolute left-3 right-20 z-10" style={{ bottom: 24 + keyboardInset }}>
           {duplicateWarning && (
             <p className="text-[10px] text-red-400 font-bold mb-1 px-1">
-              لا يمكنك إرسال نفس التعليق مرتين متتاليتين
+              {t('duplicate_comment')}
             </p>
           )}
           <div className="flex items-center gap-2">
@@ -287,7 +289,7 @@ export const JixLiveComments: React.FC<JixLiveCommentsProps> = ({
                 value={input}
                 onChange={(e) => setInput(e.target.value.slice(0, MAX_CHARS))}
                 onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-                placeholder="اكتب تعليق..."
+                placeholder={t('comment_placeholder')}
                 maxLength={MAX_CHARS}
                 className={`w-full py-2 bg-black/40 backdrop-blur-sm border border-white/10 rounded-full text-white text-xs placeholder:text-gray-400 outline-none focus:border-[#8B5CF6] ${
                   onToggleMic ? 'ps-4 pe-10' : 'px-4'
@@ -298,7 +300,7 @@ export const JixLiveComments: React.FC<JixLiveCommentsProps> = ({
                 <button
                   type="button"
                   onClick={onToggleMic}
-                  aria-label={micMuted ? 'تشغيل المايك' : 'كتم المايك'}
+                  aria-label={micMuted ? t('mic_on') : t('mic_off')}
                   className={`absolute top-1/2 -translate-y-1/2 end-1 w-7 h-7 rounded-full flex items-center justify-center ${
                     micMuted ? 'bg-red-600' : 'bg-white/10'
                   }`}
@@ -321,7 +323,7 @@ export const JixLiveComments: React.FC<JixLiveCommentsProps> = ({
       {currentUserId && mutedUserIds.has(currentUserId) && (
         <div className="absolute bottom-6 left-3 right-20 z-10 text-center">
           <p className="text-[10px] text-red-400 font-bold bg-black/40 rounded-full py-2">
-            تم كتمك، لا يمكنك إرسال تعليقات بهذا البث
+            {t('muted_cant_comment')}
           </p>
         </div>
       )}
