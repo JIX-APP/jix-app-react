@@ -56,7 +56,7 @@ export const JixWatchStream: React.FC<JixWatchStreamProps> = ({
   const [isConnecting, setIsConnecting] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [giftToast, setGiftToast] = useState<GiftToast | null>(null);
-  const [viewerName, setViewerName] = useState<string>('مستخدم JIX');
+  const [viewerName, setViewerName] = useState<string>(t('user_default'));
   const [isModerator, setIsModerator] = useState(false);
   // زر الكأس (التوبات) + عدد المشاهدين - نفس اللي عند المذيع
   const [isTopChartOpen, setIsTopChartOpen] = useState(false);
@@ -86,7 +86,7 @@ export const JixWatchStream: React.FC<JixWatchStreamProps> = ({
       .eq('id', currentUserId)
       .maybeSingle()
       .then(({ data }) => {
-        setViewerName(data?.full_name || data?.handle || 'مستخدم JIX');
+        setViewerName(data?.full_name || data?.handle || t('user_default'));
       });
   }, [currentUserId]);
 
@@ -161,7 +161,7 @@ export const JixWatchStream: React.FC<JixWatchStreamProps> = ({
         });
 
         if (!response.ok) {
-          throw new Error('تعذر الحصول على إذن مشاهدة البث');
+          throw new Error(t('watch_permission_failed'));
         }
 
         const tokenData = await response.json();
@@ -194,7 +194,7 @@ export const JixWatchStream: React.FC<JixWatchStreamProps> = ({
       } catch (err) {
         console.error('[JIX] فشل الانضمام للبث:', err);
         if (!cancelled) {
-          setError('تعذر الاتصال بالبث. حاول مرة أخرى.');
+          setError(t('connect_failed'));
           setIsConnecting(false);
         }
       }
@@ -249,7 +249,7 @@ export const JixWatchStream: React.FC<JixWatchStreamProps> = ({
         next[row.slot - 1] = {
           slot: row.slot,
           guestId: row.guest_id,
-          guestName: row.profiles?.full_name || row.profiles?.handle || 'ضيف',
+          guestName: row.profiles?.full_name || row.profiles?.handle || t('guest_default'),
           agoraUid: row.agora_uid,
         };
       });
@@ -423,7 +423,7 @@ export const JixWatchStream: React.FC<JixWatchStreamProps> = ({
         {isConnecting && !error && (
           <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/80">
             <Loader2 className="w-8 h-8 animate-spin text-[#8B5CF6] mb-3" />
-            <p className="text-sm text-gray-300">جارٍ الاتصال ببث {hostUsername}...</p>
+            <p className="text-sm text-gray-300">{t('connecting_to', { name: hostUsername })}</p>
           </div>
         )}
 
@@ -431,7 +431,7 @@ export const JixWatchStream: React.FC<JixWatchStreamProps> = ({
           <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/90 px-6 text-center">
             <p className="text-sm text-red-400 mb-4">{error}</p>
             <button onClick={onClose} className="px-5 py-2.5 bg-white/10 rounded-xl text-sm font-bold">
-              رجوع
+              {t('back')}
             </button>
           </div>
         )}
@@ -473,7 +473,7 @@ export const JixWatchStream: React.FC<JixWatchStreamProps> = ({
           <button
             onClick={() => setIsTopChartOpen(true)}
             className="flex items-center bg-black/50 px-3 py-2 rounded-full"
-            aria-label="التوبات"
+            aria-label={t('tops_label')}
           >
             <Trophy className="w-4 h-4 text-[#F5B93E]" />
           </button>
@@ -481,7 +481,7 @@ export const JixWatchStream: React.FC<JixWatchStreamProps> = ({
           <button
             onClick={() => setIsShareOpen(true)}
             className="flex items-center bg-black/50 px-3 py-2 rounded-full"
-            aria-label="مشاركة البث"
+            aria-label={t('share_live')}
           >
             <Share2 className="w-4 h-4 text-white" />
           </button>
@@ -532,11 +532,11 @@ export const JixWatchStream: React.FC<JixWatchStreamProps> = ({
                 onClick={handleLeaveCohost}
                 className="flex items-center gap-1.5 bg-red-600/80 px-3 py-2 rounded-full text-[10px] font-bold text-white"
               >
-                <LogOut className="w-3.5 h-3.5" /> نزول من القست
+                <LogOut className="w-3.5 h-3.5" /> {t('leave_guest')}
               </button>
             ) : requestSent ? (
               <span className="flex items-center gap-1.5 bg-black/50 px-3 py-2 rounded-full text-[10px] font-bold text-gray-300">
-                بانتظار موافقة المذيع...
+                {t('waiting_host')}
               </span>
             ) : (
               <button
@@ -545,7 +545,7 @@ export const JixWatchStream: React.FC<JixWatchStreamProps> = ({
                 className="flex items-center gap-1.5 bg-black/50 px-3 py-2 rounded-full text-[10px] font-bold text-white disabled:opacity-50"
               >
                 {isRequesting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <UserPlus2 className="w-3.5 h-3.5" />}
-                طلب الصعود كقست
+                {t('request_guest')}
               </button>
             )}
           </div>
@@ -569,11 +569,11 @@ export const JixWatchStream: React.FC<JixWatchStreamProps> = ({
           <div className="absolute inset-0 z-40 flex flex-col items-center justify-center bg-black/95 px-6 text-center">
             <p className="text-sm text-red-400 font-bold mb-4">
               {kickedNotice.permanent
-                ? 'تم طردك نهائيًا من هذا البث'
-                : 'تم طردك مؤقتًا من هذا البث لمدة 5 دقايق'}
+                ? t('kicked_permanent')
+                : t('kicked_temp')}
             </p>
             <button onClick={onClose} className="px-5 py-2.5 bg-white/10 rounded-xl text-sm font-bold text-white">
-              رجوع
+              {t('back')}
             </button>
           </div>
         )}
@@ -585,7 +585,7 @@ export const JixWatchStream: React.FC<JixWatchStreamProps> = ({
             if (!slot) {
               return (
                 <div key={i} className="bg-[#1a1c26] rounded-lg flex items-center justify-center">
-                  <span className="text-[9px] text-gray-600">مكان فاضي</span>
+                  <span className="text-[9px] text-gray-600">{t('empty_slot')}</span>
                 </div>
               );
             }
