@@ -17,6 +17,7 @@ import { JixPKChallengeNotification } from './JixPKChallengeNotification';
 import { JixPKBattleView, JixPKResultOverlay } from './JixPKBattleView';
 import { JixStoryRing } from './JixStoryRing';
 import { JixPresenceProvider } from './JixPresence';
+import { useI18n, JixLanguagePicker } from './JixLanguage';
 import { JixLiveNotifier } from './JixLiveNotifier';
 import { JixProfileStats } from './JixProfileStats';
 import {
@@ -66,6 +67,7 @@ const calculateAge = (dob: string): number => {
 };
 
 function App() {
+  const { t } = useI18n();
   const [screen, setScreen] = useState<ScreenName>('Home');
   const [feedMode, setFeedMode] = useState<JixFeedMode>('latest');
   const [isAuthOpen, setIsAuthOpen] = useState(false);
@@ -147,8 +149,8 @@ function App() {
           : Promise.resolve({ data: null }),
       ]);
 
-      setPkHostAName(profileA?.full_name || profileA?.handle || 'مذيع');
-      setPkHostBName(profileB?.full_name || profileB?.handle || 'مذيع');
+      setPkHostAName(profileA?.full_name || profileA?.handle || t('host_default'));
+      setPkHostBName(profileB?.full_name || profileB?.handle || t('host_default'));
     };
 
     loadBattleNames();
@@ -163,7 +165,7 @@ function App() {
         .maybeSingle();
       setUser({
         id: sUser.id,
-        name: (sUser.user_metadata?.username as string) || 'مستخدم JIX',
+        name: (sUser.user_metadata?.username as string) || t('user_default'),
         email: sUser.email || '',
         avatar: DEFAULT_AVATAR,
         avatarUrl: profile?.avatar_url ?? null,
@@ -333,7 +335,7 @@ function App() {
       stream = (data as LiveStreamRow) ?? undefined;
     }
     if (!stream) {
-      alert('البث انتهى');
+      alert(t('live_ended'));
       return;
     }
     setViewingProfileUserId(null);
@@ -372,7 +374,7 @@ function App() {
 
     if (error || !data || data.length === 0) {
       console.error('[JIX] فشل بدء المكالمة:', error);
-      alert(error?.message || 'تعذر بدء المكالمة');
+      alert(error?.message || t('call_start_failed'));
       return;
     }
 
@@ -411,7 +413,7 @@ function App() {
       p_other_user_id: otherUserId,
     });
     if (error || !conversationId) {
-      alert(error?.message || 'تعذر فتح المحادثة');
+      alert(error?.message || t('chat_open_failed'));
       return;
     }
 
@@ -433,7 +435,7 @@ function App() {
 
     const textCheck = checkText(nameDraft);
     if (!textCheck.isClean) {
-      setNameError('الاسم يحتوي على كلمة غير مسموح بها');
+      setNameError(t('name_banned_word'));
       return;
     }
 
@@ -466,7 +468,7 @@ function App() {
 
     const age = calculateAge(dobDraft);
     if (age < 18) {
-      setDobError('يجب أن يكون عمرك 18 سنة أو أكثر');
+      setDobError(t('age_min_18'));
       return;
     }
 
@@ -479,7 +481,7 @@ function App() {
       setUser((prev) => (prev ? { ...prev, dateOfBirth: dobDraft } : prev));
       setIsEditingDob(false);
     } catch (err) {
-      setDobError((err as Error).message || 'تعذر حفظ تاريخ الميلاد');
+      setDobError((err as Error).message || t('dob_save_failed'));
     } finally {
       setIsSavingDob(false);
     }
@@ -524,7 +526,7 @@ function App() {
                   feedMode === 'following' ? 'text-white opacity-100' : 'text-white/60 opacity-70'
                 }`}
               >
-                متابعة
+                {t('feed_following')}
               </button>
               <button
                 onClick={() => setFeedMode('latest')}
@@ -532,7 +534,7 @@ function App() {
                   feedMode === 'latest' ? 'text-white opacity-100' : 'text-white/60 opacity-70'
                 }`}
               >
-                الأحدث
+                {t('feed_latest')}
               </button>
               <button
                 onClick={() => setFeedMode('popular')}
@@ -540,7 +542,7 @@ function App() {
                   feedMode === 'popular' ? 'text-white opacity-100' : 'text-white/60 opacity-70'
                 }`}
               >
-                رائج
+                {t('feed_popular')}
               </button>
             </div>
             {isCheckingSession ? (
@@ -596,7 +598,7 @@ function App() {
           <input
             value={discoverSearch}
             onChange={(e) => setDiscoverSearch(e.target.value)}
-            placeholder="ابحث عن مستخدم أو بث..."
+            placeholder={t('search_placeholder')}
             className="bg-transparent outline-none text-sm flex-1 placeholder:text-[#6B6B76] text-white"
           />
         </div>
@@ -608,7 +610,7 @@ function App() {
                 <Loader2 className="w-5 h-5 animate-spin text-[#8B5CF6]" />
               </div>
             ) : discoverSearchResults.length === 0 ? (
-              <p className="text-xs text-[#6B6B76] text-center py-8">ما فيه نتائج لـ"{discoverSearch}"</p>
+              <p className="text-xs text-[#6B6B76] text-center py-8">{t('search_no_results', { q: discoverSearch })}</p>
             ) : (
               <div className="space-y-2">
                 {discoverSearchResults.map((result) => (
@@ -635,7 +637,7 @@ function App() {
           </div>
         ) : null}
 
-        <p className="text-xs font-bold text-[#6B6B76] mb-3">بثوث مباشرة الآن</p>
+        <p className="text-xs font-bold text-[#6B6B76] mb-3">{t('live_now')}</p>
 
         {isLoadingLive ? (
           <div className="flex justify-center py-16">
@@ -673,17 +675,17 @@ function App() {
       </div>
 
       <div className={`absolute inset-0 pt-6 pb-24 flex flex-col ${screen === 'Messages' ? '' : 'hidden'}`}>
-        <h2 className="font-black text-lg mb-3 px-4">الرسائل</h2>
+        <h2 className="font-black text-lg mb-3 px-4">{t('messages')}</h2>
 
         {!user ? (
           <div className="flex flex-col items-center justify-center py-16 text-center px-4">
             <MessageCircle className="w-10 h-10 text-[#6B6B76] mb-3" />
-            <p className="text-sm text-[#9A9A9E] mb-4">سجّل الدخول عشان تشوف رسائلك</p>
+            <p className="text-sm text-[#9A9A9E] mb-4">{t('login_to_see_messages')}</p>
             <button
               onClick={() => setIsAuthOpen(true)}
               className="px-6 py-3 bg-gradient-to-r from-[#FF7A1A] to-[#8B5CF6] rounded-2xl font-black text-sm"
             >
-              تسجيل الدخول
+              {t('login')}
             </button>
           </div>
         ) : (
@@ -703,13 +705,13 @@ function App() {
           <div className="flex flex-col items-center justify-center py-16 text-center">
             <User className="w-10 h-10 text-[#6B6B76] mb-3" />
             <p className="text-sm text-[#9A9A9E] mb-4">
-              سجّل الدخول عشان تشوف حسابك، بثوثك، ومحفظتك
+              {t('login_to_see_profile')}
             </p>
             <button
               onClick={() => setIsAuthOpen(true)}
               className="px-6 py-3 bg-gradient-to-r from-[#FF7A1A] to-[#8B5CF6] rounded-2xl font-black text-sm"
             >
-              تسجيل الدخول
+              {t('login')}
             </button>
           </div>
         ) : (
@@ -727,7 +729,7 @@ function App() {
                   <label
                     htmlFor="jix-avatar-upload-input"
                     className="w-7 h-7 rounded-full bg-[#171923] border-2 border-[#0E0E12] flex items-center justify-center cursor-pointer"
-                    aria-label="تغيير الصورة"
+                    aria-label={t('change_photo')}
                   >
                     <Camera className="w-3.5 h-3.5 text-white" />
                   </label>
@@ -805,7 +807,7 @@ function App() {
                   <div>
                     <div className="flex items-center gap-2 mb-2">
                       <Calendar className="w-4 h-4 text-[#8B5CF6] shrink-0" />
-                      <span className="text-xs font-bold text-gray-300">تاريخ الميلاد</span>
+                      <span className="text-xs font-bold text-gray-300">{t('dob')}</span>
                     </div>
                     <JixDobPicker value={dobDraft} onChange={setDobDraft} />
                     {dobError && <p className="text-[10px] text-red-400 mt-1.5">{dobError}</p>}
@@ -814,7 +816,7 @@ function App() {
                         onClick={() => setIsEditingDob(false)}
                         className="flex-1 py-2 bg-white/5 text-white text-xs font-bold rounded-xl"
                       >
-                        إلغاء
+                        {t('cancel')}
                       </button>
                       <button
                         onClick={handleSaveDob}
@@ -822,7 +824,7 @@ function App() {
                         className="flex-1 py-2 bg-gradient-to-r from-[#FF7A1A] to-[#8B5CF6] text-white text-xs font-bold rounded-xl disabled:opacity-50 flex items-center justify-center gap-1.5"
                       >
                         {isSavingDob ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
-                        حفظ
+                        {t('save')}
                       </button>
                     </div>
                   </div>
@@ -831,7 +833,7 @@ function App() {
                     <div className="flex items-center gap-2.5">
                       <Calendar className="w-4 h-4 text-[#8B5CF6]" />
                       <span className="text-xs text-gray-300">
-                        {user.dateOfBirth ? `تاريخ الميلاد: ${user.dateOfBirth}` : 'أضف تاريخ ميلادك'}
+                        {user.dateOfBirth ? t('dob_value', { date: user.dateOfBirth }) : t('add_dob')}
                       </span>
                     </div>
                     <button onClick={handleStartEditDob} className="p-1 rounded-full bg-white/5 shrink-0">
@@ -849,13 +851,13 @@ function App() {
                       value={regionDraft}
                       onChange={(e) => setRegionDraft(e.target.value)}
                       onKeyDown={(e) => e.key === 'Enter' && handleSaveRegion()}
-                      placeholder="مثال: الدوحة، قطر"
+                      placeholder={t('region_placeholder')}
                       autoFocus
                       className="px-2 py-1 bg-[#171923] border border-gray-800 rounded-lg text-white text-xs focus:border-[#8B5CF6] outline-none w-36"
                     />
                   ) : (
                     <span className="text-xs text-gray-300">
-                      {user.region || 'أضف منطقتك'}
+                      {user.region || t('add_region')}
                     </span>
                   )}
                 </div>
@@ -873,6 +875,9 @@ function App() {
                   </button>
                 )}
               </div>
+
+              {/* اختيار لغة التطبيق - الافتراضي لغة الجوال تلقائيًا */}
+              <JixLanguagePicker />
             </div>
 
             <div className="grid grid-cols-3 gap-2 mb-5">
@@ -881,21 +886,21 @@ function App() {
                 className="flex flex-col items-center gap-1.5 py-3 bg-gradient-to-br from-[#FF7A1A] to-[#8B5CF6] rounded-xl"
               >
                 <Radio className="w-5 h-5" />
-                <span className="text-[10px] font-bold">بث مباشر</span>
+                <span className="text-[10px] font-bold">{t('go_live')}</span>
               </button>
               <button
                 onClick={handleVipStoreClick}
                 className="flex flex-col items-center gap-1.5 py-3 bg-white/5 rounded-xl"
               >
                 <Crown className="w-5 h-5 text-[#F5B93E]" />
-                <span className="text-[10px] font-bold">أرقام VIP</span>
+                <span className="text-[10px] font-bold">{t('vip_numbers')}</span>
               </button>
               <button
                 onClick={handleUploadClick}
                 className="flex flex-col items-center gap-1.5 py-3 bg-white/5 rounded-xl"
               >
                 <Video className="w-5 h-5" />
-                <span className="text-[10px] font-bold">رفع فيديو</span>
+                <span className="text-[10px] font-bold">{t('upload_video')}</span>
               </button>
             </div>
 
@@ -903,7 +908,7 @@ function App() {
               onClick={handleLogout}
               className="w-full py-3 bg-white/5 text-red-400 rounded-2xl font-bold text-sm flex items-center justify-center gap-2"
             >
-              <LogOut className="w-4 h-4" /> تسجيل الخروج
+              <LogOut className="w-4 h-4" /> {t('logout')}
             </button>
           </div>
         )}
@@ -915,14 +920,14 @@ function App() {
           className={`flex flex-col items-center gap-1 ${screen === 'Home' ? 'text-white' : 'text-[#B0B0B6]'}`}
         >
           <Home className="w-5 h-5" />
-          <span className="text-[10px] font-bold">الرئيسية</span>
+          <span className="text-[10px] font-bold">{t('nav_home')}</span>
         </button>
         <button
           onClick={() => setScreen('Discover')}
           className={`flex flex-col items-center gap-1 ${screen === 'Discover' ? 'text-white' : 'text-[#B0B0B6]'}`}
         >
           <Compass className="w-5 h-5" />
-          <span className="text-[10px] font-bold">اكتشف</span>
+          <span className="text-[10px] font-bold">{t('nav_discover')}</span>
         </button>
         <button
           onClick={handleUploadClick}
@@ -935,14 +940,14 @@ function App() {
           className={`flex flex-col items-center gap-1 ${screen === 'Messages' ? 'text-white' : 'text-[#B0B0B6]'}`}
         >
           <MessageCircle className="w-5 h-5" />
-          <span className="text-[10px] font-bold">الرسائل</span>
+          <span className="text-[10px] font-bold">{t('messages')}</span>
         </button>
         <button
           onClick={() => setScreen('Profile')}
           className={`flex flex-col items-center gap-1 ${screen === 'Profile' ? 'text-white' : 'text-[#B0B0B6]'}`}
         >
           <User className="w-5 h-5" />
-          <span className="text-[10px] font-bold">حسابي</span>
+          <span className="text-[10px] font-bold">{t('nav_profile')}</span>
         </button>
       </nav>
 
