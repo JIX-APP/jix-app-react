@@ -1,6 +1,9 @@
 import React from 'react';
 import AgoraRTC, { ICameraVideoTrack } from 'agora-rtc-sdk-ng';
+// الإضافتين ما يجي معهم تعريفات TypeScript، فنقول للفحص يتجاهل السطرين (بدونها النشر يفشل)
+// @ts-ignore
 import BeautyExtension from 'agora-extension-beauty-effect';
+// @ts-ignore
 import VirtualBackgroundExtension from 'agora-extension-virtual-background';
 
 // ============================================================
