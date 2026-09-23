@@ -151,6 +151,9 @@ export const LOCALES: Record<string, Record<string, string>> = {
     no_followers_yet: "ما عندك متابعين بعد",
     remove_mod: "إزالة الإشراف",
     make_mod: "تعيين مشرف",
+    translated: "مترجم",
+    show_original: "عرض الأصل",
+    show_translation: "عرض الترجمة",
   },
   "en": {
     host_default: "Host",
@@ -299,6 +302,9 @@ export const LOCALES: Record<string, Record<string, string>> = {
     no_followers_yet: "You don't have followers yet",
     remove_mod: "Remove moderator",
     make_mod: "Make moderator",
+    translated: "Translated",
+    show_original: "See original",
+    show_translation: "See translation",
   },
   "es": {
     host_default: "Anfitrión",
@@ -447,6 +453,9 @@ export const LOCALES: Record<string, Record<string, string>> = {
     no_followers_yet: "Aún no tienes seguidores",
     remove_mod: "Quitar moderador",
     make_mod: "Hacer moderador",
+    translated: "Traducido",
+    show_original: "Ver original",
+    show_translation: "Ver traducción",
   },
   "fr": {
     host_default: "Hôte",
@@ -595,6 +604,9 @@ export const LOCALES: Record<string, Record<string, string>> = {
     no_followers_yet: "Vous n'avez pas encore d'abonnés",
     remove_mod: "Retirer le modérateur",
     make_mod: "Nommer modérateur",
+    translated: "Traduit",
+    show_original: "Voir l'original",
+    show_translation: "Voir la traduction",
   },
   "de": {
     host_default: "Host",
@@ -743,6 +755,9 @@ export const LOCALES: Record<string, Record<string, string>> = {
     no_followers_yet: "Du hast noch keine Follower",
     remove_mod: "Moderator entfernen",
     make_mod: "Zum Moderator machen",
+    translated: "Übersetzt",
+    show_original: "Original anzeigen",
+    show_translation: "Übersetzung anzeigen",
   },
   "it": {
     host_default: "Host",
@@ -891,6 +906,9 @@ export const LOCALES: Record<string, Record<string, string>> = {
     no_followers_yet: "Non hai ancora follower",
     remove_mod: "Rimuovi moderatore",
     make_mod: "Nomina moderatore",
+    translated: "Tradotto",
+    show_original: "Vedi originale",
+    show_translation: "Vedi traduzione",
   },
   "pt": {
     host_default: "Anfitrião",
@@ -1039,6 +1057,9 @@ export const LOCALES: Record<string, Record<string, string>> = {
     no_followers_yet: "Você ainda não tem seguidores",
     remove_mod: "Remover moderador",
     make_mod: "Tornar moderador",
+    translated: "Traduzido",
+    show_original: "Ver original",
+    show_translation: "Ver tradução",
   },
   "ru": {
     host_default: "Ведущий",
@@ -1187,6 +1208,9 @@ export const LOCALES: Record<string, Record<string, string>> = {
     no_followers_yet: "У вас пока нет подписчиков",
     remove_mod: "Снять модератора",
     make_mod: "Назначить модератором",
+    translated: "Переведено",
+    show_original: "Показать оригинал",
+    show_translation: "Показать перевод",
   },
   "tr": {
     host_default: "Yayıncı",
@@ -1335,6 +1359,9 @@ export const LOCALES: Record<string, Record<string, string>> = {
     no_followers_yet: "Henüz takipçin yok",
     remove_mod: "Moderatörlükten çıkar",
     make_mod: "Moderatör yap",
+    translated: "Çevrildi",
+    show_original: "Orijinali gör",
+    show_translation: "Çeviriyi gör",
   },
   "fa": {
     host_default: "میزبان",
@@ -1483,6 +1510,9 @@ export const LOCALES: Record<string, Record<string, string>> = {
     no_followers_yet: "هنوز دنبال‌کننده ندارید",
     remove_mod: "حذف ناظر",
     make_mod: "انتخاب به‌عنوان ناظر",
+    translated: "ترجمه شده",
+    show_original: "نمایش اصل",
+    show_translation: "نمایش ترجمه",
   },
   "ur": {
     host_default: "میزبان",
@@ -1631,6 +1661,9 @@ export const LOCALES: Record<string, Record<string, string>> = {
     no_followers_yet: "ابھی آپ کے فالوورز نہیں",
     remove_mod: "موڈریٹر ہٹائیں",
     make_mod: "موڈریٹر بنائیں",
+    translated: "ترجمہ شدہ",
+    show_original: "اصل دیکھیں",
+    show_translation: "ترجمہ دیکھیں",
   },
   "hi": {
     host_default: "होस्ट",
@@ -1779,6 +1812,9 @@ export const LOCALES: Record<string, Record<string, string>> = {
     no_followers_yet: "अभी आपके फ़ॉलोअर्स नहीं हैं",
     remove_mod: "मॉडरेटर हटाएँ",
     make_mod: "मॉडरेटर बनाएँ",
+    translated: "अनुवादित",
+    show_original: "मूल देखें",
+    show_translation: "अनुवाद देखें",
   },
   "bn": {
     host_default: "হোস্ট",
@@ -1927,6 +1963,9 @@ export const LOCALES: Record<string, Record<string, string>> = {
     no_followers_yet: "আপনার এখনো কোনো ফলোয়ার নেই",
     remove_mod: "মডারেটর সরান",
     make_mod: "মডারেটর বানান",
+    translated: "অনূদিত",
+    show_original: "মূল দেখুন",
+    show_translation: "অনুবাদ দেখুন",
   },
   "id": {
     host_default: "Host",
@@ -2075,6 +2114,9 @@ export const LOCALES: Record<string, Record<string, string>> = {
     no_followers_yet: "Kamu belum punya pengikut",
     remove_mod: "Hapus moderator",
     make_mod: "Jadikan moderator",
+    translated: "Diterjemahkan",
+    show_original: "Lihat asli",
+    show_translation: "Lihat terjemahan",
   },
   "ms": {
     host_default: "Hos",
@@ -2223,6 +2265,9 @@ export const LOCALES: Record<string, Record<string, string>> = {
     no_followers_yet: "Anda belum ada pengikut",
     remove_mod: "Buang moderator",
     make_mod: "Jadikan moderator",
+    translated: "Diterjemah",
+    show_original: "Lihat asal",
+    show_translation: "Lihat terjemahan",
   },
   "zh": {
     host_default: "主播",
@@ -2371,6 +2416,9 @@ export const LOCALES: Record<string, Record<string, string>> = {
     no_followers_yet: "你还没有粉丝",
     remove_mod: "取消房管",
     make_mod: "设为房管",
+    translated: "已翻译",
+    show_original: "查看原文",
+    show_translation: "查看译文",
   },
   "ja": {
     host_default: "ホスト",
@@ -2519,6 +2567,9 @@ export const LOCALES: Record<string, Record<string, string>> = {
     no_followers_yet: "まだフォロワーがいません",
     remove_mod: "モデレーターを解除",
     make_mod: "モデレーターに任命",
+    translated: "翻訳済み",
+    show_original: "原文を見る",
+    show_translation: "翻訳を見る",
   },
   "ko": {
     host_default: "호스트",
@@ -2667,6 +2718,9 @@ export const LOCALES: Record<string, Record<string, string>> = {
     no_followers_yet: "아직 팔로워가 없습니다",
     remove_mod: "관리자 해제",
     make_mod: "관리자로 지정",
+    translated: "번역됨",
+    show_original: "원문 보기",
+    show_translation: "번역 보기",
   },
   "th": {
     host_default: "โฮสต์",
@@ -2815,6 +2869,9 @@ export const LOCALES: Record<string, Record<string, string>> = {
     no_followers_yet: "คุณยังไม่มีผู้ติดตาม",
     remove_mod: "ถอดผู้ดูแล",
     make_mod: "ตั้งเป็นผู้ดูแล",
+    translated: "แปลแล้ว",
+    show_original: "ดูต้นฉบับ",
+    show_translation: "ดูคำแปล",
   },
   "vi": {
     host_default: "Chủ phòng",
@@ -2963,6 +3020,9 @@ export const LOCALES: Record<string, Record<string, string>> = {
     no_followers_yet: "Bạn chưa có người theo dõi",
     remove_mod: "Gỡ quản trị viên",
     make_mod: "Đặt làm quản trị viên",
+    translated: "Đã dịch",
+    show_original: "Xem bản gốc",
+    show_translation: "Xem bản dịch",
   },
   "tl": {
     host_default: "Host",
@@ -3111,6 +3171,9 @@ export const LOCALES: Record<string, Record<string, string>> = {
     no_followers_yet: "Wala ka pang followers",
     remove_mod: "Alisin bilang moderator",
     make_mod: "Gawing moderator",
+    translated: "Isinalin",
+    show_original: "Tingnan ang orihinal",
+    show_translation: "Tingnan ang salin",
   },
   "nl": {
     host_default: "Host",
@@ -3259,6 +3322,9 @@ export const LOCALES: Record<string, Record<string, string>> = {
     no_followers_yet: "Je hebt nog geen volgers",
     remove_mod: "Moderator verwijderen",
     make_mod: "Moderator maken",
+    translated: "Vertaald",
+    show_original: "Origineel bekijken",
+    show_translation: "Vertaling bekijken",
   },
   "pl": {
     host_default: "Prowadzący",
@@ -3407,6 +3473,9 @@ export const LOCALES: Record<string, Record<string, string>> = {
     no_followers_yet: "Nie masz jeszcze obserwujących",
     remove_mod: "Usuń moderatora",
     make_mod: "Ustaw jako moderatora",
+    translated: "Przetłumaczono",
+    show_original: "Pokaż oryginał",
+    show_translation: "Pokaż tłumaczenie",
   },
   "uk": {
     host_default: "Ведучий",
@@ -3555,6 +3624,9 @@ export const LOCALES: Record<string, Record<string, string>> = {
     no_followers_yet: "У вас ще немає підписників",
     remove_mod: "Зняти модератора",
     make_mod: "Призначити модератором",
+    translated: "Перекладено",
+    show_original: "Показати оригінал",
+    show_translation: "Показати переклад",
   },
   "ro": {
     host_default: "Gazdă",
@@ -3703,6 +3775,9 @@ export const LOCALES: Record<string, Record<string, string>> = {
     no_followers_yet: "Nu ai încă urmăritori",
     remove_mod: "Elimină moderatorul",
     make_mod: "Fă moderator",
+    translated: "Tradus",
+    show_original: "Vezi originalul",
+    show_translation: "Vezi traducerea",
   },
   "el": {
     host_default: "Οικοδεσπότης",
@@ -3851,6 +3926,9 @@ export const LOCALES: Record<string, Record<string, string>> = {
     no_followers_yet: "Δεν έχεις ακόμα ακολούθους",
     remove_mod: "Αφαίρεση συντονιστή",
     make_mod: "Ορισμός συντονιστή",
+    translated: "Μεταφρασμένο",
+    show_original: "Δες το πρωτότυπο",
+    show_translation: "Δες τη μετάφραση",
   },
   "sv": {
     host_default: "Värd",
@@ -3999,6 +4077,9 @@ export const LOCALES: Record<string, Record<string, string>> = {
     no_followers_yet: "Du har inga följare än",
     remove_mod: "Ta bort moderator",
     make_mod: "Gör till moderator",
+    translated: "Översatt",
+    show_original: "Visa original",
+    show_translation: "Visa översättning",
   },
   "cs": {
     host_default: "Hostitel",
@@ -4147,6 +4228,9 @@ export const LOCALES: Record<string, Record<string, string>> = {
     no_followers_yet: "Zatím nemáš sledující",
     remove_mod: "Odebrat moderátora",
     make_mod: "Nastavit jako moderátora",
+    translated: "Přeloženo",
+    show_original: "Zobrazit originál",
+    show_translation: "Zobrazit překlad",
   },
   "hu": {
     host_default: "Házigazda",
@@ -4295,6 +4379,9 @@ export const LOCALES: Record<string, Record<string, string>> = {
     no_followers_yet: "Még nincsenek követőid",
     remove_mod: "Moderátor eltávolítása",
     make_mod: "Moderátorrá tétel",
+    translated: "Lefordítva",
+    show_original: "Eredeti megtekintése",
+    show_translation: "Fordítás megtekintése",
   },
   "nb": {
     host_default: "Vert",
@@ -4443,6 +4530,9 @@ export const LOCALES: Record<string, Record<string, string>> = {
     no_followers_yet: "Du har ingen følgere ennå",
     remove_mod: "Fjern moderator",
     make_mod: "Gjør til moderator",
+    translated: "Oversatt",
+    show_original: "Se original",
+    show_translation: "Se oversettelse",
   },
   "az": {
     host_default: "Aparıcı",
@@ -4591,6 +4681,9 @@ export const LOCALES: Record<string, Record<string, string>> = {
     no_followers_yet: "Hələ izləyiciniz yoxdur",
     remove_mod: "Moderatorluqdan çıxar",
     make_mod: "Moderator et",
+    translated: "Tərcümə edilib",
+    show_original: "Orijinala bax",
+    show_translation: "Tərcüməyə bax",
   },
   "uz": {
     host_default: "Boshlovchi",
@@ -4739,6 +4832,9 @@ export const LOCALES: Record<string, Record<string, string>> = {
     no_followers_yet: "Hali obunachilaringiz yo'q",
     remove_mod: "Moderatorlikdan olish",
     make_mod: "Moderator qilish",
+    translated: "Tarjima qilingan",
+    show_original: "Aslini ko'rish",
+    show_translation: "Tarjimani ko'rish",
   },
   "ne": {
     host_default: "होस्ट",
@@ -4887,6 +4983,9 @@ export const LOCALES: Record<string, Record<string, string>> = {
     no_followers_yet: "तपाईंका अझै फलोअर छैनन्",
     remove_mod: "मोडरेटर हटाउनुहोस्",
     make_mod: "मोडरेटर बनाउनुहोस्",
+    translated: "अनुवादित",
+    show_original: "मूल हेर्नुहोस्",
+    show_translation: "अनुवाद हेर्नुहोस्",
   },
   "ckb": {
     host_default: "خانەخوێ",
@@ -5035,6 +5134,9 @@ export const LOCALES: Record<string, Record<string, string>> = {
     no_followers_yet: "هێشتا فۆڵۆوەرت نییە",
     remove_mod: "لابردنی سەرپەرشتیار",
     make_mod: "کردن بە سەرپەرشتیار",
+    translated: "وەرگێڕدراو",
+    show_original: "بینینی ڕەسەن",
+    show_translation: "بینینی وەرگێڕان",
   },
   "am": {
     host_default: "አስተናጋጅ",
@@ -5183,6 +5285,9 @@ export const LOCALES: Record<string, Record<string, string>> = {
     no_followers_yet: "እስካሁን ተከታዮች የሉዎትም",
     remove_mod: "አወያይነትን አንሳ",
     make_mod: "አወያይ አድርግ",
+    translated: "የተተረጎመ",
+    show_original: "ዋናውን ይመልከቱ",
+    show_translation: "ትርጉሙን ይመልከቱ",
   },
   "da": {
     host_default: "Vært",
@@ -5331,6 +5436,9 @@ export const LOCALES: Record<string, Record<string, string>> = {
     no_followers_yet: "Du har ingen følgere endnu",
     remove_mod: "Fjern moderator",
     make_mod: "Gør til moderator",
+    translated: "Oversat",
+    show_original: "Se original",
+    show_translation: "Se oversættelse",
   },
   "fi": {
     host_default: "Isäntä",
@@ -5479,6 +5587,9 @@ export const LOCALES: Record<string, Record<string, string>> = {
     no_followers_yet: "Sinulla ei ole vielä seuraajia",
     remove_mod: "Poista valvoja",
     make_mod: "Tee valvojaksi",
+    translated: "Käännetty",
+    show_original: "Näytä alkuperäinen",
+    show_translation: "Näytä käännös",
   },
   "bg": {
     host_default: "Водещ",
@@ -5627,6 +5738,9 @@ export const LOCALES: Record<string, Record<string, string>> = {
     no_followers_yet: "Още нямаш последователи",
     remove_mod: "Премахни модератор",
     make_mod: "Направи модератор",
+    translated: "Преведено",
+    show_original: "Виж оригинала",
+    show_translation: "Виж превода",
   },
   "sr": {
     host_default: "Домаћин",
@@ -5775,6 +5889,9 @@ export const LOCALES: Record<string, Record<string, string>> = {
     no_followers_yet: "Још немаш пратиоце",
     remove_mod: "Уклони модератора",
     make_mod: "Постави за модератора",
+    translated: "Преведено",
+    show_original: "Прикажи оригинал",
+    show_translation: "Прикажи превод",
   },
   "hr": {
     host_default: "Domaćin",
@@ -5923,6 +6040,9 @@ export const LOCALES: Record<string, Record<string, string>> = {
     no_followers_yet: "Još nemaš pratitelja",
     remove_mod: "Ukloni moderatora",
     make_mod: "Postavi za moderatora",
+    translated: "Prevedeno",
+    show_original: "Prikaži izvornik",
+    show_translation: "Prikaži prijevod",
   },
   "sk": {
     host_default: "Hostiteľ",
@@ -6071,6 +6191,9 @@ export const LOCALES: Record<string, Record<string, string>> = {
     no_followers_yet: "Zatiaľ nemáš sledovateľov",
     remove_mod: "Odobrať moderátora",
     make_mod: "Nastaviť ako moderátora",
+    translated: "Preložené",
+    show_original: "Zobraziť originál",
+    show_translation: "Zobraziť preklad",
   },
   "sl": {
     host_default: "Gostitelj",
@@ -6219,6 +6342,9 @@ export const LOCALES: Record<string, Record<string, string>> = {
     no_followers_yet: "Še nimaš sledilcev",
     remove_mod: "Odstrani moderatorja",
     make_mod: "Nastavi za moderatorja",
+    translated: "Prevedeno",
+    show_original: "Prikaži izvirnik",
+    show_translation: "Prikaži prevod",
   },
   "sq": {
     host_default: "Mikpritës",
@@ -6367,6 +6493,9 @@ export const LOCALES: Record<string, Record<string, string>> = {
     no_followers_yet: "Ende nuk ke ndjekës",
     remove_mod: "Hiq moderatorin",
     make_mod: "Bëj moderator",
+    translated: "Përkthyer",
+    show_original: "Shiko origjinalin",
+    show_translation: "Shiko përkthimin",
   },
   "lt": {
     host_default: "Vedėjas",
@@ -6515,6 +6644,9 @@ export const LOCALES: Record<string, Record<string, string>> = {
     no_followers_yet: "Kol kas neturite sekėjų",
     remove_mod: "Pašalinti moderatorių",
     make_mod: "Paskirti moderatoriumi",
+    translated: "Išversta",
+    show_original: "Rodyti originalą",
+    show_translation: "Rodyti vertimą",
   },
   "lv": {
     host_default: "Vadītājs",
@@ -6663,6 +6795,9 @@ export const LOCALES: Record<string, Record<string, string>> = {
     no_followers_yet: "Tev vēl nav sekotāju",
     remove_mod: "Noņemt moderatoru",
     make_mod: "Padarīt par moderatoru",
+    translated: "Tulkots",
+    show_original: "Skatīt oriģinālu",
+    show_translation: "Skatīt tulkojumu",
   },
   "et": {
     host_default: "Saatejuht",
@@ -6811,6 +6946,9 @@ export const LOCALES: Record<string, Record<string, string>> = {
     no_followers_yet: "Sul pole veel jälgijaid",
     remove_mod: "Eemalda moderaator",
     make_mod: "Määra moderaatoriks",
+    translated: "Tõlgitud",
+    show_original: "Vaata originaali",
+    show_translation: "Vaata tõlget",
   },
   "is": {
     host_default: "Gestgjafi",
@@ -6959,6 +7097,9 @@ export const LOCALES: Record<string, Record<string, string>> = {
     no_followers_yet: "Þú átt enga fylgjendur ennþá",
     remove_mod: "Fjarlægja stjórnanda",
     make_mod: "Gera að stjórnanda",
+    translated: "Þýtt",
+    show_original: "Sjá frumtexta",
+    show_translation: "Sjá þýðingu",
   },
   "ka": {
     host_default: "წამყვანი",
@@ -7107,6 +7248,9 @@ export const LOCALES: Record<string, Record<string, string>> = {
     no_followers_yet: "ჯერ გამომწერები არ გყავთ",
     remove_mod: "მოდერატორის მოხსნა",
     make_mod: "მოდერატორად დანიშვნა",
+    translated: "ნათარგმნი",
+    show_original: "ორიგინალის ნახვა",
+    show_translation: "თარგმანის ნახვა",
   },
   "hy": {
     host_default: "Վարող",
@@ -7255,5 +7399,8 @@ export const LOCALES: Record<string, Record<string, string>> = {
     no_followers_yet: "Դեռ հետևորդներ չունեք",
     remove_mod: "Հանել մոդերատորից",
     make_mod: "Նշանակել մոդերատոր",
+    translated: "Թարգմանված",
+    show_original: "Տեսնել բնօրինակը",
+    show_translation: "Տեսնել թարգմանությունը",
   },
 };
