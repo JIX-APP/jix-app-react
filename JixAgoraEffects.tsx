@@ -52,6 +52,10 @@ export class JixAgoraEffects {
   private background: any = null;
   private track: ICameraVideoTrack | null = null;
 
+  get attachedTrack(): ICameraVideoTrack | null {
+    return this.track;
+  }
+
   async attach(track: ICameraVideoTrack) {
     this.detach();
     ensureRegistered();
