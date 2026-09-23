@@ -12,6 +12,7 @@ import { JixShareSheet } from './JixShareSheet';
 import { useI18n } from './JixLanguage';
 import { JixCohostSlot } from './JixCohostSlot';
 import { useFilteredCanvas, JixFilterPicker, ArFilterId } from './JixCameraFilters';
+import { JixAgoraEffects, JixAgoraEffectsPicker, BeautyLevel, BackgroundMode } from './JixAgoraEffects';
 
 // يحسب ارتفاع لوحة المفاتيح الحالي (لو مفتوحة) عشان نرفع العناصر السفلية فوقها
 // بدل ما تغطيها لوحة المفاتيح بالكامل زي ما كان يصير
@@ -102,6 +103,12 @@ export const JixStreamStudio: React.FC<JixStreamStudioProps> = ({ isOpen, onClos
   const [colorFilterId, setColorFilterId] = useState('normal');
   const [arFilterId, setArFilterId] = useState<ArFilterId>('none');
   const [isFilterBarOpen, setIsFilterBarOpen] = useState(false);
+  // فلاتر Agora الرسمية (تجميل + تغبيش خلفية) - تجريبية جنب الفلاتر القديمة لين نتأكد منها على الآيفون
+  const [beautyLevel, setBeautyLevel] = useState<BeautyLevel>('off');
+  const [backgroundMode, setBackgroundMode] = useState<BackgroundMode>('off');
+  const agoraEffectsRef = useRef<JixAgoraEffects | null>(null);
+  const beautyLevelRef = useRef<BeautyLevel>('off');
+  const backgroundModeRef = useRef<BackgroundMode>('off');
   const { canvasRef, getStream: getFilteredStream } = useFilteredCanvas(
     sourceVideoElRef,
     colorFilterId,
@@ -228,6 +235,7 @@ export const JixStreamStudio: React.FC<JixStreamStudioProps> = ({ isOpen, onClos
       localVideoTrackRef.current = newVideoTrack;
       filteredVideoTrackRef.current = null;
       facingModeRef.current = targetFacing;
+      attachAgoraEffects(newVideoTrack);
     } catch (err) {
       console.error('[JIX] فشل إعادة تهيئة الكاميرا:', err);
     } finally {
@@ -281,6 +289,7 @@ export const JixStreamStudio: React.FC<JixStreamStudioProps> = ({ isOpen, onClos
       const [audioTrack, videoTrack] = await AgoraRTC.createMicrophoneAndCameraTracks();
       localAudioTrackRef.current = audioTrack;
       localVideoTrackRef.current = videoTrack;
+      attachAgoraEffects(videoTrack);
 
       // نمرر الكاميرا دايمًا لعنصر الفيديو المخفي عشان محرك الفلاتر يكون
       // جاهز فورًا لو المستخدم فعّل فلتر بعدين وهو شغال بالبث
@@ -353,6 +362,57 @@ export const JixStreamStudio: React.FC<JixStreamStudioProps> = ({ isOpen, onClos
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [colorFilterId, arFilterId, isLive]);
 
+  const attachAgoraEffects = async (track: ICameraVideoTrack) => {
+    try {
+      if (!agoraEffectsRef.current) agoraEffectsRef.current = new JixAgoraEffects();
+      await agoraEffectsRef.current.attach(track);
+      await agoraEffectsRef.current.setBeauty(beautyLevelRef.current);
+      await agoraEffectsRef.current.setBackground(backgroundModeRef.current);
+    } catch (err) {
+      console.error('[JIX] فشل تفعيل فلاتر Agora:', err);
+    }
+  };
+
+  // لما المستخدم يغيّر مستوى التجميل أو الخلفية وهو شغال بالبث
+  useEffect(() => {
+    beautyLevelRef.current = beautyLevel;
+    backgroundModeRef.current = backgroundMode;
+    const fx = agoraEffectsRef.current;
+    if (!fx) return;
+    fx.setBeauty(beautyLevel).catch((err) => console.error('[JIX] فشل تغيير التجميل:', err));
+    fx.setBackground(backgroundMode).catch((err) => console.error('[JIX] فشل تغيير الخلفية:', err));
+  }, [beautyLevel, backgroundMode]);
+
+  // فلاتر Agora وفلاتر الألوان القديمة ما يشتغلون مع بعض - اختيار واحد يطفي الثاني
+  const handleBeautyChange = (level: BeautyLevel) => {
+    if (level !== 'off') {
+      setColorFilterId('normal');
+      setArFilterId('none');
+    }
+    setBeautyLevel(level);
+  };
+  const handleBackgroundChange = (mode: BackgroundMode) => {
+    if (mode !== 'off') {
+      setColorFilterId('normal');
+      setArFilterId('none');
+    }
+    setBackgroundMode(mode);
+  };
+  const handleColorFilterChange = (id: string) => {
+    if (id !== 'normal') {
+      setBeautyLevel('off');
+      setBackgroundMode('off');
+    }
+    setColorFilterId(id);
+  };
+  const handleArFilterChange = (id: ArFilterId) => {
+    if (id !== 'none') {
+      setBeautyLevel('off');
+      setBackgroundMode('off');
+    }
+    setArFilterId(id);
+  };
+
   const stopLiveStream = async () => {
     if (isBusyRef.current) return;
     isBusyRef.current = true;
@@ -375,6 +435,7 @@ export const JixStreamStudio: React.FC<JixStreamStudioProps> = ({ isOpen, onClos
 
       localAudioTrackRef.current?.close();
       localVideoTrackRef.current?.close(); // يسكر مسار الكاميرا الخام (المصدر)
+      agoraEffectsRef.current?.detach();
       filteredVideoTrackRef.current?.close(); // يسكر مسار الـ canvas المنشور فعلياً
       avatarVideoTrackRef.current?.close(); // يسكر مسار صورة الأفتار لو كان مستخدم
       if (sourceVideoElRef.current) sourceVideoElRef.current.srcObject = null;
@@ -651,6 +712,7 @@ export const JixStreamStudio: React.FC<JixStreamStudioProps> = ({ isOpen, onClos
       await client.publish([avatarTrack]);
 
       // نطفي الكاميرا فعليًا (مو بس نوقف نشرها) - توفير بطارية أثناء وضع الصورة
+      agoraEffectsRef.current?.detach();
       localVideoTrackRef.current?.close();
       filteredVideoTrackRef.current?.close();
       localVideoTrackRef.current = null;
@@ -680,6 +742,7 @@ export const JixStreamStudio: React.FC<JixStreamStudioProps> = ({ isOpen, onClos
       }
 
       localVideoTrackRef.current = newVideoTrack;
+      attachAgoraEffects(newVideoTrack);
     } catch (err) {
       console.error('[JIX] فشل الرجوع لوضع الكاميرا:', err);
       setConnectionError(t('err_switch_camera'));
@@ -987,11 +1050,26 @@ export const JixStreamStudio: React.FC<JixStreamStudioProps> = ({ isOpen, onClos
 
         {streamMode === 'camera' && isFilterBarOpen && keyboardInset === 0 && (
           <div className="absolute inset-x-0 z-10" style={{ bottom: 80 }}>
+            <JixAgoraEffectsPicker
+              beautyLevel={beautyLevel}
+              backgroundMode={backgroundMode}
+              onBeautyChange={handleBeautyChange}
+              onBackgroundChange={handleBackgroundChange}
+              labels={{
+                beauty: t('fx_beauty'),
+                background: t('fx_background'),
+                off: t('fx_off'),
+                natural: t('fx_natural'),
+                strong: t('fx_strong'),
+                blur: t('fx_blur'),
+                unsupported: t('fx_unsupported'),
+              }}
+            />
             <JixFilterPicker
               colorFilterId={colorFilterId}
               arFilterId={arFilterId}
-              onColorChange={setColorFilterId}
-              onArChange={setArFilterId}
+              onColorChange={handleColorFilterChange}
+              onArChange={handleArFilterChange}
             />
           </div>
         )}
