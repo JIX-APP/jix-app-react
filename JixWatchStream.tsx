@@ -12,6 +12,7 @@ import { JixLiveComments } from './JixLiveComments';
 import { JixCohostSlot } from './JixCohostSlot';
 import { JixTopChart } from './JixTopChart';
 import { JixShareSheet } from './JixShareSheet';
+import { useI18n } from './JixLanguage';
 
 interface JixWatchStreamProps {
   isOpen: boolean;
@@ -51,6 +52,7 @@ export const JixWatchStream: React.FC<JixWatchStreamProps> = ({
   onPKBattleStarted,
   onOpenProfile,
 }) => {
+  const { t } = useI18n();
   const [isConnecting, setIsConnecting] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [giftToast, setGiftToast] = useState<GiftToast | null>(null);
@@ -443,14 +445,14 @@ export const JixWatchStream: React.FC<JixWatchStreamProps> = ({
               <div style={giftLegendaryEnterStyle}>
                 <GiftIcon gift={def} size={140} spinning />
               </div>
-              <p className="mt-3 font-black text-lg text-[#F5B93E]">{def.name}!</p>
+              <p className="mt-3 font-black text-lg text-[#F5B93E]">{t(`gift_${def.id}`)}!</p>
             </div>
           ) : (
             <div className="absolute top-20 left-1/2 -translate-x-1/2 bg-gradient-to-r from-[#FF7A1A] to-[#8B5CF6] px-4 py-2 rounded-full flex items-center gap-2 z-20">
               <div style={giftPopStyle}>
                 <GiftIcon gift={def} size={22} />
               </div>
-              <span className="text-xs font-black text-white">هدية {def.name}!</span>
+              <span className="text-xs font-black text-white">{t('gift_toast_viewer', { name: t(`gift_${def.id}`) })}</span>
             </div>
           );
         })()}
