@@ -19,6 +19,7 @@ import { JixStoryRing } from './JixStoryRing';
 import { JixPresenceProvider } from './JixPresence';
 import { useI18n, JixLanguagePicker } from './JixLanguage';
 import { JixLiveNotifier } from './JixLiveNotifier';
+import { consumeSharedLiveParam, consumeSharedParam } from './JixShareSheet';
 import { JixProfileStats } from './JixProfileStats';
 import {
   JixStoryUpload,
@@ -70,6 +71,8 @@ function App() {
   const { t } = useI18n();
   const [screen, setScreen] = useState<ScreenName>('Home');
   const [feedMode, setFeedMode] = useState<JixFeedMode>('latest');
+  // منشور جاي من رابط مشاركة (?post=...) - يطلع أول واحد بالرئيسية، بدون ما يحتاج تسجيل دخول
+  const [sharedPostId] = useState<string | null>(() => consumeSharedParam('post'));
   const [isAuthOpen, setIsAuthOpen] = useState(false);
   const [isStudioOpen, setIsStudioOpen] = useState(false);
   const [isUploadOpen, setIsUploadOpen] = useState(false);
@@ -342,6 +345,20 @@ function App() {
     setWatchingStream(stream);
   };
 
+  // رابط مشاركة بث (?live=...): نحفظه، ونفتح البث أول ما يكون المستخدم مسجّل دخول
+  const [pendingSharedLive, setPendingSharedLive] = useState<string | null>(() => consumeSharedLiveParam());
+  useEffect(() => {
+    if (!pendingSharedLive || isCheckingSession) return;
+    if (!user) {
+      setIsAuthOpen(true); // يسجل دخول أول، وبعدها يفتح البث تلقائيًا
+      return;
+    }
+    const hostId = pendingSharedLive;
+    setPendingSharedLive(null);
+    openLive(hostId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingSharedLive, user?.id, isCheckingSession]);
+
   const handleVipStoreClick = () => {
     if (!user) {
       setIsAuthOpen(true);
@@ -589,6 +606,7 @@ function App() {
           refreshKey={videoFeedKey}
           feedMode={feedMode}
           onOpenProfile={handleOpenProfile}
+          focusPostId={sharedPostId}
         />
       </div>
 
