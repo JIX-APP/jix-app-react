@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { X, Loader2, UserPlus2, LogOut, Trophy, Users } from 'lucide-react';
+import { X, Loader2, UserPlus2, LogOut, Trophy, Users, Share2 } from 'lucide-react';
 import AgoraRTC, { IAgoraRTCClient, IAgoraRTCRemoteUser } from 'agora-rtc-sdk-ng';
 import { supabase } from './supabaseClient';
 import { JixGiftBar } from './JixGiftBar';
@@ -11,6 +11,7 @@ import { JixPKChallengeButton } from './JixPKChallengeButton';
 import { JixLiveComments } from './JixLiveComments';
 import { JixCohostSlot } from './JixCohostSlot';
 import { JixTopChart } from './JixTopChart';
+import { JixShareSheet } from './JixShareSheet';
 
 interface JixWatchStreamProps {
   isOpen: boolean;
@@ -58,6 +59,7 @@ export const JixWatchStream: React.FC<JixWatchStreamProps> = ({
   // زر الكأس (التوبات) + عدد المشاهدين - نفس اللي عند المذيع
   const [isTopChartOpen, setIsTopChartOpen] = useState(false);
   const [viewerCount, setViewerCount] = useState(0);
+  const [isShareOpen, setIsShareOpen] = useState(false);
   const [kickedNotice, setKickedNotice] = useState<{ permanent: boolean } | null>(null);
 
   const [cohostSlots, setCohostSlots] = useState<(CohostSlotData | null)[]>([null, null, null]);
@@ -473,7 +475,24 @@ export const JixWatchStream: React.FC<JixWatchStreamProps> = ({
           >
             <Trophy className="w-4 h-4 text-[#F5B93E]" />
           </button>
+          {/* مشاركة البث - يفتح قائمة المشاركة بالجوال */}
+          <button
+            onClick={() => setIsShareOpen(true)}
+            className="flex items-center bg-black/50 px-3 py-2 rounded-full"
+            aria-label="مشاركة البث"
+          >
+            <Share2 className="w-4 h-4 text-white" />
+          </button>
         </div>
+
+        <JixShareSheet
+          isOpen={isShareOpen}
+          onClose={() => setIsShareOpen(false)}
+          currentUserId={currentUserId}
+          kind="live"
+          targetId={hostId}
+          authorName={hostUsername}
+        />
 
         <div className="absolute top-4 right-4 flex items-center gap-1.5 z-10">
           <button
