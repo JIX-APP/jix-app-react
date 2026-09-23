@@ -488,7 +488,7 @@ export const JixWatchStream: React.FC<JixWatchStreamProps> = ({
         <JixShareSheet
           isOpen={isShareOpen}
           onClose={() => setIsShareOpen(false)}
-          currentUserId={currentUserId}
+          currentUserId={currentUserId ?? null}
           kind="live"
           targetId={hostId}
           authorName={hostUsername}
