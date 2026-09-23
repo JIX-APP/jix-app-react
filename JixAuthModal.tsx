@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { X, Mail, ArrowLeft, ShieldCheck, Loader2, Calendar, User } from 'lucide-react';
 import { supabase } from './supabaseClient';
 import { JixDobPicker } from './JixDobPicker';
+import { useI18n } from './JixLanguage';
 
 interface JixAuthModalProps {
   isOpen: boolean;
@@ -24,6 +25,7 @@ const calculateAge = (dob: string): number => {
 };
 
 export const JixAuthModal: React.FC<JixAuthModalProps> = ({ isOpen, onClose, onSuccessLogin }) => {
+  const { t } = useI18n();
   const [step, setStep] = useState<Step>('form');
   const [email, setEmail] = useState('');
   const [username, setUsername] = useState('');
@@ -51,23 +53,23 @@ export const JixAuthModal: React.FC<JixAuthModalProps> = ({ isOpen, onClose, onS
     setError(null);
 
     if (!username.trim()) {
-      setError('يجب إدخال اسمك للمتابعة');
+      setError(t('auth_err_name'));
       return;
     }
 
     if (!dateOfBirth) {
-      setError('يجب إدخال تاريخ الميلاد للمتابعة');
+      setError(t('auth_err_dob'));
       return;
     }
 
     if (!gender) {
-      setError('يجب اختيار الجنس للمتابعة');
+      setError(t('auth_err_gender'));
       return;
     }
 
     const age = calculateAge(dateOfBirth);
     if (age < 18) {
-      setError('يجب أن يكون عمرك 18 سنة أو أكثر لاستخدام JIX');
+      setError(t('auth_err_age'));
       return;
     }
 
@@ -84,18 +86,7 @@ export const JixAuthModal: React.FC<JixAuthModalProps> = ({ isOpen, onClose, onS
     setIsSubmitting(false);
 
     if (otpError) {
-      // نطبع الخطأ كامل بالـ Console (لو أحد فتحه من جهاز فيه أدوات مطوّرين)
-      // ونعرض كل التفاصيل المتوفرة بالشاشة نفسها عشان تقدر تشوفها من الآيفون مباشرة
-      console.error('[JIX] فشل إرسال رمز التحقق - تفاصيل كاملة:', otpError);
-      const details = [
-        `الرسالة: ${otpError.message}`,
-        (otpError as any).status ? `الحالة (status): ${(otpError as any).status}` : null,
-        (otpError as any).code ? `الرمز (code): ${(otpError as any).code}` : null,
-        (otpError as any).name ? `النوع (name): ${(otpError as any).name}` : null,
-      ]
-        .filter(Boolean)
-        .join(' | ');
-      setError(details);
+      setError(otpError.message);
       return;
     }
 
@@ -115,16 +106,8 @@ export const JixAuthModal: React.FC<JixAuthModalProps> = ({ isOpen, onClose, onS
     });
 
     if (verifyError) {
-      console.error('[JIX] فشل التحقق من الرمز - تفاصيل كاملة:', verifyError);
-      const details = [
-        `الرسالة: ${verifyError.message}`,
-        (verifyError as any).status ? `الحالة (status): ${(verifyError as any).status}` : null,
-        (verifyError as any).code ? `الرمز (code): ${(verifyError as any).code}` : null,
-      ]
-        .filter(Boolean)
-        .join(' | ');
       setIsSubmitting(false);
-      setError(details);
+      setError(verifyError.message);
       return;
     }
 
@@ -137,17 +120,8 @@ export const JixAuthModal: React.FC<JixAuthModalProps> = ({ isOpen, onClose, onS
         .eq('id', data.user.id);
 
       if (profileError) {
-        console.error('[JIX] فشل تحديث بيانات البروفايل - تفاصيل كاملة:', profileError);
-        const details = [
-          `الرسالة: ${profileError.message}`,
-          profileError.code ? `الرمز (code): ${profileError.code}` : null,
-          profileError.details ? `التفاصيل: ${profileError.details}` : null,
-          profileError.hint ? `تلميح: ${profileError.hint}` : null,
-        ]
-          .filter(Boolean)
-          .join(' | ');
         setIsSubmitting(false);
-        setError(details);
+        setError(profileError.message);
         return;
       }
     }
@@ -157,7 +131,7 @@ export const JixAuthModal: React.FC<JixAuthModalProps> = ({ isOpen, onClose, onS
     const finalUsername =
       (data.user?.user_metadata?.username as string | undefined) ||
       username ||
-      'مستخدم JIX';
+      t('user_default');
     const finalEmail = data.user?.email || identifier;
 
     onSuccessLogin(finalUsername, finalEmail);
@@ -176,12 +150,12 @@ export const JixAuthModal: React.FC<JixAuthModalProps> = ({ isOpen, onClose, onS
             JIX
           </div>
           <h2 className="text-2xl font-black">
-            {step === 'form' ? 'مرحباً بك في JIX' : 'أدخل رمز التحقق'}
+            {step === 'form' ? t('auth_welcome') : t('auth_enter_code')}
           </h2>
           <p className="text-gray-400 text-sm mt-1">
             {step === 'form'
-              ? 'سجّل دخولك للوصول إلى البثوث وتحديات الـ PK والهدايا الأسطورية'
-              : `أرسلنا كود مكوّن من 6 أرقام إلى ${identifier}`}
+              ? t('auth_subtitle')
+              : t('auth_code_sent', { id: identifier })}
           </p>
         </div>
 
@@ -194,12 +168,12 @@ export const JixAuthModal: React.FC<JixAuthModalProps> = ({ isOpen, onClose, onS
         {step === 'form' ? (
           <form onSubmit={handleSendOtp} className="space-y-4">
             <div>
-              <label className="block text-xs font-bold text-gray-300 mb-1">اسمك</label>
+              <label className="block text-xs font-bold text-gray-300 mb-1">{t('auth_your_name')}</label>
               <input
                 type="text"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                placeholder="الجيلاني"
+                placeholder={t('auth_name_placeholder')}
                 required
                 className="w-full px-4 py-3 bg-[#171923] border border-gray-800 rounded-2xl text-white text-sm focus:border-amber-500 outline-none"
               />
@@ -207,7 +181,7 @@ export const JixAuthModal: React.FC<JixAuthModalProps> = ({ isOpen, onClose, onS
 
             <div>
               <label className="block text-xs font-bold text-gray-300 mb-1 flex items-center gap-1.5">
-                <Mail className="w-3.5 h-3.5" /> عنوان البريد الإلكتروني
+                <Mail className="w-3.5 h-3.5" /> {t('auth_email')}
               </label>
               <input
                 type="email"
@@ -221,15 +195,15 @@ export const JixAuthModal: React.FC<JixAuthModalProps> = ({ isOpen, onClose, onS
 
             <div>
               <label className="block text-xs font-bold text-gray-300 mb-1.5 flex items-center gap-1.5">
-                <Calendar className="w-3.5 h-3.5" /> تاريخ الميلاد
+                <Calendar className="w-3.5 h-3.5" /> {t('dob')}
               </label>
               <JixDobPicker value={dateOfBirth} onChange={setDateOfBirth} />
-              <p className="text-[10px] text-gray-500 mt-1.5">يجب أن يكون عمرك 18 سنة أو أكثر لاستخدام JIX</p>
+              <p className="text-[10px] text-gray-500 mt-1.5">{t('auth_err_age')}</p>
             </div>
 
             <div>
               <label className="block text-xs font-bold text-gray-300 mb-1.5 flex items-center gap-1.5">
-                <User className="w-3.5 h-3.5" /> الجنس
+                <User className="w-3.5 h-3.5" /> {t('auth_gender')}
               </label>
               <div className="grid grid-cols-2 gap-2">
                 <button
@@ -241,7 +215,7 @@ export const JixAuthModal: React.FC<JixAuthModalProps> = ({ isOpen, onClose, onS
                       : 'bg-[#171923] text-gray-300 border-gray-800'
                   }`}
                 >
-                  ذكر
+                  {t('auth_male')}
                 </button>
                 <button
                   type="button"
@@ -252,20 +226,20 @@ export const JixAuthModal: React.FC<JixAuthModalProps> = ({ isOpen, onClose, onS
                       : 'bg-[#171923] text-gray-300 border-gray-800'
                   }`}
                 >
-                  أنثى
+                  {t('auth_female')}
                 </button>
               </div>
             </div>
 
             <button type="submit" disabled={isSubmitting} className="w-full py-3.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-black font-black text-sm rounded-2xl shadow-lg transition active:scale-98 flex items-center justify-center gap-2 disabled:opacity-60">
               {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <ArrowLeft className="w-4 h-4" />}
-              {isSubmitting ? 'جاري الإرسال...' : 'إرسال رمز التحقق'}
+              {isSubmitting ? t('auth_sending') : t('auth_send_code')}
             </button>
           </form>
         ) : (
           <form onSubmit={handleVerifyOtp} className="space-y-4">
             <div>
-              <label className="block text-xs font-bold text-gray-300 mb-1">رمز التحقق (6 أرقام)</label>
+              <label className="block text-xs font-bold text-gray-300 mb-1">{t('auth_code_label')}</label>
               <input
                 type="text"
                 inputMode="numeric"
@@ -281,7 +255,7 @@ export const JixAuthModal: React.FC<JixAuthModalProps> = ({ isOpen, onClose, onS
 
             <button type="submit" disabled={isSubmitting || otp.length !== 6} className="w-full py-3.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-black font-black text-sm rounded-2xl shadow-lg transition active:scale-98 flex items-center justify-center gap-2 disabled:opacity-60">
               {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShieldCheck className="w-4 h-4" />}
-              {isSubmitting ? 'جاري التحقق...' : 'تأكيد الدخول'}
+              {isSubmitting ? t('auth_verifying') : t('auth_confirm')}
             </button>
 
             <button
@@ -293,7 +267,7 @@ export const JixAuthModal: React.FC<JixAuthModalProps> = ({ isOpen, onClose, onS
               }}
               className="w-full text-xs font-bold text-gray-400 hover:text-white"
             >
-              تعديل البيانات أو إعادة الإرسال
+              {t('auth_edit_resend')}
             </button>
           </form>
         )}
