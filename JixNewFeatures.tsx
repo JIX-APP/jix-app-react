@@ -639,7 +639,7 @@ export const JixDMConversation: React.FC<JixDMConversationProps> = ({
                     : 'bg-gradient-to-br from-[#FF7A1A] to-[#8B5CF6] text-white rounded-br-sm'
                 }`}
               >
-                {m.message_text}
+                <LinkifiedText text={m.message_text} />
               </div>
             </div>
           );
@@ -925,5 +925,30 @@ export const JixGroupChat: React.FC<JixGroupChatProps> = ({ currentUserId, onOpe
         </div>
       )}
     </div>
+  );
+};
+
+// يحوّل الروابط داخل الرسالة لروابط قابلة للضغط (مثل رابط منشور أو بث شاركه صديق)
+// روابط JIX نفسها تنفتح بنفس التطبيق، والروابط الخارجية بصفحة جديدة
+const LinkifiedText: React.FC<{ text: string }> = ({ text }) => {
+  const parts = text.split(/(https?:\/\/[^\s]+)/g);
+  return (
+    <span className="whitespace-pre-line break-words">
+      {parts.map((part, i) => {
+        if (!/^https?:\/\//.test(part)) return <React.Fragment key={i}>{part}</React.Fragment>;
+        const isInternal = part.startsWith(window.location.origin);
+        return (
+          <a
+            key={i}
+            href={part}
+            target={isInternal ? undefined : '_blank'}
+            rel={isInternal ? undefined : 'noopener noreferrer'}
+            className="underline font-bold break-all"
+          >
+            {isInternal ? (part.includes('?live=') ? 'افتح البث ▶' : 'افتح المنشور ▶') : part}
+          </a>
+        );
+      })}
+    </span>
   );
 };
