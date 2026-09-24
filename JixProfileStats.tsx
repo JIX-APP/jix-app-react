@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { X, Loader2 } from 'lucide-react';
 import { supabase } from './supabaseClient';
 import { JixStoryRing } from './JixStoryRing';
+import { useI18n } from './JixLanguage';
 
 // ============================================================
 // إحصائيات البروفايل بنفس ترتيب تيك توك:
@@ -32,6 +33,7 @@ const formatCount = (n: number): string => {
 };
 
 export const JixProfileStats: React.FC<JixProfileStatsProps> = ({ userId, refreshKey = 0, onOpenProfile }) => {
+  const { t } = useI18n();
   const [following, setFollowing] = useState(0);
   const [followers, setFollowers] = useState(0);
   const [likes, setLikes] = useState(0);
@@ -65,11 +67,11 @@ export const JixProfileStats: React.FC<JixProfileStatsProps> = ({ userId, refres
   return (
     <>
       <div className="flex items-center justify-center gap-2 mt-3">
-        <Stat value={following} label="متابَع" onClick={() => setOpenList('following')} />
+        <Stat value={following} label={t('stat_following')} onClick={() => setOpenList('following')} />
         <span className="w-px h-4 bg-white/10" />
-        <Stat value={followers} label="متابعون" onClick={() => setOpenList('followers')} />
+        <Stat value={followers} label={t('stat_followers')} onClick={() => setOpenList('followers')} />
         <span className="w-px h-4 bg-white/10" />
-        <Stat value={likes} label="إعجابات" />
+        <Stat value={likes} label={t('stat_likes')} />
       </div>
 
       {openList && (
@@ -93,6 +95,7 @@ const FollowListSheet: React.FC<{
   onClose: () => void;
   onOpenProfile: (id: string) => void;
 }> = ({ userId, kind, onClose, onOpenProfile }) => {
+  const { t } = useI18n();
   const [users, setUsers] = useState<ListUser[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -123,7 +126,7 @@ const FollowListSheet: React.FC<{
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between p-4 border-b border-gray-800">
-          <h3 className="font-black text-sm text-white">{kind === 'followers' ? 'المتابعون' : 'يتابع'}</h3>
+          <h3 className="font-black text-sm text-white">{kind === 'followers' ? t('list_followers') : t('list_following')}</h3>
           <button onClick={onClose} className="p-1.5 rounded-full bg-white/5">
             <X className="w-4 h-4 text-gray-400" />
           </button>
@@ -136,7 +139,7 @@ const FollowListSheet: React.FC<{
             </div>
           ) : users.length === 0 ? (
             <p className="text-center text-xs text-gray-500 py-10">
-              {kind === 'followers' ? 'ما فيه متابعين لسه' : 'ما يتابع أحد لسه'}
+              {kind === 'followers' ? t('no_followers_list') : t('no_following_list')}
             </p>
           ) : (
             users.map((u) => (
@@ -151,7 +154,7 @@ const FollowListSheet: React.FC<{
                     userId={u.id}
                     currentUserId={null}
                     size={40}
-                    userName={u.full_name || u.handle || 'مستخدم JIX'}
+                    userName={u.full_name || u.handle || t('user_default')}
                     avatarUrl={u.avatar_url}
                   >
                     <div
