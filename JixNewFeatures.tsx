@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { X, Plus, Send, Loader2, Camera, ArrowRight, Phone, Video, PhoneOff } from 'lucide-react';
 import { supabase } from './supabaseClient';
+import { compressImage, compressVideo, getVideoDuration, MAX_VIDEO_SECONDS } from './JixMedia';
 import { checkText } from './JixModeration';
 
 // ============================================================
@@ -274,9 +275,18 @@ export const JixStoryUpload: React.FC<JixStoryUploadProps> = ({ isOpen, onClose,
 
   if (!isOpen) return null;
 
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const selected = e.target.files?.[0];
     if (!selected) return;
+    if (selected.type.startsWith('video/')) {
+      const duration = await getVideoDuration(selected);
+      if (duration > MAX_VIDEO_SECONDS + 1) {
+        setError(`الفيديو طويل، الحد الأقصى ${MAX_VIDEO_SECONDS} ثانية`);
+        e.target.value = '';
+        return;
+      }
+    }
+    setError(null);
     setFile(selected);
     setIsVideo(selected.type.startsWith('video/'));
     setPreviewUrl(URL.createObjectURL(selected));
@@ -301,14 +311,17 @@ export const JixStoryUpload: React.FC<JixStoryUploadProps> = ({ isOpen, onClose,
     setIsUploading(true);
 
     try {
+      // الضغط أول شي - قبل أي انتظار (الآيفون يحتاجه من ضغطة الزر نفسها)
+      const uploadFile = isVideo ? await compressVideo(file) : await compressImage(file);
+
       const { data: sessionData } = await supabase.auth.getSession();
       const userId = sessionData.session?.user.id;
       if (!userId) throw new Error('يجب تسجيل الدخول لنشر قصة');
 
-      const fileExt = file.name.split('.').pop();
+      const fileExt = uploadFile.name.split('.').pop();
       const filePath = `stories/${userId}_${Date.now()}.${fileExt}`;
 
-      const { error: uploadError } = await supabase.storage.from('videos').upload(filePath, file);
+      const { error: uploadError } = await supabase.storage.from('videos').upload(filePath, uploadFile);
       if (uploadError) throw uploadError;
 
       const { data: publicUrlData } = supabase.storage.from('videos').getPublicUrl(filePath);
@@ -324,7 +337,8 @@ export const JixStoryUpload: React.FC<JixStoryUploadProps> = ({ isOpen, onClose,
       onUploaded();
       resetAndClose();
     } catch (err) {
-      setError((err as Error).message || 'فشل نشر القصة');
+      const message = (err as Error).message;
+      setError(message === 'VIDEO_TOO_LARGE' ? 'الفيديو كبير جدًا، جرّب فيديو أقصر' : message || 'فشل نشر القصة');
     } finally {
       setIsUploading(false);
     }
