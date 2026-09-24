@@ -1,6 +1,7 @@
 import React, { useRef, useState } from 'react';
 import { Camera, Loader2 } from 'lucide-react';
 import { supabase } from './supabaseClient';
+import { compressImage } from './JixMedia';
 
 const MODERATE_IMAGE_URL = 'https://wfvhzlpvtgnydhmsxcqr.supabase.co/functions/v1/moderate-image';
 
@@ -35,10 +36,12 @@ export const JixAvatarUpload: React.FC<JixAvatarUploadProps> = ({
     setIsUploading(true);
 
     try {
-      const fileExt = file.name.split('.').pop();
+      // صورة البروفايل تنعرض صغيرة - نصغرها قبل الرفع
+      const uploadFile = await compressImage(file);
+      const fileExt = uploadFile.name.split('.').pop();
       const filePath = `avatars/${userId}_${Date.now()}.${fileExt}`;
 
-      const { error: uploadError } = await supabase.storage.from('videos').upload(filePath, file);
+      const { error: uploadError } = await supabase.storage.from('videos').upload(filePath, uploadFile);
       if (uploadError) throw uploadError;
 
       const { data: publicUrlData } = supabase.storage.from('videos').getPublicUrl(filePath);
