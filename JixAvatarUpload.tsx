@@ -87,7 +87,7 @@ export const JixAvatarUpload: React.FC<JixAvatarUploadProps> = ({
   };
 
   return (
-    <div className="relative w-20 h-20 mx-auto mb-3">
+    <div className="relative w-20 h-20 mx-auto">
       {/* الضغط على الصورة نفسها يفتح اختيار صورة (كاميرا أو معرض) - label أضمن من click() بسفاري */}
       <label
         htmlFor={inputId}
