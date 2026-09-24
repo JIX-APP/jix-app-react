@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { X, Crown, Loader2, Check } from 'lucide-react';
 import { supabase } from './supabaseClient';
+import { useI18n } from './JixLanguage';
 
 interface VipNumberRow {
   number: number;
@@ -16,18 +17,20 @@ interface JixVipStoreProps {
   currentUserId: string | null;
 }
 
-const CATEGORY_LABELS: Record<string, string> = {
-  mono: 'أحادي',
-  double: 'ثنائي',
-  triple: 'ثلاثي',
-  quad: 'رباعي',
-  penta: 'خماسي',
-  hexa: 'سداسي',
+// أسماء الفئات من ملف الترجمة (vip_mono، vip_double...)
+const CATEGORY_KEYS: Record<string, string> = {
+  mono: 'vip_mono',
+  double: 'vip_double',
+  triple: 'vip_triple',
+  quad: 'vip_quad',
+  penta: 'vip_penta',
+  hexa: 'vip_hexa',
 };
 
 const CATEGORY_ORDER = ['mono', 'double', 'triple', 'quad', 'penta', 'hexa'];
 
 export const JixVipStore: React.FC<JixVipStoreProps> = ({ isOpen, onClose, currentUserId }) => {
+  const { t } = useI18n();
   const [numbers, setNumbers] = useState<VipNumberRow[]>([]);
   const [activeTab, setActiveTab] = useState('mono');
   const [isLoading, setIsLoading] = useState(true);
@@ -54,7 +57,7 @@ export const JixVipStore: React.FC<JixVipStoreProps> = ({ isOpen, onClose, curre
 
   const handleBuy = async (number: number) => {
     if (!currentUserId) {
-      setError('يجب تسجيل الدخول أولاً');
+      setError(t('vip_login_required'));
       return;
     }
 
@@ -73,7 +76,7 @@ export const JixVipStore: React.FC<JixVipStoreProps> = ({ isOpen, onClose, curre
 
       setTimeout(() => setSuccessNumber(null), 2500);
     } catch (err) {
-      setError((err as Error).message || 'تعذر إتمام الشراء');
+      setError((err as Error).message || t('vip_buy_failed'));
     } finally {
       setBuyingNumber(null);
     }
@@ -89,7 +92,7 @@ export const JixVipStore: React.FC<JixVipStoreProps> = ({ isOpen, onClose, curre
         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-800">
           <h3 className="font-black text-base text-white flex items-center gap-2">
             <Crown className="w-5 h-5 text-[#F5B93E]" />
-            متجر الأرقام المميزة
+            {t('vip_store_title')}
           </h3>
           <button onClick={onClose} className="p-1.5 rounded-full bg-white/5">
             <X className="w-4 h-4" />
@@ -107,7 +110,7 @@ export const JixVipStore: React.FC<JixVipStoreProps> = ({ isOpen, onClose, curre
                   : 'bg-white/5 text-gray-400'
               }`}
             >
-              {CATEGORY_LABELS[cat]}
+              {t(CATEGORY_KEYS[cat])}
             </button>
           ))}
         </div>
@@ -124,7 +127,7 @@ export const JixVipStore: React.FC<JixVipStoreProps> = ({ isOpen, onClose, curre
               <Loader2 className="w-6 h-6 animate-spin text-[#8B5CF6]" />
             </div>
           ) : numbersInTab.length === 0 ? (
-            <p className="text-center text-xs text-gray-500 py-16">لا توجد أرقام متاحة بهذه الفئة حاليًا</p>
+            <p className="text-center text-xs text-gray-500 py-16">{t('vip_empty')}</p>
           ) : (
             <div className="grid grid-cols-2 gap-2.5">
               {numbersInTab.map((n) => (
@@ -137,7 +140,7 @@ export const JixVipStore: React.FC<JixVipStoreProps> = ({ isOpen, onClose, curre
                   }`}
                 >
                   {n.is_beautiful && (
-                    <span className="absolute top-2 left-2 text-[9px] font-black text-[#F5B93E]">✨ مميز</span>
+                    <span className="absolute top-2 left-2 text-[9px] font-black text-[#F5B93E]">{t('vip_special')}</span>
                   )}
                   <span className="text-xl font-black text-white tracking-wider" dir="ltr">
                     {n.number}
@@ -155,7 +158,7 @@ export const JixVipStore: React.FC<JixVipStoreProps> = ({ isOpen, onClose, curre
                     ) : successNumber === n.number ? (
                       <Check className="w-3.5 h-3.5" />
                     ) : (
-                      'شراء'
+                      t('vip_buy')
                     )}
                   </button>
                 </div>
