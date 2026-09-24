@@ -3,6 +3,7 @@ import { X, Upload, Loader2, Camera, Sparkles } from 'lucide-react';
 import { supabase } from './supabaseClient';
 import { checkText } from './JixModeration';
 import { JixVideoRecorder } from './JixVideoRecorder';
+import { compressImage, compressVideo, getVideoDuration, MAX_VIDEO_SECONDS } from './JixMedia';
 
 const MODERATE_IMAGE_URL = 'https://wfvhzlpvtgnydhmsxcqr.supabase.co/functions/v1/moderate-image';
 
@@ -18,6 +19,8 @@ export const JixUploadVideo: React.FC<JixUploadVideoProps> = ({ isOpen, onClose,
   const [file, setFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [isImage, setIsImage] = useState(false);
+  // نسبة ضغط الفيديو قبل الرفع (null = ما فيه ضغط شغال)
+  const [compressProgress, setCompressProgress] = useState<number | null>(null);
   const [caption, setCaption] = useState('');
   const [category, setCategory] = useState(CATEGORIES[0]);
   const [isUploading, setIsUploading] = useState(false);
@@ -31,9 +34,19 @@ export const JixUploadVideo: React.FC<JixUploadVideoProps> = ({ isOpen, onClose,
 
   // input type="file" مع accept لصورة وفيديو مع بعض يخلي الجوال يعرض تلقائيًا:
   // "التقاط صورة/فيديو" (كاميرا) أو "اختيار من المعرض" - بدون أي كود إضافي
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const selected = e.target.files?.[0];
     if (!selected) return;
+    // نرفض الفيديو الطويل من البداية بدل ما نضيع وقت المستخدم بالرفع
+    if (selected.type.startsWith('video/')) {
+      const duration = await getVideoDuration(selected);
+      if (duration > MAX_VIDEO_SECONDS + 1) {
+        setError(`الفيديو طويل، الحد الأقصى ${MAX_VIDEO_SECONDS} ثانية`);
+        e.target.value = '';
+        return;
+      }
+    }
+    setError(null);
     setFile(selected);
     setIsImage(selected.type.startsWith('image/'));
     setPreviewUrl(URL.createObjectURL(selected));
@@ -69,14 +82,20 @@ export const JixUploadVideo: React.FC<JixUploadVideoProps> = ({ isOpen, onClose,
     setIsUploading(true);
 
     try {
+      // الضغط أول شي (قبل أي انتظار) - الآيفون يحتاجه يبدأ من ضغطة زر "نشر" نفسها
+      const uploadFile = isImage
+        ? await compressImage(file)
+        : await compressVideo(file, (p) => setCompressProgress(p));
+      setCompressProgress(null);
+
       const { data: sessionData } = await supabase.auth.getSession();
       const userId = sessionData.session?.user.id;
       if (!userId) throw new Error('يجب تسجيل الدخول لرفع منشور');
 
-      const fileExt = file.name.split('.').pop();
+      const fileExt = uploadFile.name.split('.').pop();
       const filePath = `${userId}/${Date.now()}.${fileExt}`;
 
-      const { error: uploadError } = await supabase.storage.from('videos').upload(filePath, file);
+      const { error: uploadError } = await supabase.storage.from('videos').upload(filePath, uploadFile);
       if (uploadError) throw uploadError;
 
       const { data: publicUrlData } = supabase.storage.from('videos').getPublicUrl(filePath);
@@ -121,9 +140,11 @@ export const JixUploadVideo: React.FC<JixUploadVideoProps> = ({ isOpen, onClose,
       onUploaded();
       resetAndClose();
     } catch (err) {
-      setError((err as Error).message || 'فشل رفع المنشور');
+      const message = (err as Error).message;
+      setError(message === 'VIDEO_TOO_LARGE' ? 'الفيديو كبير جدًا، جرّب فيديو أقصر' : message || 'فشل رفع المنشور');
     } finally {
       setIsUploading(false);
+      setCompressProgress(null);
     }
   };
 
@@ -231,7 +252,7 @@ export const JixUploadVideo: React.FC<JixUploadVideoProps> = ({ isOpen, onClose,
           className="w-full py-3.5 bg-gradient-to-r from-[#FF7A1A] to-[#8B5CF6] text-white font-black text-sm rounded-2xl shadow-lg transition active:scale-98 flex items-center justify-center gap-2 disabled:opacity-50"
         >
           {isUploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
-          {isUploading ? 'جاري النشر...' : 'نشر'}
+          {compressProgress !== null ? `جاري تجهيز الفيديو ${compressProgress}%` : isUploading ? 'جاري النشر...' : 'نشر'}
         </button>
       </div>
 
