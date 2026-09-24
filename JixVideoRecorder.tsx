@@ -1,3 +1,4 @@
+import { pickRecorderMimeType, RECORDER_BITRATES } from './JixMedia';
 import React, { useEffect, useRef, useState } from 'react';
 import { X, Circle, Square } from 'lucide-react';
 import { useFilteredCanvas, JixFilterPicker, ArFilterId } from './JixCameraFilters';
@@ -86,11 +87,9 @@ export const JixVideoRecorder: React.FC<JixVideoRecorderProps> = ({ isOpen, onCl
       ...(audioTrack ? [audioTrack] : []),
     ]);
 
-    const mimeType = MediaRecorder.isTypeSupported('video/webm;codecs=vp9')
-      ? 'video/webm;codecs=vp9'
-      : 'video/webm';
-
-    const recorder = new MediaRecorder(combinedStream, { mimeType });
+    // MP4 أول (يشتغل على الآيفون والأندرويد) + جودة 720p تقريبًا (حوالي 10 ميجا للدقيقة)
+    const { mimeType, ext } = pickRecorderMimeType();
+    const recorder = new MediaRecorder(combinedStream, { ...(mimeType ? { mimeType } : {}), ...RECORDER_BITRATES });
     chunksRef.current = [];
 
     recorder.ondataavailable = (e) => {
@@ -98,8 +97,9 @@ export const JixVideoRecorder: React.FC<JixVideoRecorderProps> = ({ isOpen, onCl
     };
 
     recorder.onstop = () => {
-      const blob = new Blob(chunksRef.current, { type: mimeType });
-      const file = new File([blob], `recording_${Date.now()}.webm`, { type: mimeType });
+      const type = recorder.mimeType || mimeType || 'video/mp4';
+      const blob = new Blob(chunksRef.current, { type });
+      const file = new File([blob], `recording_${Date.now()}.${ext}`, { type });
       onCaptured(file, 'video');
       resetAndClose();
     };
