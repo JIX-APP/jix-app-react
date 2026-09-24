@@ -1,5 +1,14 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { supabase } from './supabaseClient';
+import { useI18n } from './JixLanguage';
+
+// اسم المستوى مترجم: كل 5 مستويات فئة (مبتدئ، برونزي...)، والرقم من 1 لـ5
+const TIER_FAMILIES = [
+  'tier_rookie', 'tier_bronze', 'tier_silver', 'tier_gold', 'tier_platinum',
+  'tier_diamond', 'tier_legend', 'tier_royal', 'tier_imperial', 'tier_mythic',
+];
+const tierLabel = (t: (k: string) => string, level: number) =>
+  `${t(TIER_FAMILIES[Math.min(TIER_FAMILIES.length - 1, Math.floor((level - 1) / 5))])} ${((level - 1) % 5) + 1}`;
 
 export type LevelKind = 'supporter' | 'receiver';
 
@@ -164,6 +173,7 @@ export const LevelBadge: React.FC<{ xp: number; kind: LevelKind; size?: 'sm' | '
   kind,
   size = 'sm',
 }) => {
+  const { t } = useI18n();
   const [isOpen, setIsOpen] = useState(false);
   const tier = getTier(xp);
   const nextTier = getNextTier(xp);
@@ -201,9 +211,9 @@ export const LevelBadge: React.FC<{ xp: number; kind: LevelKind; size?: 'sm' | '
           <div className="fixed inset-0 z-40" onClick={() => setIsOpen(false)} />
 
           <div className="absolute top-full mt-2 right-0 z-50 w-56 bg-[#171923] border border-gray-800 rounded-2xl p-3.5 shadow-2xl">
-            <p className="text-xs font-black text-white mb-2">{tier.name}</p>
+            <p className="text-xs font-black text-white mb-2">{tierLabel(t, tier.level)}</p>
             <p className="text-[10px] text-gray-400 mb-2">
-              {kind === 'supporter' ? 'إجمالي الدعم' : 'إجمالي المستقبَل'}: {xp.toLocaleString()} كوين
+              {t(kind === 'supporter' ? 'lvl_total_support' : 'lvl_total_received', { n: xp.toLocaleString() })}
             </p>
 
             {nextTier ? (
@@ -218,11 +228,11 @@ export const LevelBadge: React.FC<{ xp: number; kind: LevelKind; size?: 'sm' | '
                   />
                 </div>
                 <p className="text-[10px] font-bold text-[#F5B93E]">
-                  باقي {remaining.toLocaleString()} كوين لـ{nextTier.name}
+                  {t('lvl_remaining', { n: remaining.toLocaleString(), name: tierLabel(t, nextTier.level) })}
                 </p>
               </>
             ) : (
-              <p className="text-[10px] font-bold text-[#F5B93E]">أعلى مستوى 🏆</p>
+              <p className="text-[10px] font-bold text-[#F5B93E]">{t('lvl_max')}</p>
             )}
           </div>
         </>
@@ -267,6 +277,7 @@ export const AvatarFrame: React.FC<{ xp: number; kind: LevelKind; size: number; 
 // شريط تقدّم يوضح المستوى الحالي وكم متبقي بالضبط للمستوى الجاي
 // يستخدم مع أي داعم أو مستقبل - مثالي بصفحة البروفايل أو بعد كل هدية
 export const LevelProgress: React.FC<{ xp: number; kind: LevelKind }> = ({ xp, kind }) => {
+  const { t } = useI18n();
   const tier = getTier(xp);
   const nextTier = getNextTier(xp);
 
@@ -275,8 +286,8 @@ export const LevelProgress: React.FC<{ xp: number; kind: LevelKind }> = ({ xp, k
     return (
       <div className="w-full">
         <div className="flex items-center justify-between mb-1.5">
-          <span className="text-xs font-black text-white">{tier.name}</span>
-          <span className="text-[10px] font-bold text-[#F5B93E]">أعلى مستوى 🏆</span>
+          <span className="text-xs font-black text-white">{tierLabel(t, tier.level)}</span>
+          <span className="text-[10px] font-bold text-[#F5B93E]">{t('lvl_max')}</span>
         </div>
         <div className="h-2 rounded-full bg-white/10 overflow-hidden">
           <div
@@ -296,9 +307,9 @@ export const LevelProgress: React.FC<{ xp: number; kind: LevelKind }> = ({ xp, k
   return (
     <div className="w-full">
       <div className="flex items-center justify-between mb-1.5">
-        <span className="text-xs font-black text-white">{tier.name}</span>
+        <span className="text-xs font-black text-white">{tierLabel(t, tier.level)}</span>
         <span className="text-[10px] font-bold text-gray-400">
-          باقي {remaining.toLocaleString()} كوين لـ{nextTier.name}
+          {t('lvl_remaining', { n: remaining.toLocaleString(), name: tierLabel(t, nextTier.level) })}
         </span>
       </div>
       <div className="h-2 rounded-full bg-white/10 overflow-hidden">
