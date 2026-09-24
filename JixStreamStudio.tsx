@@ -77,6 +77,11 @@ export const JixStreamStudio: React.FC<JixStreamStudioProps> = ({ isOpen, onClos
   // الصورة المستخدمة بوضع "صورة" - تبدأ بصورة البروفايل، لكن المذيع يقدر يختار
   // أي صورة من جواله وتصير هي المعروضة بدلها
   const [avatarImageUrl, setAvatarImageUrl] = useState(currentUser.avatar);
+  // لو صورة بروفايلك وصلت متأخر (أو تغيّرت)، نحدّث صورة وضع "صورة" - إلا لو اخترت صورة بنفسك
+  const customAvatarChosenRef = useRef(false);
+  useEffect(() => {
+    if (!customAvatarChosenRef.current) setAvatarImageUrl(currentUser.avatar);
+  }, [currentUser.avatar]);
   const [isMicMuted, setIsMicMuted] = useState(false);
   const [isLive, setIsLive] = useState(false);
   const [isSwitching, setIsSwitching] = useState(false);
@@ -109,6 +114,28 @@ export const JixStreamStudio: React.FC<JixStreamStudioProps> = ({ isOpen, onClos
   const [beautyLevel, setBeautyLevel] = useState<BeautyLevel>('off');
   const [backgroundMode, setBackgroundMode] = useState<BackgroundMode>('off');
   const agoraEffectsRef = useRef<JixAgoraEffects | null>(null);
+  const canvasFilterActiveRef = useRef(false);
+  canvasFilterActiveRef.current = colorFilterId !== 'normal' || arFilterId !== 'none';
+
+  // يوصل الكاميرا للعنصر المخفي حق الفلاتر - بس لو فيه فلتر ألوان/وجه شغال فعلاً
+  const feedSourceVideo = (track: ICameraVideoTrack | null) => {
+    const el = sourceVideoElRef.current;
+    if (!el) return;
+    if (track && canvasFilterActiveRef.current) {
+      el.srcObject = new MediaStream([track.getMediaStreamTrack()]);
+      el.play().catch(() => {});
+    } else {
+      el.srcObject = null;
+    }
+  };
+
+  // ينزّل أي فيديو منشور من البث (أضمن من الاعتماد على المتغيرات - Agora يقبل فيديو واحد بس)
+  const unpublishAllVideo = async () => {
+    const client = clientRef.current;
+    if (!client) return;
+    const videos = client.localTracks.filter((tr: any) => tr.trackMediaType === 'video');
+    if (videos.length) await client.unpublish(videos);
+  };
   const beautyLevelRef = useRef<BeautyLevel>('off');
   const backgroundModeRef = useRef<BackgroundMode>('off');
   const { canvasRef, getStream: getFilteredStream } = useFilteredCanvas(
@@ -220,16 +247,12 @@ export const JixStreamStudio: React.FC<JixStreamStudioProps> = ({ isOpen, onClos
 
       const newVideoTrack = await AgoraRTC.createCameraVideoTrack({ facingMode: targetFacing });
 
-      const currentlyPublished = oldFilteredTrack || oldVideoTrack;
-      await clientRef.current.unpublish([currentlyPublished]);
+      await unpublishAllVideo();
       await clientRef.current.publish([newVideoTrack]);
 
       if (videoRef.current) newVideoTrack.play(videoRef.current);
 
-      if (sourceVideoElRef.current) {
-        sourceVideoElRef.current.srcObject = new MediaStream([newVideoTrack.getMediaStreamTrack()]);
-        sourceVideoElRef.current.play().catch(() => {});
-      }
+      feedSourceVideo(newVideoTrack);
 
       oldVideoTrack.close();
       if (oldFilteredTrack) oldFilteredTrack.close();
@@ -275,10 +298,7 @@ export const JixStreamStudio: React.FC<JixStreamStudioProps> = ({ isOpen, onClos
       attachAgoraEffects(videoTrack);
 
       // نمرر الكاميرا لعنصر الفيديو المخفي عشان محرك الفلاتر يكون جاهز
-      if (sourceVideoElRef.current) {
-        sourceVideoElRef.current.srcObject = new MediaStream([videoTrack.getMediaStreamTrack()]);
-        sourceVideoElRef.current.play().catch(() => {});
-      }
+      feedSourceVideo(videoTrack);
       // المعاينة تطلع على طول، حتى قبل ما يكتمل الاتصال
       if (videoRef.current) videoTrack.play(videoRef.current);
     }
@@ -351,6 +371,7 @@ export const JixStreamStudio: React.FC<JixStreamStudioProps> = ({ isOpen, onClos
     const swapPublishedTrack = async () => {
       try {
         if (hasActiveFilter && !filteredVideoTrackRef.current) {
+          feedSourceVideo(currentVideoTrack);
           // ننتظر لحظة بسيطة حتى يرسم الـ canvas أول فريم فعلي بالفلتر الجديد
           await new Promise((resolve) => setTimeout(resolve, 300));
           const canvasStream = getFilteredStream(24);
@@ -367,6 +388,7 @@ export const JixStreamStudio: React.FC<JixStreamStudioProps> = ({ isOpen, onClos
           await client.publish([currentVideoTrack]);
           oldFilteredTrack.close();
           filteredVideoTrackRef.current = null;
+          feedSourceVideo(null);
         }
       } catch (err) {
         console.error('[JIX] فشل تبديل الفلتر أثناء البث:', err);
@@ -758,13 +780,14 @@ export const JixStreamStudio: React.FC<JixStreamStudioProps> = ({ isOpen, onClos
     reader.onload = async () => {
       if (typeof reader.result !== 'string') return;
       const newImageUrl = reader.result;
+      customAvatarChosenRef.current = true;
       setAvatarImageUrl(newImageUrl);
 
       if (isLive && streamMode === 'avatar' && clientRef.current) {
         try {
           const newTrack = await buildAvatarCanvasTrack(newImageUrl);
           const oldTrack = avatarVideoTrackRef.current;
-          if (oldTrack) await clientRef.current.unpublish([oldTrack]);
+          await unpublishAllVideo();
           await clientRef.current.publish([newTrack]);
           oldTrack?.close();
           avatarVideoTrackRef.current = newTrack;
@@ -783,10 +806,9 @@ export const JixStreamStudio: React.FC<JixStreamStudioProps> = ({ isOpen, onClos
     const client = clientRef.current;
     if (!client) return;
     try {
-      const currentPublished = filteredVideoTrackRef.current || localVideoTrackRef.current;
       const avatarTrack = await buildAvatarCanvasTrack(avatarImageUrl);
       avatarVideoTrackRef.current = avatarTrack;
-      if (currentPublished) await client.unpublish([currentPublished]);
+      await unpublishAllVideo();
       await client.publish([avatarTrack]);
 
       // نطفي الكاميرا فعليًا (مو بس نوقف نشرها) - توفير بطارية أثناء وضع الصورة
@@ -810,14 +832,11 @@ export const JixStreamStudio: React.FC<JixStreamStudioProps> = ({ isOpen, onClos
     try {
       const newVideoTrack = await AgoraRTC.createCameraVideoTrack({ facingMode: facingModeRef.current });
 
-      if (avatarVideoTrackRef.current) await client.unpublish([avatarVideoTrackRef.current]);
+      await unpublishAllVideo();
       await client.publish([newVideoTrack]);
 
       if (videoRef.current) newVideoTrack.play(videoRef.current);
-      if (sourceVideoElRef.current) {
-        sourceVideoElRef.current.srcObject = new MediaStream([newVideoTrack.getMediaStreamTrack()]);
-        sourceVideoElRef.current.play().catch(() => {});
-      }
+      feedSourceVideo(newVideoTrack);
 
       localVideoTrackRef.current = newVideoTrack;
       attachAgoraEffects(newVideoTrack);
@@ -942,7 +961,8 @@ export const JixStreamStudio: React.FC<JixStreamStudioProps> = ({ isOpen, onClos
         ) : (
           <div className="absolute inset-0">
             <img src={avatarImageUrl} alt={t('live_photo_alt')} className="w-full h-full object-cover" />
-            <div className="absolute inset-x-0 bottom-28 flex flex-col items-center gap-2">
+            {/* z-20: فوق منطقة التعليقات عشان زر "تغيير الصورة" ينضغط */}
+            <div className="absolute inset-x-0 bottom-28 z-20 flex flex-col items-center gap-2">
               <p className="text-white font-black text-lg drop-shadow-lg">{currentUser.name}</p>
               <p className="text-[#F5B93E] text-xs font-bold drop-shadow-lg">{t('live_photo_mode')}</p>
               <label
