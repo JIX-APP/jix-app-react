@@ -15,6 +15,7 @@ import {
   Eye,
 } from 'lucide-react';
 import { supabase } from './supabaseClient';
+import { useI18n } from './JixLanguage';
 import { JixStoryRing } from './JixStoryRing';
 import { JixShareSheet } from './JixShareSheet';
 import { JixComments } from './JixComments';
@@ -46,6 +47,7 @@ interface JixVideoFeedProps {
 }
 
 export const JixVideoFeed: React.FC<JixVideoFeedProps> = ({ currentUserId, refreshKey, feedMode, onOpenProfile, focusPostId }) => {
+  const { t } = useI18n();
   const [posts, setPosts] = useState<VideoRow[]>([]);
   const [likedIds, setLikedIds] = useState<Set<string>>(new Set());
   const [followedIds, setFollowedIds] = useState<Set<string>>(new Set());
@@ -211,7 +213,7 @@ export const JixVideoFeed: React.FC<JixVideoFeedProps> = ({ currentUserId, refre
       setPosts((prev) => prev.filter((p) => p.id !== postId));
       setConfirmDeleteId(null);
     } catch (err) {
-      setDeleteError((err as Error).message || 'تعذر حذف المنشور');
+      setDeleteError((err as Error).message || t('post_delete_failed'));
     } finally {
       setIsDeleting(false);
     }
@@ -242,13 +244,13 @@ export const JixVideoFeed: React.FC<JixVideoFeedProps> = ({ currentUserId, refre
     return (
       <div className="h-full flex flex-col items-center justify-center px-8 text-center">
         {feedMode === 'popular' && (
-          <p className="text-sm text-[#9A9A9E]">ما فيه منشورات رائجة خلال آخر أسبوع</p>
+          <p className="text-sm text-[#9A9A9E]">{t('empty_popular')}</p>
         )}
         {feedMode === 'following' && (
-          <p className="text-sm text-[#9A9A9E]">لسه ما تتابع أي حد، تابع مستخدمين عشان تشوف منشوراتهم هنا</p>
+          <p className="text-sm text-[#9A9A9E]">{t('empty_following')}</p>
         )}
         {feedMode === 'latest' && (
-          <p className="text-xs text-[#6B6B76]">أول منشور هيظهر هنا لما حد ينشر</p>
+          <p className="text-xs text-[#6B6B76]">{t('empty_latest')}</p>
         )}
       </div>
     );
@@ -294,7 +296,7 @@ export const JixVideoFeed: React.FC<JixVideoFeedProps> = ({ currentUserId, refre
 
           {post.is_hidden && currentUserId === post.user_id && (
             <span className="absolute top-4 left-4 flex items-center gap-1 bg-black/60 px-2.5 py-1 rounded-full text-[10px] font-bold text-gray-300 z-10">
-              <EyeOff className="w-3 h-3" /> مخفي
+              <EyeOff className="w-3 h-3" /> {t('post_hidden_badge')}
             </span>
           )}
 
@@ -306,7 +308,7 @@ export const JixVideoFeed: React.FC<JixVideoFeedProps> = ({ currentUserId, refre
                 userId={post.user_id}
                 currentUserId={currentUserId}
                 size={40}
-                userName={post.profiles?.full_name || post.profiles?.handle || 'مستخدم JIX'}
+                userName={post.profiles?.full_name || post.profiles?.handle || t('user_default')}
                 avatarUrl={post.profiles?.avatar_url ?? null}
                 livePillPosition="top"
               >
@@ -364,7 +366,7 @@ export const JixVideoFeed: React.FC<JixVideoFeedProps> = ({ currentUserId, refre
           {/* الوصف - أسفل */}
           <div className="absolute bottom-6 left-4 right-16 z-10">
             <button onClick={() => onOpenProfile?.(post.user_id)} className="font-black text-sm mb-1 text-white">
-              {post.profiles?.full_name || post.profiles?.handle || 'مستخدم JIX'}
+              {post.profiles?.full_name || post.profiles?.handle || t('user_default')}
             </button>
             {post.caption && <p className="text-xs text-gray-200">{post.caption}</p>}
           </div>
@@ -408,7 +410,7 @@ export const JixVideoFeed: React.FC<JixVideoFeedProps> = ({ currentUserId, refre
                 <EyeOff className="w-5 h-5 text-gray-300" />
               )}
               <span className="text-sm font-bold text-white">
-                {posts.find((p) => p.id === openMenuId)?.is_hidden ? 'إظهار المنشور' : 'إخفاء المنشور (خاص)'}
+                {posts.find((p) => p.id === openMenuId)?.is_hidden ? t('post_show') : t('post_hide')}
               </span>
               {isTogglingVisibility && <Loader2 className="w-4 h-4 animate-spin text-white mr-auto" />}
             </button>
@@ -421,14 +423,14 @@ export const JixVideoFeed: React.FC<JixVideoFeedProps> = ({ currentUserId, refre
               className="w-full flex items-center gap-3 px-4 py-3.5 bg-red-600/10 rounded-2xl"
             >
               <Trash2 className="w-5 h-5 text-red-400" />
-              <span className="text-sm font-bold text-red-400">حذف المنشور</span>
+              <span className="text-sm font-bold text-red-400">{t('post_delete')}</span>
             </button>
 
             <button
               onClick={() => setOpenMenuId(null)}
               className="w-full py-3.5 mt-3 text-sm font-bold text-gray-400"
             >
-              إلغاء
+              {t('cancel')}
             </button>
           </div>
         </div>
@@ -439,14 +441,14 @@ export const JixVideoFeed: React.FC<JixVideoFeedProps> = ({ currentUserId, refre
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 p-4">
           <div className="w-full max-w-sm bg-[#0f1118] border border-gray-800 rounded-3xl p-6">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="font-black text-sm text-white">حذف المنشور</h3>
+              <h3 className="font-black text-sm text-white">{t('post_delete')}</h3>
               <button onClick={() => setConfirmDeleteId(null)} className="p-1 text-gray-400">
                 <X className="w-5 h-5" />
               </button>
             </div>
 
             <p className="text-xs text-gray-300 mb-5">
-              هل أنت متأكد إنك تبي تحذف هذا المنشور؟ ما يقدر يترجع بعد الحذف.
+              {t('post_delete_confirm')}
             </p>
 
             {deleteError && (
@@ -459,7 +461,7 @@ export const JixVideoFeed: React.FC<JixVideoFeedProps> = ({ currentUserId, refre
                 disabled={isDeleting}
                 className="flex-1 py-3 bg-white/5 text-white font-bold text-sm rounded-2xl disabled:opacity-50"
               >
-                إلغاء
+                {t('cancel')}
               </button>
               <button
                 onClick={() => handleDelete(confirmDeleteId)}
@@ -467,7 +469,7 @@ export const JixVideoFeed: React.FC<JixVideoFeedProps> = ({ currentUserId, refre
                 className="flex-1 py-3 bg-red-600 text-white font-black text-sm rounded-2xl disabled:opacity-50 flex items-center justify-center gap-2"
               >
                 {isDeleting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
-                حذف
+                {t('delete')}
               </button>
             </div>
           </div>
