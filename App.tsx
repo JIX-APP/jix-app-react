@@ -73,7 +73,7 @@ const calculateAge = (dob: string): number => {
 };
 
 function App() {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const [screen, setScreen] = useState<ScreenName>('Home');
   const [feedMode, setFeedMode] = useState<JixFeedMode>('latest');
   // منشور جاي من رابط مشاركة (?post=...) - يطلع أول واحد بالرئيسية، بدون ما يحتاج تسجيل دخول
@@ -262,8 +262,9 @@ function App() {
   const handleDeleteAccount = async () => {
     setIsDeletingAccount(true);
     try {
-      const { data, error } = await supabase.functions.invoke('delete-account', { body: {} });
-      if (error || !data?.ok) throw error || new Error('failed');
+      // ما ينحذف فورًا: يختفي عن الكل، وينحذف نهائيًا بعد 30 يوم لو ما رجع
+      const { error } = await supabase.rpc('request_account_deletion');
+      if (error) throw error;
       await supabase.auth.signOut();
       setIsDeleteAccountOpen(false);
       setDeleteConfirmText('');
@@ -275,6 +276,36 @@ function App() {
       setIsDeletingAccount(false);
     }
   };
+
+  // لو سجل دخول وحسابه بمهلة الحذف: نعرض له "تبي ترجع حسابك؟"
+  const [pendingDeletionAt, setPendingDeletionAt] = useState<string | null>(null);
+  const [isRestoringAccount, setIsRestoringAccount] = useState(false);
+
+  useEffect(() => {
+    if (!user?.id) {
+      setPendingDeletionAt(null);
+      return;
+    }
+    supabase.rpc('get_my_deletion_status').then(({ data }) => {
+      setPendingDeletionAt((data as string | null) ?? null);
+    });
+  }, [user?.id]);
+
+  const handleRestoreAccount = async () => {
+    setIsRestoringAccount(true);
+    const { error } = await supabase.rpc('cancel_account_deletion');
+    setIsRestoringAccount(false);
+    if (error) {
+      alert(t('delete_failed'));
+      return;
+    }
+    setPendingDeletionAt(null);
+  };
+
+  // تاريخ الحذف النهائي = يوم الطلب + 30 يوم (بصيغة لغة المستخدم)
+  const finalDeletionDate = pendingDeletionAt
+    ? new Date(new Date(pendingDeletionAt).getTime() + 30 * 24 * 60 * 60 * 1000).toLocaleDateString(lang)
+    : '';
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -965,12 +996,35 @@ function App() {
           </div>
         )}
 
+        {/* الحساب بمهلة الحذف: يسترجعه أو يطلع */}
+        {pendingDeletionAt && (
+          <div className="fixed inset-0 z-[95] flex items-center justify-center bg-black/90 px-6">
+            <div className="w-full max-w-[360px] bg-[#12141f] border border-white/10 rounded-3xl p-5 text-center">
+              <h3 className="font-black text-base text-white mb-2">{t('restore_title')}</h3>
+              <p className="text-xs text-gray-400 leading-relaxed mb-5">
+                {t('restore_desc', { date: finalDeletionDate })}
+              </p>
+              <button
+                onClick={handleRestoreAccount}
+                disabled={isRestoringAccount}
+                className="w-full py-3 rounded-2xl bg-gradient-to-r from-[#FF7A1A] to-[#8B5CF6] text-white font-black text-sm mb-2 flex items-center justify-center gap-2"
+              >
+                {isRestoringAccount && <Loader2 className="w-4 h-4 animate-spin" />}
+                {t('restore_btn')}
+              </button>
+              <button onClick={handleLogout} className="w-full py-2.5 text-sm text-gray-400 font-bold">
+                {t('logout')}
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* تأكيد حذف الحساب - يكتب كلمة التأكيد عشان ما ينحذف بالغلط */}
         {isDeleteAccountOpen && (
           <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/80 px-6">
             <div className="w-full max-w-[360px] bg-[#12141f] border border-red-500/30 rounded-3xl p-5">
               <h3 className="font-black text-base text-white mb-2">{t('delete_account_title')}</h3>
-              <p className="text-xs text-gray-400 leading-relaxed mb-4">{t('delete_account_warning')}</p>
+              <p className="text-xs text-gray-400 leading-relaxed mb-4">{t('delete_account_warning_grace')}</p>
               <p className="text-xs text-gray-300 mb-2">{t('delete_account_type', { word: 'DELETE' })}</p>
               <input
                 value={deleteConfirmText}
