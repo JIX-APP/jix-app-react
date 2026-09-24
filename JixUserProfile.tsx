@@ -49,7 +49,7 @@ interface ProfileData {
   avatar_url: string | null;
   region: string | null;
   gender: 'male' | 'female' | null;
-  date_of_birth: string | null;
+  age: number | null;
 }
 
 interface PostRow {
@@ -82,12 +82,12 @@ export const JixUserProfile: React.FC<JixUserProfileProps> = ({ isOpen, onClose,
   const fetchAll = async () => {
     setIsLoading(true);
 
-    const { data: profileData } = await supabase
-      .from('profiles')
-      .select('id, full_name, handle, avatar_url, region, gender, date_of_birth')
-      .eq('id', userId)
-      .maybeSingle();
-    setProfile(profileData);
+    // تاريخ الميلاد مخفي عن الكل - نجيب العمر بس من دالة آمنة
+    const [{ data: profileData }, { data: ageData }] = await Promise.all([
+      supabase.from('profiles').select('id, full_name, handle, avatar_url, region, gender').eq('id', userId).maybeSingle(),
+      supabase.rpc('get_user_age', { p_user_id: userId }),
+    ]);
+    setProfile(profileData ? { ...profileData, age: typeof ageData === 'number' ? ageData : null } : null);
 
     const { data: postsData } = await supabase
       .from('videos')
@@ -218,7 +218,7 @@ export const JixUserProfile: React.FC<JixUserProfileProps> = ({ isOpen, onClose,
             <div className="flex items-center gap-2 mt-2.5">
               <LevelBadge xp={supporterXp} kind="supporter" size="md" />
               <LevelBadge xp={receiverXp} kind="receiver" size="md" />
-              {profile.gender && profile.date_of_birth && (
+              {profile.gender && profile.age !== null && (
                 <span
                   className="inline-flex items-center gap-1.5 rounded-full font-black px-2.5 py-1 text-xs text-white"
                   style={{ background: 'linear-gradient(135deg, #FF7A1A, #8B5CF6)' }}
@@ -227,7 +227,7 @@ export const JixUserProfile: React.FC<JixUserProfileProps> = ({ isOpen, onClose,
                     {profile.gender === 'male' ? '♂' : '♀'}
                   </span>
                   <span className="w-px h-2.5 bg-white/40" />
-                  {calculateAge(profile.date_of_birth)}
+                  {profile.age}
                 </span>
               )}
             </div>
