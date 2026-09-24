@@ -846,6 +846,21 @@ export const JixStreamStudio: React.FC<JixStreamStudioProps> = ({ isOpen, onClos
     }
   };
 
+  // لما نرجع من وضع الصورة للكاميرا: شاشة الفيديو ما تنرسم إلا بعد تغيير الوضع،
+  // فالكاميرا كانت تنعرض بمكان مو موجود وتطلع سودا (لين تقلب الكاميرا).
+  // الحين أول ما تنرسم الشاشة، نعرض الكاميرا فيها من جديد.
+  useEffect(() => {
+    if (streamMode !== 'camera') return;
+    const track = localVideoTrackRef.current;
+    const el = videoRef.current;
+    if (!track || !el) return;
+    try {
+      track.play(el);
+    } catch (err) {
+      console.error('[JIX] فشل عرض الكاميرا بعد الرجوع من وضع الصورة:', err);
+    }
+  }, [streamMode]);
+
   if (!isOpen) return null;
 
   const toggleMic = () => {
