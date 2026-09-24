@@ -54,7 +54,12 @@ type ScreenName = 'Home' | 'Discover' | 'Messages' | 'Profile';
 const DEFAULT_AVATAR =
   'https://images.unsplash.com/photo-1633332755192-727a05c4013d?w=200';
 
-const PROFILE_COLUMNS = 'avatar_url, account_number, date_of_birth, region, gender';
+// تاريخ الميلاد مو هنا: صار مخفي عن الكل، ويجي من دالة get_my_date_of_birth (لصاحبه بس)
+const PROFILE_COLUMNS = 'avatar_url, account_number, region, gender';
+const fetchMyDateOfBirth = async (): Promise<string | null> => {
+  const { data } = await supabase.rpc('get_my_date_of_birth');
+  return (data as string | null) ?? null;
+};
 
 const calculateAge = (dob: string): number => {
   const birthDate = new Date(dob);
@@ -161,11 +166,10 @@ function App() {
 
   useEffect(() => {
     const loadUser = async (sUser: any) => {
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select(PROFILE_COLUMNS)
-        .eq('id', sUser.id)
-        .maybeSingle();
+      const [{ data: profile }, myDob] = await Promise.all([
+        supabase.from('profiles').select(PROFILE_COLUMNS).eq('id', sUser.id).maybeSingle(),
+        fetchMyDateOfBirth(),
+      ]);
       setUser({
         id: sUser.id,
         name: (sUser.user_metadata?.username as string) || t('user_default'),
@@ -173,7 +177,7 @@ function App() {
         avatar: DEFAULT_AVATAR,
         avatarUrl: profile?.avatar_url ?? null,
         accountNumber: profile?.account_number ?? null,
-        dateOfBirth: profile?.date_of_birth ?? null,
+        dateOfBirth: myDob,
         region: profile?.region ?? null,
         gender: profile?.gender ?? null,
       });
@@ -232,7 +236,8 @@ function App() {
           .select(PROFILE_COLUMNS)
           .eq('id', sUser.id)
           .maybeSingle()
-          .then(({ data: profile }) => {
+          .then(async ({ data: profile }) => {
+            const myDob = await fetchMyDateOfBirth();
             setUser({
               id: sUser.id,
               name: username,
@@ -240,13 +245,35 @@ function App() {
               avatar: DEFAULT_AVATAR,
               avatarUrl: profile?.avatar_url ?? null,
               accountNumber: profile?.account_number ?? null,
-              dateOfBirth: profile?.date_of_birth ?? null,
+              dateOfBirth: myDob,
               region: profile?.region ?? null,
               gender: profile?.gender ?? null,
             });
           });
       }
     });
+  };
+
+  // حذف الحساب نهائيًا (بطلب المستخدم نفسه) - يحذف ملفاته وبياناته وحسابه
+  const [isDeleteAccountOpen, setIsDeleteAccountOpen] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState('');
+  const [isDeletingAccount, setIsDeletingAccount] = useState(false);
+
+  const handleDeleteAccount = async () => {
+    setIsDeletingAccount(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('delete-account', { body: {} });
+      if (error || !data?.ok) throw error || new Error('failed');
+      await supabase.auth.signOut();
+      setIsDeleteAccountOpen(false);
+      setDeleteConfirmText('');
+      setScreen('Home');
+    } catch (err) {
+      console.error('[JIX] فشل حذف الحساب:', err);
+      alert(t('delete_failed'));
+    } finally {
+      setIsDeletingAccount(false);
+    }
   };
 
   const handleLogout = async () => {
@@ -928,6 +955,51 @@ function App() {
             >
               <LogOut className="w-4 h-4" /> {t('logout')}
             </button>
+
+            <button
+              onClick={() => setIsDeleteAccountOpen(true)}
+              className="w-full mt-3 py-2 text-[11px] text-gray-500 underline"
+            >
+              {t('delete_account')}
+            </button>
+          </div>
+        )}
+
+        {/* تأكيد حذف الحساب - يكتب كلمة التأكيد عشان ما ينحذف بالغلط */}
+        {isDeleteAccountOpen && (
+          <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/80 px-6">
+            <div className="w-full max-w-[360px] bg-[#12141f] border border-red-500/30 rounded-3xl p-5">
+              <h3 className="font-black text-base text-white mb-2">{t('delete_account_title')}</h3>
+              <p className="text-xs text-gray-400 leading-relaxed mb-4">{t('delete_account_warning')}</p>
+              <p className="text-xs text-gray-300 mb-2">{t('delete_account_type', { word: 'DELETE' })}</p>
+              <input
+                value={deleteConfirmText}
+                onChange={(e) => setDeleteConfirmText(e.target.value)}
+                autoCapitalize="characters"
+                dir="ltr"
+                className="w-full px-4 py-2.5 bg-black/40 border border-white/10 rounded-xl text-white text-sm outline-none focus:border-red-500 mb-4"
+              />
+              <div className="flex gap-2">
+                <button
+                  onClick={() => {
+                    setIsDeleteAccountOpen(false);
+                    setDeleteConfirmText('');
+                  }}
+                  disabled={isDeletingAccount}
+                  className="flex-1 py-2.5 rounded-xl bg-white/5 text-white text-sm font-bold"
+                >
+                  {t('cancel')}
+                </button>
+                <button
+                  onClick={handleDeleteAccount}
+                  disabled={deleteConfirmText.trim().toUpperCase() !== 'DELETE' || isDeletingAccount}
+                  className="flex-1 py-2.5 rounded-xl bg-red-600 text-white text-sm font-black disabled:opacity-40 flex items-center justify-center gap-2"
+                >
+                  {isDeletingAccount && <Loader2 className="w-4 h-4 animate-spin" />}
+                  {t('delete_account_confirm')}
+                </button>
+              </div>
+            </div>
           </div>
         )}
       </div>
