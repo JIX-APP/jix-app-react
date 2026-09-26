@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Home, Compass, MessageCircle, User, Plus, LogOut, Loader2, Search, Radio, Video, Eye, Pencil, Check, Crown, Calendar, MapPin, Camera } from 'lucide-react';
+import { Home, Compass, MessageCircle, User, Plus, LogOut, Loader2, Search, Radio, Video, Eye, Pencil, Check, Crown, Calendar, MapPin, Camera, ShieldAlert } from 'lucide-react';
 import { JixAuthModal } from './JixAuthModal';
 import { JixStreamStudio } from './JixStreamStudio';
 import { JixWatchStream } from './JixWatchStream';
@@ -28,6 +28,7 @@ import {
   JixDMCallNotification,
 } from './JixNewFeatures';
 import { JixDMCall } from './JixDMCall';
+import { JixAdminReports } from './JixAdminReports';
 
 interface CurrentUser {
   id: string;
@@ -85,6 +86,9 @@ function App() {
   const [videoFeedKey, setVideoFeedKey] = useState(0);
   const [user, setUser] = useState<CurrentUser | null>(null);
   const [isCheckingSession, setIsCheckingSession] = useState(true);
+  // صاحب التطبيق فقط: يشوف زر لوحة البلاغات (والحماية الفعلية بقاعدة البيانات)
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [isAdminReportsOpen, setIsAdminReportsOpen] = useState(false);
   const [liveStreams, setLiveStreams] = useState<LiveStreamRow[]>([]);
   const [isLoadingLive, setIsLoadingLive] = useState(true);
   const [discoverSearch, setDiscoverSearch] = useState('');
@@ -424,6 +428,38 @@ function App() {
     }
     setIsVipStoreOpen(true);
   };
+
+  // بعد تسجيل الدخول: هل الحساب موقوف؟ وهل هو صاحب التطبيق؟
+  useEffect(() => {
+    if (!user?.id) {
+      setIsAdmin(false);
+      setIsAdminReportsOpen(false);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      const [{ data: adminFlag }, { data: suspension }] = await Promise.all([
+        supabase.rpc('is_app_admin'),
+        supabase.rpc('get_my_suspension'),
+      ]);
+      if (cancelled) return;
+
+      const row = Array.isArray(suspension) ? (suspension[0] as { suspended: boolean; until: string | null }) : null;
+      if (row?.suspended) {
+        alert(
+          row.until
+            ? t('account_suspended_until', { date: new Date(row.until).toLocaleString(lang) })
+            : t('account_suspended')
+        );
+        await supabase.auth.signOut();
+        return;
+      }
+      setIsAdmin(adminFlag === true);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id]);
 
   // فتح بروفايل مستخدم - يتجاهل الطلب لو المستخدم ضغط على بروفايله هو نفسه من مكان عام
   const handleOpenProfile = (targetUserId: string) => {
@@ -954,6 +990,16 @@ function App() {
 
               {/* اختيار لغة التطبيق - الافتراضي لغة الجوال تلقائيًا */}
               <JixLanguagePicker />
+
+              {isAdmin && (
+                <button
+                  onClick={() => setIsAdminReportsOpen(true)}
+                  className="w-full flex items-center gap-3 px-4 py-3 mt-2 bg-white/5 rounded-2xl text-start"
+                >
+                  <ShieldAlert className="w-4 h-4 text-[#FF7A1A] shrink-0" />
+                  <span className="text-sm text-gray-300 flex-1">{t('admin_panel')}</span>
+                </button>
+              )}
             </div>
 
             <div className="grid grid-cols-3 gap-2 mb-5">
@@ -1132,6 +1178,15 @@ function App() {
         onClose={() => setIsVipStoreOpen(false)}
         currentUserId={user?.id ?? null}
       />
+
+      {/* لوحة البلاغات - لصاحب التطبيق فقط */}
+      {isAdmin && (
+        <JixAdminReports
+          isOpen={isAdminReportsOpen}
+          onClose={() => setIsAdminReportsOpen(false)}
+          onOpenProfile={handleOpenProfile}
+        />
+      )}
 
       {/* صفحة بروفايل مستخدم آخر - تفتح فوق كل شي */}
       {viewingProfileUserId && (
