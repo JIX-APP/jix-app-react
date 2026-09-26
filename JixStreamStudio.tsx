@@ -40,6 +40,8 @@ interface Viewer {
   id: string;
   name: string;
   isMuted: boolean;
+  // داخل بالوضع المخفي: id هنا هوية مؤقتة، والاسم ما يظهر
+  incognito?: boolean;
 }
 
 interface CohostSlotData {
@@ -609,11 +611,11 @@ export const JixStreamStudio: React.FC<JixStreamStudioProps> = ({ isOpen, onClos
     });
 
     const syncViewers = () => {
-      const state = presenceChannel.presenceState<{ id: string; name: string }>();
+      const state = presenceChannel.presenceState<{ id: string; name: string; incognito?: boolean }>();
       const list: Viewer[] = [];
       Object.values(state).forEach((entries) => {
         entries.forEach((entry) => {
-          list.push({ id: entry.id, name: entry.name, isMuted: false });
+          list.push({ id: entry.id, name: entry.name, isMuted: false, incognito: !!entry.incognito });
         });
       });
       setViewers((prev) =>
@@ -876,11 +878,13 @@ export const JixStreamStudio: React.FC<JixStreamStudioProps> = ({ isOpen, onClos
 
     if (viewer.isMuted) return;
 
-    const { error } = await supabase.rpc('mute_stream_user', {
-      p_live_id: liveId,
-      p_host_id: hostUserId,
-      p_target_user_id: id,
-    });
+    const { error } = viewer.incognito
+      ? await supabase.rpc('moderate_incognito', { p_live_id: liveId, p_alias: id, p_action: 'mute' })
+      : await supabase.rpc('mute_stream_user', {
+          p_live_id: liveId,
+          p_host_id: hostUserId,
+          p_target_user_id: id,
+        });
 
     if (!error) {
       setViewers((prev) => prev.map((v) => (v.id === id ? { ...v, isMuted: true } : v)));
@@ -894,12 +898,15 @@ export const JixStreamStudio: React.FC<JixStreamStudioProps> = ({ isOpen, onClos
 
   const kickViewer = async (id: string) => {
     if (!liveId || !hostUserId) return;
+    const isIncognitoViewer = viewers.find((v) => v.id === id)?.incognito ?? false;
 
-    const { error } = await supabase.rpc('kick_stream_user_permanent', {
-      p_live_id: liveId,
-      p_host_id: hostUserId,
-      p_target_user_id: id,
-    });
+    const { error } = isIncognitoViewer
+      ? await supabase.rpc('moderate_incognito', { p_live_id: liveId, p_alias: id, p_action: 'kick_permanent' })
+      : await supabase.rpc('kick_stream_user_permanent', {
+          p_live_id: liveId,
+          p_host_id: hostUserId,
+          p_target_user_id: id,
+        });
 
     if (!error) {
       setViewers((prev) => prev.filter((v) => v.id !== id));
@@ -1223,12 +1230,12 @@ export const JixStreamStudio: React.FC<JixStreamStudioProps> = ({ isOpen, onClos
                     <div key={v.id} className="flex items-center justify-between bg-black/40 p-2 rounded-xl border border-gray-800">
                       <div className="flex items-center gap-2">
                         <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#FF7A1A] to-[#8B5CF6] flex items-center justify-center text-[10px] font-black text-white">
-                          {v.name[0]}
+                          {v.incognito ? '🕶️' : v.name[0]}
                         </div>
-                        <span className="text-xs font-bold text-white">{v.name}</span>
+                        <span className="text-xs font-bold text-white">{v.incognito ? t('incognito_name') : v.name}</span>
                       </div>
                       <div className="flex items-center gap-1">
-                        {!isSlotTakenByViewer(v.id) && (
+                        {!v.incognito && !isSlotTakenByViewer(v.id) && (
                           <button
                             onClick={() => handleInviteViewer(v.id)}
                             disabled={!findFreeSlot()}
