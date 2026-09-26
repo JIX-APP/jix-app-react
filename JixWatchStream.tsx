@@ -7,6 +7,7 @@ import { jixAudio } from './jixAudioFx';
 import { GIFTS_CATALOG, GiftIcon, giftLegendaryEnterStyle, giftPopStyle } from './JixGiftIcons';
 import { LevelBadge, useLevelXp } from './JixLevelSystem';
 import { JixReportButton } from './JixReportButton';
+import { useLiveIdentity } from './JixIncognito';
 import { JixPKChallengeButton } from './JixPKChallengeButton';
 import { JixLiveComments } from './JixLiveComments';
 import { JixCohostSlot } from './JixCohostSlot';
@@ -56,7 +57,7 @@ export const JixWatchStream: React.FC<JixWatchStreamProps> = ({
   const [isConnecting, setIsConnecting] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [giftToast, setGiftToast] = useState<GiftToast | null>(null);
-  const [viewerName, setViewerName] = useState<string>(t('user_default'));
+  const [viewerName, setViewerName] = useState<string>('مستخدم JIX');
   const [isModerator, setIsModerator] = useState(false);
   // زر الكأس (التوبات) + عدد المشاهدين - نفس اللي عند المذيع
   const [isTopChartOpen, setIsTopChartOpen] = useState(false);
@@ -78,6 +79,9 @@ export const JixWatchStream: React.FC<JixWatchStreamProps> = ({
 
   const isMeCohost = cohostSlots.some((s) => s?.guestId === currentUserId);
 
+  // الدخول المخفي: لو مفعّل، نستخدم هوية مؤقتة بدل رقم الحساب داخل البث
+  const { ready: identityReady, isIncognito, identityId } = useLiveIdentity(isOpen, liveId, currentUserId ?? null);
+
   useEffect(() => {
     if (!currentUserId) return;
     supabase
@@ -86,7 +90,7 @@ export const JixWatchStream: React.FC<JixWatchStreamProps> = ({
       .eq('id', currentUserId)
       .maybeSingle()
       .then(({ data }) => {
-        setViewerName(data?.full_name || data?.handle || t('user_default'));
+        setViewerName(data?.full_name || data?.handle || 'مستخدم JIX');
       });
   }, [currentUserId]);
 
@@ -104,10 +108,10 @@ export const JixWatchStream: React.FC<JixWatchStreamProps> = ({
   }, [currentUserId, hostId]);
 
   useEffect(() => {
-    if (!isOpen || !liveId || !currentUserId) return;
+    if (!isOpen || !liveId || !currentUserId || !identityReady || !identityId) return;
 
     const presenceChannel = supabase.channel(`presence_${liveId}`, {
-      config: { presence: { key: currentUserId } },
+      config: { presence: { key: identityId } },
     });
 
     // عدد المشاهدين: نعد كل الموجودين بالبث (ما عدا المذيع)
@@ -118,7 +122,7 @@ export const JixWatchStream: React.FC<JixWatchStreamProps> = ({
 
     presenceChannel.subscribe(async (status) => {
       if (status === 'SUBSCRIBED') {
-        await presenceChannel.track({ id: currentUserId, name: viewerName });
+        await presenceChannel.track({ id: identityId, name: isIncognito ? '' : viewerName, incognito: isIncognito });
       }
     });
 
@@ -126,7 +130,7 @@ export const JixWatchStream: React.FC<JixWatchStreamProps> = ({
       presenceChannel.untrack();
       supabase.removeChannel(presenceChannel);
     };
-  }, [isOpen, liveId, currentUserId, viewerName]);
+  }, [isOpen, liveId, currentUserId, viewerName, identityReady, identityId, isIncognito]);
 
   const handleKicked = (permanent: boolean) => {
     clientRef.current?.leave();
@@ -161,7 +165,7 @@ export const JixWatchStream: React.FC<JixWatchStreamProps> = ({
         });
 
         if (!response.ok) {
-          throw new Error(t('watch_permission_failed'));
+          throw new Error('تعذر الحصول على إذن مشاهدة البث');
         }
 
         const tokenData = await response.json();
@@ -194,7 +198,7 @@ export const JixWatchStream: React.FC<JixWatchStreamProps> = ({
       } catch (err) {
         console.error('[JIX] فشل الانضمام للبث:', err);
         if (!cancelled) {
-          setError(t('connect_failed'));
+          setError('تعذر الاتصال بالبث. حاول مرة أخرى.');
           setIsConnecting(false);
         }
       }
@@ -249,7 +253,7 @@ export const JixWatchStream: React.FC<JixWatchStreamProps> = ({
         next[row.slot - 1] = {
           slot: row.slot,
           guestId: row.guest_id,
-          guestName: row.profiles?.full_name || row.profiles?.handle || t('guest_default'),
+          guestName: row.profiles?.full_name || row.profiles?.handle || 'ضيف',
           agoraUid: row.agora_uid,
         };
       });
@@ -423,7 +427,7 @@ export const JixWatchStream: React.FC<JixWatchStreamProps> = ({
         {isConnecting && !error && (
           <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/80">
             <Loader2 className="w-8 h-8 animate-spin text-[#8B5CF6] mb-3" />
-            <p className="text-sm text-gray-300">{t('connecting_to', { name: hostUsername })}</p>
+            <p className="text-sm text-gray-300">جارٍ الاتصال ببث {hostUsername}...</p>
           </div>
         )}
 
@@ -431,7 +435,7 @@ export const JixWatchStream: React.FC<JixWatchStreamProps> = ({
           <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/90 px-6 text-center">
             <p className="text-sm text-red-400 mb-4">{error}</p>
             <button onClick={onClose} className="px-5 py-2.5 bg-white/10 rounded-xl text-sm font-bold">
-              {t('back')}
+              رجوع
             </button>
           </div>
         )}
@@ -473,7 +477,7 @@ export const JixWatchStream: React.FC<JixWatchStreamProps> = ({
           <button
             onClick={() => setIsTopChartOpen(true)}
             className="flex items-center bg-black/50 px-3 py-2 rounded-full"
-            aria-label={t('tops_label')}
+            aria-label="التوبات"
           >
             <Trophy className="w-4 h-4 text-[#F5B93E]" />
           </button>
@@ -481,7 +485,7 @@ export const JixWatchStream: React.FC<JixWatchStreamProps> = ({
           <button
             onClick={() => setIsShareOpen(true)}
             className="flex items-center bg-black/50 px-3 py-2 rounded-full"
-            aria-label={t('share_live')}
+            aria-label="مشاركة البث"
           >
             <Share2 className="w-4 h-4 text-white" />
           </button>
@@ -532,11 +536,11 @@ export const JixWatchStream: React.FC<JixWatchStreamProps> = ({
                 onClick={handleLeaveCohost}
                 className="flex items-center gap-1.5 bg-red-600/80 px-3 py-2 rounded-full text-[10px] font-bold text-white"
               >
-                <LogOut className="w-3.5 h-3.5" /> {t('leave_guest')}
+                <LogOut className="w-3.5 h-3.5" /> نزول من القست
               </button>
             ) : requestSent ? (
               <span className="flex items-center gap-1.5 bg-black/50 px-3 py-2 rounded-full text-[10px] font-bold text-gray-300">
-                {t('waiting_host')}
+                بانتظار موافقة المذيع...
               </span>
             ) : (
               <button
@@ -545,7 +549,7 @@ export const JixWatchStream: React.FC<JixWatchStreamProps> = ({
                 className="flex items-center gap-1.5 bg-black/50 px-3 py-2 rounded-full text-[10px] font-bold text-white disabled:opacity-50"
               >
                 {isRequesting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <UserPlus2 className="w-3.5 h-3.5" />}
-                {t('request_guest')}
+                طلب الصعود كقست
               </button>
             )}
           </div>
@@ -556,8 +560,9 @@ export const JixWatchStream: React.FC<JixWatchStreamProps> = ({
             channelName={channelName}
             liveId={liveId}
             hostId={hostId}
-            currentUserId={currentUserId ?? null}
-            currentUserName={viewerName}
+            currentUserId={identityReady ? identityId ?? null : null}
+            currentUserName={isIncognito ? '' : viewerName}
+            isIncognito={isIncognito}
             isHost={false}
             isModerator={isModerator}
             onOpenProfile={onOpenProfile}
@@ -569,11 +574,11 @@ export const JixWatchStream: React.FC<JixWatchStreamProps> = ({
           <div className="absolute inset-0 z-40 flex flex-col items-center justify-center bg-black/95 px-6 text-center">
             <p className="text-sm text-red-400 font-bold mb-4">
               {kickedNotice.permanent
-                ? t('kicked_permanent')
-                : t('kicked_temp')}
+                ? 'تم طردك نهائيًا من هذا البث'
+                : 'تم طردك مؤقتًا من هذا البث لمدة 5 دقايق'}
             </p>
             <button onClick={onClose} className="px-5 py-2.5 bg-white/10 rounded-xl text-sm font-bold text-white">
-              {t('back')}
+              رجوع
             </button>
           </div>
         )}
@@ -585,7 +590,7 @@ export const JixWatchStream: React.FC<JixWatchStreamProps> = ({
             if (!slot) {
               return (
                 <div key={i} className="bg-[#1a1c26] rounded-lg flex items-center justify-center">
-                  <span className="text-[9px] text-gray-600">{t('empty_slot')}</span>
+                  <span className="text-[9px] text-gray-600">مكان فاضي</span>
                 </div>
               );
             }
