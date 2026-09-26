@@ -86,7 +86,7 @@ export const JixAuthModal: React.FC<JixAuthModalProps> = ({ isOpen, onClose, onS
     setIsSubmitting(false);
 
     if (otpError) {
-      setError(otpError.message);
+      setError(/banned/i.test(otpError.message) ? t('account_suspended') : otpError.message);
       return;
     }
 
@@ -107,7 +107,7 @@ export const JixAuthModal: React.FC<JixAuthModalProps> = ({ isOpen, onClose, onS
 
     if (verifyError) {
       setIsSubmitting(false);
-      setError(verifyError.message);
+      setError(/banned/i.test(verifyError.message) ? t('account_suspended') : verifyError.message);
       return;
     }
 
