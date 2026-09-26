@@ -18,6 +18,7 @@ import { LevelBadge, AvatarFrame, useLevelXp } from './JixLevelSystem';
 import { JixComments } from './JixComments';
 import { JixStoryRing } from './JixStoryRing';
 import { JixProfileStats } from './JixProfileStats';
+import { JixReportButton } from './JixReportButton';
 
 interface JixUserProfileProps {
   isOpen: boolean;
@@ -169,9 +170,12 @@ export const JixUserProfile: React.FC<JixUserProfileProps> = ({ isOpen, onClose,
     <div className="fixed inset-0 z-50 bg-[#0E0E12] overflow-y-auto">
       <div className="sticky top-0 z-10 flex items-center justify-between px-4 py-3 bg-[#0E0E12]/90 backdrop-blur border-b border-white/5">
         <h2 className="font-black text-sm text-white">الملف الشخصي</h2>
-        <button onClick={onClose} className="p-1.5 rounded-full bg-white/5">
-          <X className="w-4 h-4 text-white" />
-        </button>
+        <div className="flex items-center gap-2">
+          {currentUserId !== userId && <JixReportButton targetType="user" targetId={userId} variant="header" />}
+          <button onClick={onClose} className="p-1.5 rounded-full bg-white/5">
+            <X className="w-4 h-4 text-white" />
+          </button>
+        </div>
       </div>
 
       {isLoading ? (
