@@ -29,6 +29,7 @@ import {
 } from './JixNewFeatures';
 import { JixDMCall } from './JixDMCall';
 import { JixAdminReports } from './JixAdminReports';
+import { JixIncognitoToggle } from './JixIncognito';
 
 interface CurrentUser {
   id: string;
@@ -990,6 +991,9 @@ function App() {
 
               {/* اختيار لغة التطبيق - الافتراضي لغة الجوال تلقائيًا */}
               <JixLanguagePicker />
+
+              {/* الدخول المخفي للبثوث - يظهر مقفل لين يوصل المستخدم للمستوى المطلوب */}
+              {user && <JixIncognitoToggle key={user.id} />}
 
               {isAdmin && (
                 <button
