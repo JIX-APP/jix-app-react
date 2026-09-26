@@ -33,6 +33,8 @@ interface LiveCommentMsg {
   text: string;
   // لغة جوال الكاتب - تساعد نعرف لغة التعليق عشان نترجمه للمشاهدين
   lang?: string;
+  // الكاتب داخل بالوضع المخفي: senderId هنا هوية مؤقتة مو رقم حسابه
+  incognito?: boolean;
 }
 
 interface ModerationEvent {
@@ -46,6 +48,7 @@ interface JixLiveCommentsProps {
   hostId: string;
   currentUserId: string | null;
   currentUserName: string;
+  isIncognito?: boolean;
   isHost: boolean;
   isModerator: boolean;
   onOpenProfile?: (userId: string) => void;
@@ -64,6 +67,7 @@ export const JixLiveComments: React.FC<JixLiveCommentsProps> = ({
   hostId,
   currentUserId,
   currentUserName,
+  isIncognito = false,
   isHost,
   isModerator,
   onOpenProfile,
@@ -144,6 +148,7 @@ export const JixLiveComments: React.FC<JixLiveCommentsProps> = ({
       senderName: currentUserName,
       text: trimmedText,
       lang,
+      ...(isIncognito ? { incognito: true } : {}),
     };
 
     channelRef.current.send({
@@ -169,41 +174,31 @@ export const JixLiveComments: React.FC<JixLiveCommentsProps> = ({
     }
   };
 
-  const handleMute = async (targetUserId: string) => {
+  const RPC_BY_ACTION: Record<ModerationEvent['action'], string> = {
+    mute: 'mute_stream_user',
+    kick_temp: 'kick_stream_user_temp',
+    kick_permanent: 'kick_stream_user_permanent',
+  };
+
+  // المستخدم المخفي: نرسل هويته المؤقتة، والسيرفر يطبّق الإجراء على حسابه الحقيقي
+  const runModeration = async (action: ModerationEvent['action'], targetUserId: string, incognito = false) => {
     setOpenActionsFor(null);
-    const { error } = await supabase.rpc('mute_stream_user', {
-      p_live_id: liveId,
-      p_host_id: hostId,
-      p_target_user_id: targetUserId,
-    });
+    const { error } = incognito
+      ? await supabase.rpc('moderate_incognito', { p_live_id: liveId, p_alias: targetUserId, p_action: action })
+      : await supabase.rpc(RPC_BY_ACTION[action], {
+          p_live_id: liveId,
+          p_host_id: hostId,
+          p_target_user_id: targetUserId,
+        });
     if (!error) {
-      broadcastModeration({ action: 'mute', targetUserId });
+      broadcastModeration({ action, targetUserId });
     }
   };
 
-  const handleKickTemp = async (targetUserId: string) => {
-    setOpenActionsFor(null);
-    const { error } = await supabase.rpc('kick_stream_user_temp', {
-      p_live_id: liveId,
-      p_host_id: hostId,
-      p_target_user_id: targetUserId,
-    });
-    if (!error) {
-      broadcastModeration({ action: 'kick_temp', targetUserId });
-    }
-  };
-
-  const handleKickPermanent = async (targetUserId: string) => {
-    setOpenActionsFor(null);
-    const { error } = await supabase.rpc('kick_stream_user_permanent', {
-      p_live_id: liveId,
-      p_host_id: hostId,
-      p_target_user_id: targetUserId,
-    });
-    if (!error) {
-      broadcastModeration({ action: 'kick_permanent', targetUserId });
-    }
-  };
+  const handleMute = (targetUserId: string, incognito = false) => runModeration('mute', targetUserId, incognito);
+  const handleKickTemp = (targetUserId: string, incognito = false) => runModeration('kick_temp', targetUserId, incognito);
+  const handleKickPermanent = (targetUserId: string, incognito = false) =>
+    runModeration('kick_permanent', targetUserId, incognito);
 
   return (
     <>
@@ -222,7 +217,7 @@ export const JixLiveComments: React.FC<JixLiveCommentsProps> = ({
           {messages.map((msg) => (
             <div key={msg.id} className="relative flex items-start gap-1">
               <div className="bg-black/50 backdrop-blur-sm rounded-2xl px-3 py-1.5 max-w-[85%] w-fit flex items-center gap-1.5">
-                {mvpTiers[msg.senderId] && (
+                {!msg.incognito && mvpTiers[msg.senderId] && (
                   <JixMvpBadge
                     tier={mvpTiers[msg.senderId].tier}
                     avatarUrl={mvpTiers[msg.senderId].avatarUrl}
@@ -233,10 +228,10 @@ export const JixLiveComments: React.FC<JixLiveCommentsProps> = ({
                 )}
                 <div>
                   <button
-                    onClick={() => onOpenProfile?.(msg.senderId)}
-                    className="text-[11px] font-black text-[#F5B93E]"
+                    onClick={() => !msg.incognito && onOpenProfile?.(msg.senderId)}
+                    className={`text-[11px] font-black ${msg.incognito ? 'text-gray-300' : 'text-[#F5B93E]'}`}
                   >
-                    {msg.senderName}:{' '}
+                    {msg.incognito ? `🕶️ ${t('incognito_name')}` : msg.senderName}:{' '}
                   </button>
                   <TranslatableText text={msg.text} senderLang={msg.lang} viewerLang={lang} isMine={msg.senderId === currentUserId} t={t} />
                 </div>
@@ -254,20 +249,20 @@ export const JixLiveComments: React.FC<JixLiveCommentsProps> = ({
               {openActionsFor === msg.id && (
                 <div className="absolute top-full right-0 mt-1 bg-[#171923] border border-gray-700 rounded-xl overflow-hidden z-20 w-32">
                   <button
-                    onClick={() => handleMute(msg.senderId)}
+                    onClick={() => handleMute(msg.senderId, msg.incognito)}
                     className="w-full flex items-center gap-1.5 px-3 py-2 text-[10px] font-bold text-white hover:bg-white/10"
                   >
                     <VolumeX className="w-3 h-3" /> {t('mute')}
                   </button>
                   <button
-                    onClick={() => handleKickTemp(msg.senderId)}
+                    onClick={() => handleKickTemp(msg.senderId, msg.incognito)}
                     className="w-full flex items-center gap-1.5 px-3 py-2 text-[10px] font-bold text-orange-400 hover:bg-white/10"
                   >
                     <Clock className="w-3 h-3" /> {t('kick_5min')}
                   </button>
                   {isHost && (
                     <button
-                      onClick={() => handleKickPermanent(msg.senderId)}
+                      onClick={() => handleKickPermanent(msg.senderId, msg.incognito)}
                       className="w-full flex items-center gap-1.5 px-3 py-2 text-[10px] font-bold text-red-400 hover:bg-white/10"
                     >
                       <Ban className="w-3 h-3" /> {t('kick_permanent')}
