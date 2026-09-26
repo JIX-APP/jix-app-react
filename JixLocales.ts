@@ -269,6 +269,11 @@ export const LOCALES: Record<string, Record<string, string>> = {
     admin_suspended_until: "موقوف حتى {date}",
     admin_banned: "موقوف نهائيًا",
     admin_load_more: "عرض المزيد",
+    // الدخول المخفي
+    incognito_name: "زائر مخفي",
+    incognito_toggle: "الدخول المخفي للبثوث",
+    incognito_desc: "ادخل أي بث بدون ما يظهر اسمك",
+    incognito_locked: "متاح من مستوى الداعم {n}",
   },
   "en": {
     host_default: "Host",
@@ -535,6 +540,11 @@ export const LOCALES: Record<string, Record<string, string>> = {
     admin_suspended_until: "Suspended until {date}",
     admin_banned: "Banned",
     admin_load_more: "Load more",
+    // الدخول المخفي
+    incognito_name: "Hidden guest",
+    incognito_toggle: "Incognito in lives",
+    incognito_desc: "Join any live without showing your name",
+    incognito_locked: "Unlocks at supporter level {n}",
   },
   "es": {
     host_default: "Anfitrión",
@@ -772,6 +782,11 @@ export const LOCALES: Record<string, Record<string, string>> = {
     report_login_required: "Inicia sesión para denunciar",
     account_suspended: "Tu cuenta ha sido suspendida",
     account_suspended_until: "Tu cuenta está suspendida hasta el {date}",
+    // الدخول المخفي
+    incognito_name: "Invitado oculto",
+    incognito_toggle: "Modo incógnito en directos",
+    incognito_desc: "Entra en cualquier directo sin mostrar tu nombre",
+    incognito_locked: "Se desbloquea en el nivel de apoyo {n}",
   },
   "fr": {
     host_default: "Hôte",
@@ -1009,6 +1024,11 @@ export const LOCALES: Record<string, Record<string, string>> = {
     report_login_required: "Connectez-vous pour signaler",
     account_suspended: "Votre compte a été suspendu",
     account_suspended_until: "Votre compte est suspendu jusqu'au {date}",
+    // الدخول المخفي
+    incognito_name: "Invité masqué",
+    incognito_toggle: "Mode incognito en live",
+    incognito_desc: "Rejoignez n'importe quel live sans afficher votre nom",
+    incognito_locked: "Débloqué au niveau supporter {n}",
   },
   "de": {
     host_default: "Host",
@@ -1246,6 +1266,11 @@ export const LOCALES: Record<string, Record<string, string>> = {
     report_login_required: "Melde dich an, um etwas zu melden",
     account_suspended: "Dein Konto wurde gesperrt",
     account_suspended_until: "Dein Konto ist gesperrt bis {date}",
+    // الدخول المخفي
+    incognito_name: "Verborgener Gast",
+    incognito_toggle: "Inkognito in Livestreams",
+    incognito_desc: "Tritt jedem Livestream bei, ohne deinen Namen zu zeigen",
+    incognito_locked: "Ab Unterstützer-Level {n} verfügbar",
   },
   "it": {
     host_default: "Host",
@@ -1483,6 +1508,11 @@ export const LOCALES: Record<string, Record<string, string>> = {
     report_login_required: "Accedi per segnalare",
     account_suspended: "Il tuo account è stato sospeso",
     account_suspended_until: "Il tuo account è sospeso fino al {date}",
+    // الدخول المخفي
+    incognito_name: "Ospite nascosto",
+    incognito_toggle: "Modalità incognito nelle live",
+    incognito_desc: "Entra in qualsiasi live senza mostrare il tuo nome",
+    incognito_locked: "Si sblocca al livello sostenitore {n}",
   },
   "pt": {
     host_default: "Anfitrião",
@@ -1720,6 +1750,11 @@ export const LOCALES: Record<string, Record<string, string>> = {
     report_login_required: "Entre para denunciar",
     account_suspended: "Sua conta foi suspensa",
     account_suspended_until: "Sua conta está suspensa até {date}",
+    // الدخول المخفي
+    incognito_name: "Convidado oculto",
+    incognito_toggle: "Modo anônimo nas lives",
+    incognito_desc: "Entre em qualquer live sem mostrar seu nome",
+    incognito_locked: "Libera no nível de apoiador {n}",
   },
   "ru": {
     host_default: "Ведущий",
@@ -1957,6 +1992,11 @@ export const LOCALES: Record<string, Record<string, string>> = {
     report_login_required: "Войдите, чтобы пожаловаться",
     account_suspended: "Ваш аккаунт заблокирован",
     account_suspended_until: "Ваш аккаунт заблокирован до {date}",
+    // الدخول المخفي
+    incognito_name: "Скрытый гость",
+    incognito_toggle: "Инкогнито в эфирах",
+    incognito_desc: "Заходите в любой эфир, не показывая своё имя",
+    incognito_locked: "Доступно с уровня поддержки {n}",
   },
   "tr": {
     host_default: "Yayıncı",
@@ -2194,6 +2234,11 @@ export const LOCALES: Record<string, Record<string, string>> = {
     report_login_required: "Şikayet etmek için giriş yap",
     account_suspended: "Hesabın askıya alındı",
     account_suspended_until: "Hesabın {date} tarihine kadar askıya alındı",
+    // الدخول المخفي
+    incognito_name: "Gizli misafir",
+    incognito_toggle: "Canlı yayınlarda gizli mod",
+    incognito_desc: "Adın görünmeden herhangi bir yayına katıl",
+    incognito_locked: "Destekçi seviyesi {n} ile açılır",
   },
   "fa": {
     host_default: "میزبان",
@@ -2431,6 +2476,11 @@ export const LOCALES: Record<string, Record<string, string>> = {
     report_login_required: "برای گزارش وارد شوید",
     account_suspended: "حساب شما تعلیق شده است",
     account_suspended_until: "حساب شما تا {date} تعلیق است",
+    // الدخول المخفي
+    incognito_name: "مهمان مخفی",
+    incognito_toggle: "ورود مخفی به پخش زنده",
+    incognito_desc: "بدون نمایش نامتان وارد هر پخش زنده شوید",
+    incognito_locked: "از سطح حامی {n} فعال می‌شود",
   },
   "ur": {
     host_default: "میزبان",
@@ -2668,6 +2718,11 @@ export const LOCALES: Record<string, Record<string, string>> = {
     report_login_required: "رپورٹ کرنے کے لیے لاگ ان کریں",
     account_suspended: "آپ کا اکاؤنٹ معطل کر دیا گیا ہے",
     account_suspended_until: "آپ کا اکاؤنٹ {date} تک معطل ہے",
+    // الدخول المخفي
+    incognito_name: "پوشیدہ مہمان",
+    incognito_toggle: "لائیو میں پوشیدہ داخلہ",
+    incognito_desc: "اپنا نام ظاہر کیے بغیر کسی بھی لائیو میں شامل ہوں",
+    incognito_locked: "سپورٹر لیول {n} سے دستیاب",
   },
   "hi": {
     host_default: "होस्ट",
@@ -2905,6 +2960,11 @@ export const LOCALES: Record<string, Record<string, string>> = {
     report_login_required: "रिपोर्ट करने के लिए लॉग इन करें",
     account_suspended: "आपका अकाउंट निलंबित कर दिया गया है",
     account_suspended_until: "आपका अकाउंट {date} तक निलंबित है",
+    // الدخول المخفي
+    incognito_name: "छिपा हुआ मेहमान",
+    incognito_toggle: "लाइव में गुप्त मोड",
+    incognito_desc: "अपना नाम दिखाए बिना किसी भी लाइव में जुड़ें",
+    incognito_locked: "सपोर्टर लेवल {n} से उपलब्ध",
   },
   "bn": {
     host_default: "হোস্ট",
@@ -3142,6 +3202,11 @@ export const LOCALES: Record<string, Record<string, string>> = {
     report_login_required: "রিপোর্ট করতে লগ ইন করুন",
     account_suspended: "আপনার অ্যাকাউন্ট স্থগিত করা হয়েছে",
     account_suspended_until: "আপনার অ্যাকাউন্ট {date} পর্যন্ত স্থগিত",
+    // الدخول المخفي
+    incognito_name: "লুকানো অতিথি",
+    incognito_toggle: "লাইভে গোপন মোড",
+    incognito_desc: "নাম না দেখিয়ে যেকোনো লাইভে যোগ দিন",
+    incognito_locked: "সাপোর্টার লেভেল {n} থেকে চালু",
   },
   "id": {
     host_default: "Host",
@@ -3379,6 +3444,11 @@ export const LOCALES: Record<string, Record<string, string>> = {
     report_login_required: "Masuk untuk melaporkan",
     account_suspended: "Akunmu telah ditangguhkan",
     account_suspended_until: "Akunmu ditangguhkan hingga {date}",
+    // الدخول المخفي
+    incognito_name: "Tamu tersembunyi",
+    incognito_toggle: "Mode samaran di live",
+    incognito_desc: "Masuk ke live mana pun tanpa menampilkan namamu",
+    incognito_locked: "Terbuka di level pendukung {n}",
   },
   "ms": {
     host_default: "Hos",
@@ -3616,6 +3686,11 @@ export const LOCALES: Record<string, Record<string, string>> = {
     report_login_required: "Log masuk untuk melaporkan",
     account_suspended: "Akaun anda telah digantung",
     account_suspended_until: "Akaun anda digantung sehingga {date}",
+    // الدخول المخفي
+    incognito_name: "Tetamu tersembunyi",
+    incognito_toggle: "Mod menyamar dalam siaran langsung",
+    incognito_desc: "Sertai mana-mana siaran langsung tanpa menunjukkan nama anda",
+    incognito_locked: "Dibuka pada tahap penyokong {n}",
   },
   "zh": {
     host_default: "主播",
@@ -3853,6 +3928,11 @@ export const LOCALES: Record<string, Record<string, string>> = {
     report_login_required: "登录后才能举报",
     account_suspended: "你的账号已被封禁",
     account_suspended_until: "你的账号已被封禁至 {date}",
+    // الدخول المخفي
+    incognito_name: "隐身访客",
+    incognito_toggle: "直播隐身进入",
+    incognito_desc: "进入任何直播都不显示你的名字",
+    incognito_locked: "支持者等级 {n} 解锁",
   },
   "ja": {
     host_default: "ホスト",
@@ -4090,6 +4170,11 @@ export const LOCALES: Record<string, Record<string, string>> = {
     report_login_required: "報告するにはログインしてください",
     account_suspended: "アカウントが停止されました",
     account_suspended_until: "アカウントは{date}まで停止されています",
+    // الدخول المخفي
+    incognito_name: "匿名ゲスト",
+    incognito_toggle: "ライブにシークレット入室",
+    incognito_desc: "名前を表示せずにどのライブにも入室できます",
+    incognito_locked: "サポーターレベル{n}で解放",
   },
   "ko": {
     host_default: "호스트",
@@ -4327,6 +4412,11 @@ export const LOCALES: Record<string, Record<string, string>> = {
     report_login_required: "신고하려면 로그인하세요",
     account_suspended: "계정이 정지되었습니다",
     account_suspended_until: "계정이 {date}까지 정지되었습니다",
+    // الدخول المخفي
+    incognito_name: "숨은 게스트",
+    incognito_toggle: "라이브 비공개 입장",
+    incognito_desc: "이름을 표시하지 않고 모든 라이브에 입장",
+    incognito_locked: "서포터 레벨 {n}부터 사용 가능",
   },
   "th": {
     host_default: "โฮสต์",
@@ -4564,6 +4654,11 @@ export const LOCALES: Record<string, Record<string, string>> = {
     report_login_required: "เข้าสู่ระบบเพื่อรายงาน",
     account_suspended: "บัญชีของคุณถูกระงับ",
     account_suspended_until: "บัญชีของคุณถูกระงับจนถึง {date}",
+    // الدخول المخفي
+    incognito_name: "ผู้ชมนิรนาม",
+    incognito_toggle: "เข้าไลฟ์แบบซ่อนตัว",
+    incognito_desc: "เข้าไลฟ์ใดก็ได้โดยไม่แสดงชื่อของคุณ",
+    incognito_locked: "ปลดล็อกที่เลเวลผู้สนับสนุน {n}",
   },
   "vi": {
     host_default: "Chủ phòng",
@@ -4801,6 +4896,11 @@ export const LOCALES: Record<string, Record<string, string>> = {
     report_login_required: "Đăng nhập để báo cáo",
     account_suspended: "Tài khoản của bạn đã bị tạm khóa",
     account_suspended_until: "Tài khoản của bạn bị tạm khóa đến {date}",
+    // الدخول المخفي
+    incognito_name: "Khách ẩn danh",
+    incognito_toggle: "Vào livestream ẩn danh",
+    incognito_desc: "Vào bất kỳ livestream nào mà không hiện tên bạn",
+    incognito_locked: "Mở khóa ở cấp người ủng hộ {n}",
   },
   "tl": {
     host_default: "Host",
@@ -5038,6 +5138,11 @@ export const LOCALES: Record<string, Record<string, string>> = {
     report_login_required: "Mag-log in para mag-report",
     account_suspended: "Na-suspend ang account mo",
     account_suspended_until: "Naka-suspend ang account mo hanggang {date}",
+    // الدخول المخفي
+    incognito_name: "Nakatagong bisita",
+    incognito_toggle: "Incognito sa live",
+    incognito_desc: "Sumali sa kahit anong live nang hindi ipinapakita ang pangalan mo",
+    incognito_locked: "Mabubuksan sa supporter level {n}",
   },
   "nl": {
     host_default: "Host",
@@ -5275,6 +5380,11 @@ export const LOCALES: Record<string, Record<string, string>> = {
     report_login_required: "Log in om te melden",
     account_suspended: "Je account is geschorst",
     account_suspended_until: "Je account is geschorst tot {date}",
+    // الدخول المخفي
+    incognito_name: "Verborgen gast",
+    incognito_toggle: "Incognito in livestreams",
+    incognito_desc: "Kijk naar elke livestream zonder je naam te tonen",
+    incognito_locked: "Beschikbaar vanaf supporterlevel {n}",
   },
   "pl": {
     host_default: "Prowadzący",
@@ -5512,6 +5622,11 @@ export const LOCALES: Record<string, Record<string, string>> = {
     report_login_required: "Zaloguj się, aby zgłosić",
     account_suspended: "Twoje konto zostało zawieszone",
     account_suspended_until: "Twoje konto jest zawieszone do {date}",
+    // الدخول المخفي
+    incognito_name: "Ukryty gość",
+    incognito_toggle: "Tryb incognito na transmisjach",
+    incognito_desc: "Dołącz do dowolnej transmisji bez pokazywania nazwy",
+    incognito_locked: "Dostępne od poziomu wspierającego {n}",
   },
   "uk": {
     host_default: "Ведучий",
@@ -5749,6 +5864,11 @@ export const LOCALES: Record<string, Record<string, string>> = {
     report_login_required: "Увійдіть, щоб поскаржитися",
     account_suspended: "Ваш акаунт заблоковано",
     account_suspended_until: "Ваш акаунт заблоковано до {date}",
+    // الدخول المخفي
+    incognito_name: "Прихований гість",
+    incognito_toggle: "Інкогніто в ефірах",
+    incognito_desc: "Заходьте в будь-який ефір, не показуючи свого імені",
+    incognito_locked: "Доступно з рівня підтримки {n}",
   },
   "ro": {
     host_default: "Gazdă",
@@ -5986,6 +6106,11 @@ export const LOCALES: Record<string, Record<string, string>> = {
     report_login_required: "Conectează-te pentru a raporta",
     account_suspended: "Contul tău a fost suspendat",
     account_suspended_until: "Contul tău este suspendat până la {date}",
+    // الدخول المخفي
+    incognito_name: "Invitat ascuns",
+    incognito_toggle: "Mod incognito în live-uri",
+    incognito_desc: "Intră în orice live fără să-ți arăți numele",
+    incognito_locked: "Se deblochează la nivelul de susținător {n}",
   },
   "el": {
     host_default: "Οικοδεσπότης",
@@ -6223,6 +6348,11 @@ export const LOCALES: Record<string, Record<string, string>> = {
     report_login_required: "Συνδέσου για να κάνεις αναφορά",
     account_suspended: "Ο λογαριασμός σου έχει ανασταλεί",
     account_suspended_until: "Ο λογαριασμός σου έχει ανασταλεί έως {date}",
+    // الدخول المخفي
+    incognito_name: "Κρυφός επισκέπτης",
+    incognito_toggle: "Ανώνυμη είσοδος σε live",
+    incognito_desc: "Μπες σε οποιοδήποτε live χωρίς να φαίνεται το όνομά σου",
+    incognito_locked: "Ξεκλειδώνεται στο επίπεδο υποστηρικτή {n}",
   },
   "sv": {
     host_default: "Värd",
@@ -6460,6 +6590,11 @@ export const LOCALES: Record<string, Record<string, string>> = {
     report_login_required: "Logga in för att rapportera",
     account_suspended: "Ditt konto har stängts av",
     account_suspended_until: "Ditt konto är avstängt till {date}",
+    // الدخول المخفي
+    incognito_name: "Dold gäst",
+    incognito_toggle: "Inkognito i livesändningar",
+    incognito_desc: "Gå med i vilken livesändning som helst utan att visa ditt namn",
+    incognito_locked: "Låses upp på supporternivå {n}",
   },
   "cs": {
     host_default: "Hostitel",
@@ -6697,6 +6832,11 @@ export const LOCALES: Record<string, Record<string, string>> = {
     report_login_required: "Pro nahlášení se přihlaste",
     account_suspended: "Váš účet byl pozastaven",
     account_suspended_until: "Váš účet je pozastaven do {date}",
+    // الدخول المخفي
+    incognito_name: "Skrytý host",
+    incognito_toggle: "Anonymní režim ve vysílání",
+    incognito_desc: "Připojte se k jakémukoli vysílání bez zobrazení jména",
+    incognito_locked: "Odemkne se na úrovni podporovatele {n}",
   },
   "hu": {
     host_default: "Házigazda",
@@ -6934,6 +7074,11 @@ export const LOCALES: Record<string, Record<string, string>> = {
     report_login_required: "Jelentkezz be a jelentéshez",
     account_suspended: "A fiókodat felfüggesztettük",
     account_suspended_until: "A fiókod fel van függesztve eddig: {date}",
+    // الدخول المخفي
+    incognito_name: "Rejtett vendég",
+    incognito_toggle: "Inkognitó mód élő adásokban",
+    incognito_desc: "Csatlakozz bármelyik élő adáshoz a neved megjelenítése nélkül",
+    incognito_locked: "A(z) {n}. támogatói szinttől érhető el",
   },
   "nb": {
     host_default: "Vert",
@@ -7171,6 +7316,11 @@ export const LOCALES: Record<string, Record<string, string>> = {
     report_login_required: "Logg inn for å rapportere",
     account_suspended: "Kontoen din er suspendert",
     account_suspended_until: "Kontoen din er suspendert til {date}",
+    // الدخول المخفي
+    incognito_name: "Skjult gjest",
+    incognito_toggle: "Inkognito i direktesendinger",
+    incognito_desc: "Bli med i en hvilken som helst direktesending uten å vise navnet ditt",
+    incognito_locked: "Låses opp på supporternivå {n}",
   },
   "az": {
     host_default: "Aparıcı",
@@ -7408,6 +7558,11 @@ export const LOCALES: Record<string, Record<string, string>> = {
     report_login_required: "Şikayət etmək üçün daxil ol",
     account_suspended: "Hesabın dayandırılıb",
     account_suspended_until: "Hesabın {date} tarixinədək dayandırılıb",
+    // الدخول المخفي
+    incognito_name: "Gizli qonaq",
+    incognito_toggle: "Canlı yayımlarda gizli rejim",
+    incognito_desc: "Adını göstərmədən istənilən yayıma qoşul",
+    incognito_locked: "Dəstəkçi səviyyəsi {n}-dən açılır",
   },
   "uz": {
     host_default: "Boshlovchi",
@@ -7645,6 +7800,11 @@ export const LOCALES: Record<string, Record<string, string>> = {
     report_login_required: "Shikoyat qilish uchun tizimga kiring",
     account_suspended: "Akkauntingiz to'xtatildi",
     account_suspended_until: "Akkauntingiz {date} gacha to'xtatilgan",
+    // الدخول المخفي
+    incognito_name: "Yashirin mehmon",
+    incognito_toggle: "Jonli efirlarda yashirin rejim",
+    incognito_desc: "Ismingizni ko'rsatmasdan istalgan efirga kiring",
+    incognito_locked: "Qo'llovchi darajasi {n} dan ochiladi",
   },
   "ne": {
     host_default: "होस्ट",
@@ -7882,6 +8042,11 @@ export const LOCALES: Record<string, Record<string, string>> = {
     report_login_required: "रिपोर्ट गर्न लग इन गर्नुहोस्",
     account_suspended: "तपाईंको खाता निलम्बन गरिएको छ",
     account_suspended_until: "तपाईंको खाता {date} सम्म निलम्बित छ",
+    // الدخول المخفي
+    incognito_name: "लुकेको पाहुना",
+    incognito_toggle: "लाइभमा गोप्य मोड",
+    incognito_desc: "नाम नदेखाई कुनै पनि लाइभमा सामेल हुनुहोस्",
+    incognito_locked: "समर्थक स्तर {n} बाट उपलब्ध",
   },
   "ckb": {
     host_default: "خانەخوێ",
@@ -8119,6 +8284,11 @@ export const LOCALES: Record<string, Record<string, string>> = {
     report_login_required: "بۆ ڕاپۆرتکردن بچۆ ژوورەوە",
     account_suspended: "هەژمارەکەت ڕاگیراوە",
     account_suspended_until: "هەژمارەکەت تا {date} ڕاگیراوە",
+    // الدخول المخفي
+    incognito_name: "میوانی شاراوە",
+    incognito_toggle: "چوونە ژوورەوەی شاراوە بۆ پەخشی ڕاستەوخۆ",
+    incognito_desc: "بەبێ دەرکەوتنی ناوت بچۆ ناو هەر پەخشێک",
+    incognito_locked: "لە ئاستی پاڵپشتی {n} بەردەست دەبێت",
   },
   "am": {
     host_default: "አስተናጋጅ",
@@ -8356,6 +8526,11 @@ export const LOCALES: Record<string, Record<string, string>> = {
     report_login_required: "ሪፖርት ለማድረግ ግባ",
     account_suspended: "መለያህ ታግዷል",
     account_suspended_until: "መለያህ እስከ {date} ድረስ ታግዷል",
+    // الدخول المخفي
+    incognito_name: "የተደበቀ እንግዳ",
+    incognito_toggle: "በቀጥታ ስርጭት ውስጥ ስውር መግቢያ",
+    incognito_desc: "ስምህ ሳይታይ ማንኛውንም የቀጥታ ስርጭት ተቀላቀል",
+    incognito_locked: "ከደጋፊ ደረጃ {n} ጀምሮ ይገኛል",
   },
   "da": {
     host_default: "Vært",
@@ -8593,6 +8768,11 @@ export const LOCALES: Record<string, Record<string, string>> = {
     report_login_required: "Log ind for at anmelde",
     account_suspended: "Din konto er blevet suspenderet",
     account_suspended_until: "Din konto er suspenderet indtil {date}",
+    // الدخول المخفي
+    incognito_name: "Skjult gæst",
+    incognito_toggle: "Inkognito i livestreams",
+    incognito_desc: "Deltag i enhver livestream uden at vise dit navn",
+    incognito_locked: "Låses op på supporterniveau {n}",
   },
   "fi": {
     host_default: "Isäntä",
@@ -8830,6 +9010,11 @@ export const LOCALES: Record<string, Record<string, string>> = {
     report_login_required: "Kirjaudu sisään ilmoittaaksesi",
     account_suspended: "Tilisi on jäädytetty",
     account_suspended_until: "Tilisi on jäädytetty {date} asti",
+    // الدخول المخفي
+    incognito_name: "Piilotettu vieras",
+    incognito_toggle: "Incognito-tila livelähetyksissä",
+    incognito_desc: "Liity mihin tahansa lähetykseen näyttämättä nimeäsi",
+    incognito_locked: "Avautuu tukijatasolla {n}",
   },
   "bg": {
     host_default: "Водещ",
@@ -9067,6 +9252,11 @@ export const LOCALES: Record<string, Record<string, string>> = {
     report_login_required: "Влез, за да докладваш",
     account_suspended: "Профилът ти е спрян",
     account_suspended_until: "Профилът ти е спрян до {date}",
+    // الدخول المخفي
+    incognito_name: "Скрит гост",
+    incognito_toggle: "Инкогнито в излъчванията",
+    incognito_desc: "Влизай във всяко излъчване, без да се показва името ти",
+    incognito_locked: "Отключва се на ниво поддръжник {n}",
   },
   "sr": {
     host_default: "Домаћин",
@@ -9304,6 +9494,11 @@ export const LOCALES: Record<string, Record<string, string>> = {
     report_login_required: "Пријави се на налог да би пријавио садржај",
     account_suspended: "Твој налог је суспендован",
     account_suspended_until: "Твој налог је суспендован до {date}",
+    // الدخول المخفي
+    incognito_name: "Скривени гост",
+    incognito_toggle: "Инкогнито у преносима уживо",
+    incognito_desc: "Уђи у било који пренос без приказивања имена",
+    incognito_locked: "Откључава се на нивоу подржаваоца {n}",
   },
   "hr": {
     host_default: "Domaćin",
@@ -9541,6 +9736,11 @@ export const LOCALES: Record<string, Record<string, string>> = {
     report_login_required: "Prijavi se u račun kako bi mogao prijaviti sadržaj",
     account_suspended: "Tvoj račun je suspendiran",
     account_suspended_until: "Tvoj račun je suspendiran do {date}",
+    // الدخول المخفي
+    incognito_name: "Skriveni gost",
+    incognito_toggle: "Inkognito u prijenosima uživo",
+    incognito_desc: "Uđi u bilo koji prijenos bez prikazivanja imena",
+    incognito_locked: "Otključava se na razini podržavatelja {n}",
   },
   "sk": {
     host_default: "Hostiteľ",
@@ -9778,6 +9978,11 @@ export const LOCALES: Record<string, Record<string, string>> = {
     report_login_required: "Na nahlásenie sa prihláste",
     account_suspended: "Váš účet bol pozastavený",
     account_suspended_until: "Váš účet je pozastavený do {date}",
+    // الدخول المخفي
+    incognito_name: "Skrytý hosť",
+    incognito_toggle: "Anonymný režim vo vysielaní",
+    incognito_desc: "Pripojte sa k akémukoľvek vysielaniu bez zobrazenia mena",
+    incognito_locked: "Odomkne sa na úrovni podporovateľa {n}",
   },
   "sl": {
     host_default: "Gostitelj",
@@ -10015,6 +10220,11 @@ export const LOCALES: Record<string, Record<string, string>> = {
     report_login_required: "Za prijavo se vpiši",
     account_suspended: "Tvoj račun je bil suspendiran",
     account_suspended_until: "Tvoj račun je suspendiran do {date}",
+    // الدخول المخفي
+    incognito_name: "Skriti gost",
+    incognito_toggle: "Anonimni način v prenosih v živo",
+    incognito_desc: "Pridruži se kateremu koli prenosu, ne da bi se prikazalo tvoje ime",
+    incognito_locked: "Odklene se na ravni podpornika {n}",
   },
   "sq": {
     host_default: "Mikpritës",
@@ -10252,6 +10462,11 @@ export const LOCALES: Record<string, Record<string, string>> = {
     report_login_required: "Hyr për të raportuar",
     account_suspended: "Llogaria jote është pezulluar",
     account_suspended_until: "Llogaria jote është e pezulluar deri më {date}",
+    // الدخول المخفي
+    incognito_name: "Mysafir i fshehur",
+    incognito_toggle: "Modaliteti i fshehtë në live",
+    incognito_desc: "Hyr në çdo live pa shfaqur emrin tënd",
+    incognito_locked: "Zhbllokohet në nivelin e mbështetësit {n}",
   },
   "lt": {
     host_default: "Vedėjas",
@@ -10489,6 +10704,11 @@ export const LOCALES: Record<string, Record<string, string>> = {
     report_login_required: "Prisijunkite, kad galėtumėte pranešti",
     account_suspended: "Jūsų paskyra sustabdyta",
     account_suspended_until: "Jūsų paskyra sustabdyta iki {date}",
+    // الدخول المخفي
+    incognito_name: "Paslėptas svečias",
+    incognito_toggle: "Inkognito režimas transliacijose",
+    incognito_desc: "Prisijunkite prie bet kurios transliacijos nerodydami vardo",
+    incognito_locked: "Atrakinama nuo rėmėjo lygio {n}",
   },
   "lv": {
     host_default: "Vadītājs",
@@ -10726,6 +10946,11 @@ export const LOCALES: Record<string, Record<string, string>> = {
     report_login_required: "Piesakies, lai ziņotu",
     account_suspended: "Tavs konts ir apturēts",
     account_suspended_until: "Tavs konts ir apturēts līdz {date}",
+    // الدخول المخفي
+    incognito_name: "Slēpts viesis",
+    incognito_toggle: "Inkognito režīms tiešraidēs",
+    incognito_desc: "Pievienojies jebkurai tiešraidei, nerādot savu vārdu",
+    incognito_locked: "Pieejams no atbalstītāja līmeņa {n}",
   },
   "et": {
     host_default: "Saatejuht",
@@ -10963,6 +11188,11 @@ export const LOCALES: Record<string, Record<string, string>> = {
     report_login_required: "Teatamiseks logi sisse",
     account_suspended: "Sinu konto on peatatud",
     account_suspended_until: "Sinu konto on peatatud kuni {date}",
+    // الدخول المخفي
+    incognito_name: "Peidetud külaline",
+    incognito_toggle: "Inkognito otseülekannetes",
+    incognito_desc: "Liitu mis tahes otseülekandega ilma nime näitamata",
+    incognito_locked: "Avaneb toetaja tasemel {n}",
   },
   "is": {
     host_default: "Gestgjafi",
@@ -11200,6 +11430,11 @@ export const LOCALES: Record<string, Record<string, string>> = {
     report_login_required: "Skráðu þig inn til að tilkynna",
     account_suspended: "Reikningurinn þinn hefur verið settur í bann",
     account_suspended_until: "Reikningurinn þinn er í banni til {date}",
+    // الدخول المخفي
+    incognito_name: "Falinn gestur",
+    incognito_toggle: "Huliðsstilling í beinum útsendingum",
+    incognito_desc: "Farðu inn í hvaða útsendingu sem er án þess að nafnið þitt sjáist",
+    incognito_locked: "Opnast á stuðningsstigi {n}",
   },
   "ka": {
     host_default: "წამყვანი",
@@ -11437,6 +11672,11 @@ export const LOCALES: Record<string, Record<string, string>> = {
     report_login_required: "გასაჩივრებისთვის შედით სისტემაში",
     account_suspended: "თქვენი ანგარიში შეჩერებულია",
     account_suspended_until: "თქვენი ანგარიში შეჩერებულია {date}-მდე",
+    // الدخول المخفي
+    incognito_name: "დამალული სტუმარი",
+    incognito_toggle: "ფარული შესვლა ლაივებში",
+    incognito_desc: "შედი ნებისმიერ ლაივში სახელის ჩვენების გარეშე",
+    incognito_locked: "ხელმისაწვდომია მხარდამჭერის დონიდან {n}",
   },
   "hy": {
     host_default: "Վարող",
@@ -11674,5 +11914,10 @@ export const LOCALES: Record<string, Record<string, string>> = {
     report_login_required: "Մուտք գործեք՝ բողոքելու համար",
     account_suspended: "Ձեր հաշիվը կասեցված է",
     account_suspended_until: "Ձեր հաշիվը կասեցված է մինչև {date}",
+    // الدخول المخفي
+    incognito_name: "Թաքնված հյուր",
+    incognito_toggle: "Անանուն մուտք ուղիղ եթերներ",
+    incognito_desc: "Մտեք ցանկացած ուղիղ եթեր՝ առանց ձեր անունը ցույց տալու",
+    incognito_locked: "Հասանելի է աջակցողի {n}-րդ մակարդակից",
   },
 };
