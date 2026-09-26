@@ -197,10 +197,8 @@ export const LevelBadge: React.FC<{ xp: number; kind: LevelKind; size?: 'sm' | '
         }}
       >
         <TierIcon kind={kind} level={tier.level} size={iconSize} />
-        <span
-          className="bg-clip-text text-transparent"
-          style={{ backgroundImage: 'linear-gradient(90deg, #FF7A1A, #8B5CF6)' }}
-        >
+        {/* رقم اللفل بالأبيض مع ظل خفيف: يبان واضح فوق كل ألوان الشارة (من الرمادي لين البنفسجي) */}
+        <span className="text-white" style={{ textShadow: '0 1px 2px rgba(0, 0, 0, 0.55)' }}>
           Lv.{tier.level}
         </span>
       </button>
