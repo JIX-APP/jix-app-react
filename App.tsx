@@ -30,6 +30,7 @@ import {
 import { JixDMCall } from './JixDMCall';
 import { JixAdminReports } from './JixAdminReports';
 import { JixIncognitoToggle } from './JixIncognito';
+import { JixLegalLinks, JixLegalModal, LegalDoc, getLegalDocFromHash } from './JixLegal';
 
 interface CurrentUser {
   id: string;
@@ -90,6 +91,8 @@ function App() {
   // صاحب التطبيق فقط: يشوف زر لوحة البلاغات (والحماية الفعلية بقاعدة البيانات)
   const [isAdmin, setIsAdmin] = useState(false);
   const [isAdminReportsOpen, setIsAdminReportsOpen] = useState(false);
+  // سياسة الخصوصية وشروط الاستخدام - تفتح أيضًا من رابط مباشر: #privacy أو #terms
+  const [legalDoc, setLegalDoc] = useState<LegalDoc | null>(() => getLegalDocFromHash());
   const [liveStreams, setLiveStreams] = useState<LiveStreamRow[]>([]);
   const [isLoadingLive, setIsLoadingLive] = useState(true);
   const [discoverSearch, setDiscoverSearch] = useState('');
@@ -428,6 +431,17 @@ function App() {
       return;
     }
     setIsVipStoreOpen(true);
+  };
+
+  useEffect(() => {
+    const onHashChange = () => setLegalDoc(getLegalDocFromHash());
+    window.addEventListener('hashchange', onHashChange);
+    return () => window.removeEventListener('hashchange', onHashChange);
+  }, []);
+
+  const closeLegal = () => {
+    setLegalDoc(null);
+    if (getLegalDocFromHash()) history.replaceState(null, '', window.location.pathname + window.location.search);
   };
 
   // بعد تسجيل الدخول: هل الحساب موقوف؟ وهل هو صاحب التطبيق؟
@@ -1043,6 +1057,10 @@ function App() {
             >
               {t('delete_account')}
             </button>
+
+            <div className="mt-4">
+              <JixLegalLinks onOpen={setLegalDoc} />
+            </div>
           </div>
         )}
 
@@ -1182,6 +1200,8 @@ function App() {
         onClose={() => setIsVipStoreOpen(false)}
         currentUserId={user?.id ?? null}
       />
+
+      <JixLegalModal doc={legalDoc} onClose={closeLegal} onSwitch={setLegalDoc} />
 
       {/* لوحة البلاغات - لصاحب التطبيق فقط */}
       {isAdmin && (
