@@ -274,6 +274,10 @@ export const LOCALES: Record<string, Record<string, string>> = {
     incognito_toggle: "الدخول المخفي للبثوث",
     incognito_desc: "ادخل أي بث بدون ما يظهر اسمك",
     incognito_locked: "متاح من مستوى الداعم {n}",
+    // الشروط والخصوصية
+    legal_agree: "بالمتابعة، أنت توافق على شروط الاستخدام وسياسة الخصوصية",
+    legal_terms: "شروط الاستخدام",
+    legal_privacy: "سياسة الخصوصية",
   },
   "en": {
     host_default: "Host",
@@ -545,6 +549,10 @@ export const LOCALES: Record<string, Record<string, string>> = {
     incognito_toggle: "Incognito in lives",
     incognito_desc: "Join any live without showing your name",
     incognito_locked: "Unlocks at supporter level {n}",
+    // الشروط والخصوصية
+    legal_agree: "By continuing, you agree to the Terms of Service and Privacy Policy",
+    legal_terms: "Terms of Service",
+    legal_privacy: "Privacy Policy",
   },
   "es": {
     host_default: "Anfitrión",
@@ -1029,6 +1037,10 @@ export const LOCALES: Record<string, Record<string, string>> = {
     incognito_toggle: "Mode incognito en live",
     incognito_desc: "Rejoignez n'importe quel live sans afficher votre nom",
     incognito_locked: "Débloqué au niveau supporter {n}",
+    // الشروط والخصوصية
+    legal_agree: "En continuant, vous acceptez les Conditions d'utilisation et la Politique de confidentialité",
+    legal_terms: "Conditions d'utilisation",
+    legal_privacy: "Politique de confidentialité",
   },
   "de": {
     host_default: "Host",
