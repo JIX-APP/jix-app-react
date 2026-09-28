@@ -3,6 +3,7 @@ import { X, Mail, ArrowLeft, ShieldCheck, Loader2, Calendar, User } from 'lucide
 import { supabase } from './supabaseClient';
 import { JixDobPicker } from './JixDobPicker';
 import { useI18n } from './JixLanguage';
+import { JixLegalLinks, JixLegalModal, LegalDoc } from './JixLegal';
 
 interface JixAuthModalProps {
   isOpen: boolean;
@@ -26,6 +27,7 @@ const calculateAge = (dob: string): number => {
 
 export const JixAuthModal: React.FC<JixAuthModalProps> = ({ isOpen, onClose, onSuccessLogin }) => {
   const { t } = useI18n();
+  const [legalDoc, setLegalDoc] = useState<LegalDoc | null>(null);
   const [step, setStep] = useState<Step>('form');
   const [email, setEmail] = useState('');
   const [username, setUsername] = useState('');
@@ -235,6 +237,8 @@ export const JixAuthModal: React.FC<JixAuthModalProps> = ({ isOpen, onClose, onS
               {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <ArrowLeft className="w-4 h-4" />}
               {isSubmitting ? t('auth_sending') : t('auth_send_code')}
             </button>
+
+            <JixLegalLinks showAgreement onOpen={setLegalDoc} />
           </form>
         ) : (
           <form onSubmit={handleVerifyOtp} className="space-y-4">
@@ -272,6 +276,7 @@ export const JixAuthModal: React.FC<JixAuthModalProps> = ({ isOpen, onClose, onS
           </form>
         )}
       </div>
+      <JixLegalModal doc={legalDoc} onClose={() => setLegalDoc(null)} onSwitch={setLegalDoc} />
     </div>
   );
 };
