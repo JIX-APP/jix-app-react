@@ -30,7 +30,7 @@ interface ReportRow {
   owner_banned: boolean;
 }
 
-type Tab = 'pending' | 'closed';
+type Tab = 'pending' | 'closed' | 'withdrawals';
 type Action = 'dismiss' | 'delete_content' | 'suspend' | 'ban' | 'unsuspend';
 
 const PAGE_SIZE = 30;
@@ -74,8 +74,8 @@ export const JixAdminReports: React.FC<JixAdminReportsProps> = ({ isOpen, onClos
   );
 
   useEffect(() => {
-    if (isOpen) load();
-  }, [isOpen, load]);
+    if (isOpen && tab !== 'withdrawals') load();
+  }, [isOpen, load, tab]);
 
   const tr = (key: string, fallback: string, vars?: Record<string, string | number>) => {
     const text = t(key, vars);
@@ -147,7 +147,7 @@ export const JixAdminReports: React.FC<JixAdminReportsProps> = ({ isOpen, onClos
       </div>
 
       <div className="shrink-0 flex gap-1 p-1 mx-4 mt-3 bg-white/5 rounded-2xl">
-        {(['pending', 'closed'] as Tab[]).map((key) => (
+        {(['pending', 'closed', 'withdrawals'] as Tab[]).map((key) => (
           <button
             key={key}
             onClick={() => setTab(key)}
@@ -155,11 +155,15 @@ export const JixAdminReports: React.FC<JixAdminReportsProps> = ({ isOpen, onClos
               tab === key ? 'bg-gradient-to-r from-[#FF7A1A] to-[#8B5CF6] text-white' : 'text-gray-400'
             }`}
           >
-            {t(key === 'pending' ? 'admin_tab_pending' : 'admin_tab_closed')}
+            {t(key === 'pending' ? 'admin_tab_pending' : key === 'closed' ? 'admin_tab_closed' : 'admin_tab_withdrawals')}
           </button>
         ))}
       </div>
 
+      {tab === 'withdrawals' ? (
+        <WithdrawalsPanel />
+      ) : (
+      <>
       {error && <p className="shrink-0 mx-4 mt-3 text-xs text-red-400 text-center">{error}</p>}
 
       <div
@@ -338,6 +342,8 @@ export const JixAdminReports: React.FC<JixAdminReportsProps> = ({ isOpen, onClos
           </button>
         )}
       </div>
+      </>
+      )}
     </div>
   );
 };
@@ -356,3 +362,133 @@ const ActionButton: React.FC<{ icon: React.ReactNode; label: string; className: 
     {label}
   </button>
 );
+
+
+// ============================================================
+// طلبات سحب الأرباح - أنت تحوّل المبلغ يدويًا ثم تضغط "تم الدفع"
+// ============================================================
+interface WithdrawalAdminRow {
+  id: string;
+  user_id: string;
+  user_name: string | null;
+  account_number: number | null;
+  diamonds: number;
+  amount_usd: number;
+  method: string;
+  account_details: string;
+  status: 'pending' | 'paid' | 'rejected';
+  admin_note: string | null;
+  created_at: string;
+}
+
+const WithdrawalsPanel: React.FC = () => {
+  const { t, lang } = useI18n();
+  const [view, setView] = useState<'pending' | 'done'>('pending');
+  const [rows, setRows] = useState<WithdrawalAdminRow[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    setIsLoading(true);
+    const { data, error: rpcError } = await supabase.rpc('admin_list_withdrawals', { p_status: view });
+    setIsLoading(false);
+    if (rpcError) setError(rpcError.message);
+    setRows((data as WithdrawalAdminRow[]) ?? []);
+  }, [view]);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  const usd = (n: number) => Number(n).toLocaleString(lang, { style: 'currency', currency: 'USD' });
+
+  const process = async (row: WithdrawalAdminRow, action: 'paid' | 'rejected') => {
+    let note: string | null = null;
+    if (action === 'paid' && !window.confirm(t('admin_withdraw_confirm_paid'))) return;
+    if (action === 'rejected') {
+      note = window.prompt(t('admin_withdraw_note_prompt')) ?? null;
+      if (note === null) return;
+    }
+    setBusyId(row.id);
+    setError(null);
+    const { error: rpcError } = await supabase.rpc('admin_process_withdrawal', {
+      p_id: row.id,
+      p_action: action,
+      p_note: note,
+    });
+    setBusyId(null);
+    if (rpcError) setError(t('admin_action_failed', { reason: rpcError.message }));
+    else load();
+  };
+
+  return (
+    <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3" style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom, 0px))' }}>
+      <div className="flex gap-2">
+        {(['pending', 'done'] as const).map((v) => (
+          <button
+            key={v}
+            onClick={() => setView(v)}
+            className={`px-3 py-1.5 rounded-full text-[11px] font-bold ${view === v ? 'bg-white/15 text-white' : 'bg-white/5 text-gray-500'}`}
+          >
+            {t(v === 'pending' ? 'admin_tab_pending' : 'admin_tab_closed')}
+          </button>
+        ))}
+      </div>
+
+      {error && <p className="text-xs text-red-400 text-center">{error}</p>}
+
+      {isLoading ? (
+        <div className="flex justify-center py-16">
+          <Loader2 className="w-6 h-6 animate-spin text-[#8B5CF6]" />
+        </div>
+      ) : rows.length === 0 ? (
+        <p className="text-center text-xs text-gray-500 py-16">{t('admin_withdraw_empty')}</p>
+      ) : (
+        rows.map((r) => (
+          <div key={r.id} className="bg-white/[0.04] border border-white/5 rounded-2xl p-4">
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0">
+                <p className="text-lg font-black text-white">{usd(r.amount_usd)}</p>
+                <p className="text-[11px] text-gray-500">
+                  {Number(r.diamonds).toLocaleString(lang)} · {new Date(r.created_at).toLocaleString(lang)}
+                </p>
+              </div>
+              <span className="shrink-0 px-2 py-1 rounded-full bg-white/5 text-[10px] font-bold text-gray-300">
+                {t(`wallet_method_${r.method}`)}
+              </span>
+            </div>
+            <p className="mt-2 text-xs text-gray-300">
+              {r.user_name || t('user_default')} {r.account_number ? `· ID ${r.account_number}` : ''}
+            </p>
+            <p className="mt-2 text-xs text-white bg-black/30 rounded-xl px-3 py-2 break-words whitespace-pre-wrap select-all">
+              {r.account_details}
+            </p>
+            {r.admin_note && <p className="mt-2 text-[11px] text-gray-400">{r.admin_note}</p>}
+
+            {r.status === 'pending' ? (
+              busyId === r.id ? (
+                <div className="flex justify-center pt-3">
+                  <Loader2 className="w-5 h-5 animate-spin text-[#8B5CF6]" />
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 gap-2 mt-3">
+                  <button onClick={() => process(r, 'paid')} className="py-2.5 rounded-xl bg-emerald-600 text-white text-xs font-bold">
+                    {t('admin_withdraw_paid')}
+                  </button>
+                  <button onClick={() => process(r, 'rejected')} className="py-2.5 rounded-xl bg-red-500/10 text-red-300 border border-red-500/30 text-xs font-bold">
+                    {t('admin_withdraw_reject')}
+                  </button>
+                </div>
+              )
+            ) : (
+              <p className={`mt-3 text-[11px] font-bold ${r.status === 'paid' ? 'text-emerald-300' : 'text-red-300'}`}>
+                {t(`wallet_status_${r.status}`)}
+              </p>
+            )}
+          </div>
+        ))
+      )}
+    </div>
+  );
+};
