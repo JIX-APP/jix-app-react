@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Gift, Coins, X } from 'lucide-react';
 import { supabase } from './supabaseClient';
 import { useI18n } from './JixLanguage';
+import { JixWallet, useMyWallet } from './JixWallet';
 import { GIFTS_CATALOG, RARITY_LABEL, RARITY_ORDER, GiftDef, GiftIcon, GiftRarity } from './JixGiftIcons';
 
 interface JixGiftBarProps {
@@ -15,6 +16,9 @@ export const JixGiftBar: React.FC<JixGiftBarProps> = ({ liveId, hostId }) => {
   const [activeTab, setActiveTab] = useState<GiftRarity>('common');
   const [isSending, setIsSending] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [isWalletOpen, setIsWalletOpen] = useState(false);
+  // رصيد الكوينز يظهر أعلى قائمة الهدايا، ويتحدث بعد كل هدية
+  const { wallet, refresh: refreshWallet } = useMyWallet(isOpen);
 
   const sendGift = async (gift: GiftDef) => {
     setError(null);
@@ -28,9 +32,17 @@ export const JixGiftBar: React.FC<JixGiftBarProps> = ({ liveId, hostId }) => {
         p_coin_cost: gift.cost,
       });
       if (rpcError) throw rpcError;
+      refreshWallet();
       setIsOpen(false);
     } catch (err) {
-      setError((err as Error).message || t('gift_send_failed'));
+      const msg = (err as Error).message || '';
+      // الرصيد ما يكفي: نفتح الشحن مباشرة مثل تيك توك
+      if (msg.includes('غير كافٍ')) {
+        setError(t('gift_not_enough_coins'));
+        setIsWalletOpen(true);
+      } else {
+        setError(msg || t('gift_send_failed'));
+      }
     } finally {
       setIsSending(null);
     }
@@ -61,6 +73,20 @@ export const JixGiftBar: React.FC<JixGiftBarProps> = ({ liveId, hostId }) => {
                 {t(`rarity_${r}`)}
               </button>
             ))}
+          </div>
+
+          {/* الرصيد + زر الشحن */}
+          <div className="flex items-center justify-between mx-3 mt-2 px-2.5 py-1.5 rounded-xl bg-white/5">
+            <span className="flex items-center gap-1 text-xs font-black text-[#F5B93E]">
+              <Coins className="w-3.5 h-3.5" />
+              {wallet ? wallet.coins.toLocaleString() : '…'}
+            </span>
+            <button
+              onClick={() => setIsWalletOpen(true)}
+              className="px-3 py-1 rounded-full bg-gradient-to-r from-[#F5B93E] to-[#FF7A1A] text-[10px] font-black text-black"
+            >
+              {t('wallet_recharge')}
+            </button>
           </div>
 
           <div className="grid grid-cols-3 gap-1.5 p-3 max-h-[220px] overflow-y-auto">
@@ -94,6 +120,15 @@ export const JixGiftBar: React.FC<JixGiftBarProps> = ({ liveId, hostId }) => {
       >
         <Gift className="w-6 h-6 text-white" />
       </button>
+
+      <JixWallet
+        isOpen={isWalletOpen}
+        initialTab="coins"
+        onClose={() => {
+          setIsWalletOpen(false);
+          refreshWallet();
+        }}
+      />
     </div>
   );
 };
