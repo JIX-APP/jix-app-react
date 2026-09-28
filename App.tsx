@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Home, Compass, MessageCircle, User, Plus, LogOut, Loader2, Search, Radio, Video, Eye, Pencil, Check, Crown, Calendar, MapPin, Camera, ShieldAlert } from 'lucide-react';
+import { Home, Compass, MessageCircle, User, Plus, LogOut, Loader2, Search, Radio, Video, Eye, Pencil, Check, Crown, Calendar, MapPin, Camera, ShieldAlert, Wallet } from 'lucide-react';
 import { JixAuthModal } from './JixAuthModal';
 import { JixStreamStudio } from './JixStreamStudio';
 import { JixWatchStream } from './JixWatchStream';
@@ -30,6 +30,7 @@ import {
 import { JixDMCall } from './JixDMCall';
 import { JixAdminReports } from './JixAdminReports';
 import { JixIncognitoToggle } from './JixIncognito';
+import { JixWallet } from './JixWallet';
 import { JixLegalLinks, JixLegalModal, LegalDoc, getLegalDocFromHash } from './JixLegal';
 
 interface CurrentUser {
@@ -91,6 +92,7 @@ function App() {
   // صاحب التطبيق فقط: يشوف زر لوحة البلاغات (والحماية الفعلية بقاعدة البيانات)
   const [isAdmin, setIsAdmin] = useState(false);
   const [isAdminReportsOpen, setIsAdminReportsOpen] = useState(false);
+  const [isWalletOpen, setIsWalletOpen] = useState(false);
   // سياسة الخصوصية وشروط الاستخدام - تفتح أيضًا من رابط مباشر: #privacy أو #terms
   const [legalDoc, setLegalDoc] = useState<LegalDoc | null>(() => getLegalDocFromHash());
   const [liveStreams, setLiveStreams] = useState<LiveStreamRow[]>([]);
@@ -1006,6 +1008,17 @@ function App() {
               {/* اختيار لغة التطبيق - الافتراضي لغة الجوال تلقائيًا */}
               <JixLanguagePicker />
 
+              {/* محفظتي: الكوينز والأرباح */}
+              {user && (
+                <button
+                  onClick={() => setIsWalletOpen(true)}
+                  className="w-full flex items-center gap-3 px-4 py-3 mt-2 bg-white/5 rounded-2xl text-start"
+                >
+                  <Wallet className="w-4 h-4 text-[#F5B93E] shrink-0" />
+                  <span className="text-sm text-gray-300 flex-1">{t('wallet_title')}</span>
+                </button>
+              )}
+
               {/* الدخول المخفي للبثوث - يظهر مقفل لين يوصل المستخدم للمستوى المطلوب */}
               {user && <JixIncognitoToggle key={user.id} />}
 
@@ -1202,6 +1215,8 @@ function App() {
       />
 
       <JixLegalModal doc={legalDoc} onClose={closeLegal} onSwitch={setLegalDoc} />
+
+      <JixWallet isOpen={isWalletOpen} onClose={() => setIsWalletOpen(false)} initialTab="earnings" />
 
       {/* لوحة البلاغات - لصاحب التطبيق فقط */}
       {isAdmin && (
