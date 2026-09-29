@@ -11,6 +11,8 @@ import { useI18n } from './JixLanguage';
 // بريد التواصل الظاهر بالصفحتين - غيّره هنا فقط لو غيّرت البريد
 export const LEGAL_CONTACT_EMAIL = 'sjilani262@gmail.com';
 const LAST_UPDATED = '2026-09-27';
+// نسخة الشروط اللي وافق عليها المستخدم - غيّر التاريخ لما تعدّل الشروط
+export const LEGAL_VERSION = LAST_UPDATED;
 
 export type LegalDoc = 'privacy' | 'terms';
 type DocLang = 'ar' | 'en' | 'fr';
