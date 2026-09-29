@@ -3,7 +3,7 @@ import { X, Mail, ArrowLeft, ShieldCheck, Loader2, Calendar, User } from 'lucide
 import { supabase } from './supabaseClient';
 import { JixDobPicker } from './JixDobPicker';
 import { useI18n } from './JixLanguage';
-import { JixLegalLinks, JixLegalModal, LegalDoc } from './JixLegal';
+import { JixLegalLinks, JixLegalModal, LegalDoc, LEGAL_VERSION } from './JixLegal';
 
 interface JixAuthModalProps {
   isOpen: boolean;
@@ -28,6 +28,8 @@ const calculateAge = (dob: string): number => {
 export const JixAuthModal: React.FC<JixAuthModalProps> = ({ isOpen, onClose, onSuccessLogin }) => {
   const { t } = useI18n();
   const [legalDoc, setLegalDoc] = useState<LegalDoc | null>(null);
+  // الموافقة على الشروط إلزامية قبل التسجيل (مثل تطبيقات المتاجر)
+  const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [step, setStep] = useState<Step>('form');
   const [email, setEmail] = useState('');
   const [username, setUsername] = useState('');
@@ -52,6 +54,10 @@ export const JixAuthModal: React.FC<JixAuthModalProps> = ({ isOpen, onClose, onS
   // خطوة 1: التحقق من الاسم والعمر أولاً، ثم إرسال كود الـ OTP عبر البريد الإلكتروني
   const handleSendOtp = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!agreedToTerms) {
+      setError(t('legal_must_accept'));
+      return;
+    }
     setError(null);
 
     if (!username.trim()) {
@@ -136,6 +142,8 @@ export const JixAuthModal: React.FC<JixAuthModalProps> = ({ isOpen, onClose, onS
       t('user_default');
     const finalEmail = data.user?.email || identifier;
 
+    // نسجّل موافقته على الشروط (التاريخ + النسخة) - مهم قانونيًا
+    supabase.rpc('accept_terms', { p_version: LEGAL_VERSION }).then(() => {});
     onSuccessLogin(finalUsername, finalEmail);
     resetAndClose();
   };
@@ -233,12 +241,29 @@ export const JixAuthModal: React.FC<JixAuthModalProps> = ({ isOpen, onClose, onS
               </div>
             </div>
 
-            <button type="submit" disabled={isSubmitting} className="w-full py-3.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-black font-black text-sm rounded-2xl shadow-lg transition active:scale-98 flex items-center justify-center gap-2 disabled:opacity-60">
+            {/* الموافقة على الشروط - بدونها ما يقدر يكمل التسجيل */}
+            <div className="rounded-2xl bg-[#171923] border border-gray-800 p-3">
+              <label className="flex items-start gap-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={agreedToTerms}
+                  onChange={(e) => {
+                    setAgreedToTerms(e.target.checked);
+                    if (e.target.checked) setError(null);
+                  }}
+                  className="mt-0.5 w-5 h-5 shrink-0 accent-amber-500"
+                />
+                <span className="text-xs text-gray-300 leading-relaxed">{t('legal_accept')}</span>
+              </label>
+              <div className="mt-2">
+                <JixLegalLinks onOpen={setLegalDoc} />
+              </div>
+            </div>
+
+            <button type="submit" disabled={isSubmitting || !agreedToTerms} className="w-full py-3.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-black font-black text-sm rounded-2xl shadow-lg transition active:scale-98 flex items-center justify-center gap-2 disabled:opacity-60">
               {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <ArrowLeft className="w-4 h-4" />}
               {isSubmitting ? t('auth_sending') : t('auth_send_code')}
             </button>
-
-            <JixLegalLinks showAgreement onOpen={setLegalDoc} />
           </form>
         ) : (
           <form onSubmit={handleVerifyOtp} className="space-y-4">
