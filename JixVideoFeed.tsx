@@ -15,6 +15,7 @@ import {
   Eye,
 } from 'lucide-react';
 import { supabase } from './supabaseClient';
+import { isBlockedRelation, useBlockRelations } from './JixBlock';
 import { useI18n } from './JixLanguage';
 import { JixStoryRing } from './JixStoryRing';
 import { JixShareSheet } from './JixShareSheet';
@@ -49,6 +50,11 @@ interface JixVideoFeedProps {
 export const JixVideoFeed: React.FC<JixVideoFeedProps> = ({ currentUserId, refreshKey, feedMode, onOpenProfile, focusPostId }) => {
   const { t } = useI18n();
   const [posts, setPosts] = useState<VideoRow[]>([]);
+  // الحظر: نخفي منشورات أي حساب بيني وبينه حظر (ويتحدث فورًا لما أحظر أحد)
+  const blockIds = useBlockRelations(currentUserId);
+  useEffect(() => {
+    if (blockIds.size) setPosts((prev) => prev.filter((p) => !blockIds.has(p.user_id)));
+  }, [blockIds]);
   const [likedIds, setLikedIds] = useState<Set<string>>(new Set());
   const [followedIds, setFollowedIds] = useState<Set<string>>(new Set());
   const [isMuted, setIsMuted] = useState(true);
@@ -134,7 +140,9 @@ export const JixVideoFeed: React.FC<JixVideoFeedProps> = ({ currentUserId, refre
       }
     }
 
-    const visiblePosts = allPosts.filter((p) => !p.is_hidden || p.user_id === currentUserId);
+    const visiblePosts = allPosts.filter(
+      (p) => (!p.is_hidden || p.user_id === currentUserId) && !isBlockedRelation(p.user_id)
+    );
     setPosts(visiblePosts);
 
     if (currentUserId && data) {
