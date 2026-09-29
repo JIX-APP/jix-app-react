@@ -12,12 +12,15 @@ import {
   Volume2,
   VolumeX,
   Users,
+  Ban,
 } from 'lucide-react';
 import { supabase } from './supabaseClient';
 import { LevelBadge, AvatarFrame, useLevelXp } from './JixLevelSystem';
 import { JixComments } from './JixComments';
 import { JixStoryRing } from './JixStoryRing';
 import { JixProfileStats } from './JixProfileStats';
+import { getBlockStatus, toggleBlock } from './JixBlock';
+import { useI18n } from './JixLanguage';
 import { JixReportButton } from './JixReportButton';
 
 interface JixUserProfileProps {
@@ -77,11 +80,19 @@ export const JixUserProfile: React.FC<JixUserProfileProps> = ({ isOpen, onClose,
   const [activeCommentsPostId, setActiveCommentsPostId] = useState<string | null>(null);
   const supporterXp = useLevelXp(userId, 'supporter');
   const receiverXp = useLevelXp(userId, 'receiver');
+  const { t } = useI18n();
+  const [blockStatus, setBlockStatus] = useState<{ iBlocked: boolean; blockedMe: boolean }>({ iBlocked: false, blockedMe: false });
+  const [isBlockBusy, setIsBlockBusy] = useState(false);
 
   const isImagePost = (post: PostRow) => !!post.thumbnail_url && post.thumbnail_url === post.video_url;
 
   const fetchAll = async () => {
     setIsLoading(true);
+
+    // الحظر: لو فيه حظر بيننا ما نعرض المحتوى
+    if (currentUserId && currentUserId !== userId) {
+      setBlockStatus(await getBlockStatus(userId));
+    }
 
     // تاريخ الميلاد مخفي عن الكل - نجيب العمر بس من دالة آمنة
     const [{ data: profileData }, { data: ageData }] = await Promise.all([
@@ -164,7 +175,24 @@ export const JixUserProfile: React.FC<JixUserProfileProps> = ({ isOpen, onClose,
     if (error) fetchAll();
   };
 
+  const handleToggleBlock = async () => {
+    if (!blockStatus.iBlocked && !window.confirm(t('block_confirm'))) return;
+    setIsBlockBusy(true);
+    const result = await toggleBlock(userId);
+    setIsBlockBusy(false);
+    if (result === null) return;
+    setBlockStatus((s) => ({ ...s, iBlocked: result }));
+    if (result) {
+      setIsFollowing(false);
+      setIsFollowedBack(false);
+    } else {
+      fetchAll();
+    }
+  };
+
   if (!isOpen) return null;
+
+  const isBlockedView = blockStatus.iBlocked || blockStatus.blockedMe;
 
   return (
     <div className="fixed inset-0 z-50 bg-[#0E0E12] overflow-y-auto">
@@ -172,6 +200,11 @@ export const JixUserProfile: React.FC<JixUserProfileProps> = ({ isOpen, onClose,
         <h2 className="font-black text-sm text-white">الملف الشخصي</h2>
         <div className="flex items-center gap-2">
           {currentUserId !== userId && <JixReportButton targetType="user" targetId={userId} variant="header" />}
+          {currentUserId && currentUserId !== userId && !blockStatus.iBlocked && (
+            <button onClick={handleToggleBlock} disabled={isBlockBusy} className="p-1.5 rounded-full bg-white/5" aria-label={t('block_user')}>
+              <Ban className="w-4 h-4 text-gray-300" />
+            </button>
+          )}
           <button onClick={onClose} className="p-1.5 rounded-full bg-white/5">
             <X className="w-4 h-4 text-white" />
           </button>
@@ -184,6 +217,28 @@ export const JixUserProfile: React.FC<JixUserProfileProps> = ({ isOpen, onClose,
         </div>
       ) : !profile ? (
         <p className="text-center text-xs text-gray-500 py-24">تعذر إيجاد هذا المستخدم</p>
+      ) : isBlockedView ? (
+        <div className="flex flex-col items-center text-center px-8 py-24">
+          <span className="w-16 h-16 rounded-2xl bg-red-500/10 flex items-center justify-center mb-4">
+            <Ban className="w-7 h-7 text-red-400" />
+          </span>
+          {blockStatus.iBlocked ? (
+            <>
+              <p className="text-sm font-black text-white">{t('block_you_blocked', { name: profile.full_name || profile.handle || '' })}</p>
+              <p className="text-xs text-gray-500 mt-1.5 leading-relaxed">{t('block_you_blocked_hint')}</p>
+              <button
+                onClick={handleToggleBlock}
+                disabled={isBlockBusy}
+                className="mt-5 px-6 py-2.5 rounded-full bg-white/10 text-sm font-bold text-white disabled:opacity-50 flex items-center gap-2"
+              >
+                {isBlockBusy && <Loader2 className="w-4 h-4 animate-spin" />}
+                {t('block_unblock')}
+              </button>
+            </>
+          ) : (
+            <p className="text-sm font-bold text-gray-300">{t('block_unavailable')}</p>
+          )}
+        </div>
       ) : (
         <div className="px-4 pt-6 pb-10">
           <div className="flex flex-col items-center text-center mb-5">
