@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Send, MoreVertical, VolumeX, Clock, Ban, Mic, MicOff } from 'lucide-react';
 import { supabase } from './supabaseClient';
+import { isBlockedRelation } from './JixBlock';
 import { JixMvpBadge, useLiveMvpTiers } from './JixMvpBadge';
 import { useI18n } from './JixLanguage';
 import { detectSourceLang, isWorthTranslating, translateComment } from './JixTranslate';
@@ -98,7 +99,7 @@ export const JixLiveComments: React.FC<JixLiveCommentsProps> = ({
     channel
       .on('broadcast', { event: 'comment' }, (payload) => {
         const msg = payload.payload as LiveCommentMsg;
-        if (mutedUserIds.has(msg.senderId)) return;
+        if (mutedUserIds.has(msg.senderId) || isBlockedRelation(msg.senderId)) return;
         setMessages((prev) => [...prev.slice(-(MAX_MESSAGES - 1)), msg]);
       })
       .on('broadcast', { event: 'moderation' }, (payload) => {
