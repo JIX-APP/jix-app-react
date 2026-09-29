@@ -8,6 +8,7 @@ import { GIFTS_CATALOG, GiftIcon, giftLegendaryEnterStyle, giftPopStyle } from '
 import { LevelBadge, useLevelXp } from './JixLevelSystem';
 import { JixReportButton } from './JixReportButton';
 import { useLiveIdentity } from './JixIncognito';
+import { getBlockStatus } from './JixBlock';
 import { JixPKChallengeButton } from './JixPKChallengeButton';
 import { JixLiveComments } from './JixLiveComments';
 import { JixCohostSlot } from './JixCohostSlot';
@@ -78,6 +79,17 @@ export const JixWatchStream: React.FC<JixWatchStreamProps> = ({
   const hostReceiverXp = useLevelXp(hostId, 'receiver');
 
   const isMeCohost = cohostSlots.some((s) => s?.guestId === currentUserId);
+
+  // الحظر: ما يقدر يدخل بث شخص بينه وبينه حظر
+  useEffect(() => {
+    if (!isOpen || !currentUserId || currentUserId === hostId) return;
+    getBlockStatus(hostId).then(({ iBlocked, blockedMe }) => {
+      if (iBlocked || blockedMe) {
+        alert(t('block_live_unavailable'));
+        onClose();
+      }
+    });
+  }, [isOpen, currentUserId, hostId]);
 
   // الدخول المخفي: لو مفعّل، نستخدم هوية مؤقتة بدل رقم الحساب داخل البث
   const { ready: identityReady, isIncognito, identityId } = useLiveIdentity(isOpen, liveId, currentUserId ?? null);
