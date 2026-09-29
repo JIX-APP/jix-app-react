@@ -321,6 +321,8 @@ export const LOCALES: Record<string, Record<string, string>> = {
     admin_withdraw_empty: "لا توجد طلبات سحب",
     admin_withdraw_confirm_paid: "هل حوّلت المبلغ فعلًا لهذا الحساب؟",
     admin_withdraw_note_prompt: "سبب الرفض (اختياري)",
+    legal_accept: "قرأت وأوافق على شروط الاستخدام وسياسة الخصوصية، وعمري 18 سنة أو أكثر",
+    legal_must_accept: "يجب الموافقة على شروط الاستخدام وسياسة الخصوصية للمتابعة",
   },
   "en": {
     host_default: "Host",
@@ -639,6 +641,8 @@ export const LOCALES: Record<string, Record<string, string>> = {
     admin_withdraw_empty: "No withdrawal requests",
     admin_withdraw_confirm_paid: "Did you actually send the money to this account?",
     admin_withdraw_note_prompt: "Reason for rejection (optional)",
+    legal_accept: "I have read and agree to the Terms of Service and Privacy Policy, and I am 18 or older",
+    legal_must_accept: "You must accept the Terms of Service and Privacy Policy to continue",
   },
   "es": {
     host_default: "Anfitrión",
@@ -1170,6 +1174,8 @@ export const LOCALES: Record<string, Record<string, string>> = {
     admin_withdraw_empty: "Aucune demande de retrait",
     admin_withdraw_confirm_paid: "Avez-vous vraiment envoyé l'argent sur ce compte ?",
     admin_withdraw_note_prompt: "Motif du refus (facultatif)",
+    legal_accept: "J'ai lu et j'accepte les Conditions d'utilisation et la Politique de confidentialité, et j'ai 18 ans ou plus",
+    legal_must_accept: "Vous devez accepter les Conditions d'utilisation et la Politique de confidentialité pour continuer",
   },
   "de": {
     host_default: "Host",
