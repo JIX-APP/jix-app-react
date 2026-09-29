@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { X, Send, Loader2, Mic } from 'lucide-react';
 import { supabase } from './supabaseClient';
 import { checkText } from './JixModeration';
+import { isBlockedRelation } from './JixBlock';
 
 // دعم إملاء الصوت (تحويل كلام لنص) عبر Web Speech API - غير مدعوم في iOS Safari حاليًا،
 // فلو غير متوفر نكتفي بفتح لوحة المفاتيح (اللي فيها زر مايك جاهز من نظام آيفون نفسه)
@@ -47,7 +48,7 @@ export const JixComments: React.FC<JixCommentsProps> = ({ isOpen, onClose, postI
       .eq('post_id', postId)
       .order('created_at', { ascending: true });
 
-    setComments((data as unknown as CommentRow[]) || []);
+    setComments(((data as unknown as CommentRow[]) || []).filter((c) => !isBlockedRelation(c.user_id)));
     setIsLoading(false);
   };
 
