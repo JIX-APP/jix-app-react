@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Home, Compass, MessageCircle, User, Plus, LogOut, Loader2, Search, Radio, Video, Eye, Pencil, Check, Crown, Calendar, MapPin, Camera, ShieldAlert, Wallet } from 'lucide-react';
+import { Home, Compass, MessageCircle, User, Plus, LogOut, Loader2, Search, Radio, Video, Eye, Pencil, Check, Crown, Calendar, MapPin, Camera, ShieldAlert, Wallet, Settings, EyeOff, Bell } from 'lucide-react';
 import { JixAuthModal } from './JixAuthModal';
 import { JixStreamStudio } from './JixStreamStudio';
 import { JixWatchStream } from './JixWatchStream';
@@ -30,7 +30,10 @@ import {
 import { JixDMCall } from './JixDMCall';
 import { JixAdminReports } from './JixAdminReports';
 import { JixIncognitoToggle } from './JixIncognito';
-import { JixWallet } from './JixWallet';
+import { JixWallet, JixWalletCard, WalletTab } from './JixWallet';
+import { JixSettings } from './JixSettings';
+import { JixNotificationsScreen, useUnreadNotifications } from './JixNotifications';
+import { useBlockRelations, loadBlockRelations } from './JixBlock';
 import { JixLegalLinks, JixLegalModal, LegalDoc, getLegalDocFromHash } from './JixLegal';
 
 interface CurrentUser {
@@ -93,6 +96,10 @@ function App() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [isAdminReportsOpen, setIsAdminReportsOpen] = useState(false);
   const [isWalletOpen, setIsWalletOpen] = useState(false);
+  const [walletTab, setWalletTab] = useState<WalletTab>('coins');
+  const [walletRefreshKey, setWalletRefreshKey] = useState(0);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   // سياسة الخصوصية وشروط الاستخدام - تفتح أيضًا من رابط مباشر: #privacy أو #terms
   const [legalDoc, setLegalDoc] = useState<LegalDoc | null>(() => getLegalDocFromHash());
   const [liveStreams, setLiveStreams] = useState<LiveStreamRow[]>([]);
@@ -319,6 +326,7 @@ function App() {
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
+    loadBlockRelations(null);
     setUser(null);
     setIsStudioOpen(false);
     setScreen('Home');
@@ -639,6 +647,43 @@ function App() {
     }
   };
 
+  // ===== حفظ من صفحة الإعدادات (ترجع مفتاح رسالة الخطأ أو null) =====
+  const saveProfileName = async (newName: string): Promise<string | null> => {
+    if (!user) return 'settings_save_failed';
+    if (!checkText(newName).isClean) return 'name_banned_word';
+    await supabase.auth.updateUser({ data: { username: newName } });
+    const { error } = await supabase.from('profiles').update({ full_name: newName }).eq('id', user.id);
+    if (error) return 'settings_save_failed';
+    setUser((prev) => (prev ? { ...prev, name: newName } : prev));
+    return null;
+  };
+
+  const saveProfileRegion = async (newRegion: string): Promise<string | null> => {
+    if (!user) return 'settings_save_failed';
+    const { error } = await supabase.from('profiles').update({ region: newRegion || null }).eq('id', user.id);
+    if (error) return 'settings_save_failed';
+    setUser((prev) => (prev ? { ...prev, region: newRegion || null } : prev));
+    return null;
+  };
+
+  const saveProfileDob = async (date: string): Promise<string | null> => {
+    if (!user) return 'settings_save_failed';
+    if (calculateAge(date) < 18) return 'age_min_18';
+    const { error } = await supabase.from('profiles').update({ date_of_birth: date }).eq('id', user.id);
+    if (error) return 'dob_save_failed';
+    setUser((prev) => (prev ? { ...prev, dateOfBirth: date } : prev));
+    return null;
+  };
+
+  // الإشعارات غير المقروءة + تحميل قائمة الحظر مرة وحدة بعد الدخول
+  const unread = useUnreadNotifications(user?.id);
+  useBlockRelations(user?.id);
+
+  const openWallet = (tab: WalletTab) => {
+    setWalletTab(tab);
+    setIsWalletOpen(true);
+  };
+
   return (
     <JixPresenceProvider value={{ liveByUser, storyUserIds, openLive, refreshStories: fetchStoryUsers }}>
     <div className="h-[100dvh] max-w-[430px] mx-auto relative bg-[#0E0E12] text-white overflow-hidden">
@@ -676,12 +721,28 @@ function App() {
             {isCheckingSession ? (
               <Loader2 className="w-4 h-4 animate-spin text-[#8B5CF6]" />
             ) : (
-              <button
-                onClick={() => setScreen('Discover')}
-                className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center backdrop-blur"
-              >
-                <Search className="w-4 h-4" />
-              </button>
+              <div className="flex items-center gap-2">
+                {user && (
+                  <button
+                    onClick={() => setIsNotificationsOpen(true)}
+                    className="relative w-8 h-8 rounded-full bg-white/10 flex items-center justify-center backdrop-blur"
+                    aria-label={t('notif_title')}
+                  >
+                    <Bell className="w-4 h-4" />
+                    {unread.count > 0 && (
+                      <span className="absolute -top-1 -end-1 min-w-[16px] h-4 px-1 rounded-full bg-[#FF2D55] text-[9px] font-black text-white flex items-center justify-center">
+                        {unread.count > 99 ? '99+' : unread.count}
+                      </span>
+                    )}
+                  </button>
+                )}
+                <button
+                  onClick={() => setScreen('Discover')}
+                  className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center backdrop-blur"
+                >
+                  <Search className="w-4 h-4" />
+                </button>
+              </div>
             )}
           </div>
 
@@ -845,7 +906,18 @@ function App() {
           </div>
         ) : (
           <div>
-            <div className="flex flex-col items-center text-center mb-6">
+            {/* ترس الإعدادات (مثل تيك توك) */}
+            <div className="flex justify-end -mb-2">
+              <button
+                onClick={() => setIsSettingsOpen(true)}
+                className="p-2.5 rounded-full bg-white/5"
+                aria-label={t('settings_title')}
+              >
+                <Settings className="w-5 h-5 text-white" />
+              </button>
+            </div>
+
+            <div className="flex flex-col items-center text-center mb-5">
               {/* الأزرار (+ ستوري / كاميرا) برّا إطار المستوى - قبل كانت داخله وتنقص فما تنضغط */}
               <JixStoryRing
                 userId={user.id}
@@ -907,172 +979,43 @@ function App() {
                   </button>
                 </div>
               )}
+              {/* سطر صغير: رقم الحساب + المنطقة */}
+              {(user.accountNumber !== null || user.region) && (
+                <p className="text-[11px] text-gray-400 mb-1 flex items-center gap-1.5">
+                  {user.accountNumber !== null && <span dir="ltr">ID {user.accountNumber}</span>}
+                  {user.accountNumber !== null && user.region && <span>·</span>}
+                  {user.region && <span>{user.region}</span>}
+                </p>
+              )}
               <div className="flex items-center gap-2 mt-2">
                 <LevelBadge xp={supporterXp} kind="supporter" size="md" />
                 <LevelBadge xp={receiverXp} kind="receiver" size="md" />
-                {user.accountNumber !== null && (
-                  // نفس خانة شارة Lv بالضبط: خلفية رصاصية + نفس الحجم والارتفاع
-                  <span
-                    className="inline-flex items-center rounded-full font-black px-3 py-1.5 text-sm"
-                    style={{ background: 'linear-gradient(90deg, #6B6B76, #4A4A52)' }}
-                    dir="ltr"
-                  >
-                    <span
-                      className="bg-clip-text text-transparent flex items-center"
-                      style={{ backgroundImage: 'linear-gradient(90deg, #FF7A1A, #8B5CF6)', height: 30 }}
-                    >
-                      ID: {user.accountNumber}
-                    </span>
-                  </span>
-                )}
               </div>
 
               <JixProfileStats userId={user.id} onOpenProfile={handleOpenProfile} />
             </div>
 
-            <div className="space-y-2.5 mb-5">
-              <div className="px-4 py-3 bg-white/5 rounded-2xl">
-                {isEditingDob ? (
-                  <div>
-                    <div className="flex items-center gap-2 mb-2">
-                      <Calendar className="w-4 h-4 text-[#8B5CF6] shrink-0" />
-                      <span className="text-xs font-bold text-gray-300">{t('dob')}</span>
-                    </div>
-                    <JixDobPicker value={dobDraft} onChange={setDobDraft} />
-                    {dobError && <p className="text-[10px] text-red-400 mt-1.5">{dobError}</p>}
-                    <div className="flex gap-2 mt-2.5">
-                      <button
-                        onClick={() => setIsEditingDob(false)}
-                        className="flex-1 py-2 bg-white/5 text-white text-xs font-bold rounded-xl"
-                      >
-                        {t('cancel')}
-                      </button>
-                      <button
-                        onClick={handleSaveDob}
-                        disabled={isSavingDob || !dobDraft}
-                        className="flex-1 py-2 bg-gradient-to-r from-[#FF7A1A] to-[#8B5CF6] text-white text-xs font-bold rounded-xl disabled:opacity-50 flex items-center justify-center gap-1.5"
-                      >
-                        {isSavingDob ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
-                        {t('save')}
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2.5">
-                      <Calendar className="w-4 h-4 text-[#8B5CF6]" />
-                      <span className="text-xs text-gray-300">
-                        {user.dateOfBirth ? t('dob_value', { date: user.dateOfBirth }) : t('add_dob')}
-                      </span>
-                    </div>
-                    <button onClick={handleStartEditDob} className="p-1 rounded-full bg-white/5 shrink-0">
-                      <Pencil className="w-3 h-3 text-gray-400" />
-                    </button>
-                  </div>
-                )}
-              </div>
+            {/* بطاقة المحفظة */}
+            <JixWalletCard onOpen={openWallet} refreshKey={walletRefreshKey} />
 
-              <div className="flex items-center justify-between px-4 py-3 bg-white/5 rounded-2xl">
-                <div className="flex items-center gap-2.5">
-                  <MapPin className="w-4 h-4 text-[#8B5CF6]" />
-                  {isEditingRegion ? (
-                    <input
-                      value={regionDraft}
-                      onChange={(e) => setRegionDraft(e.target.value)}
-                      onKeyDown={(e) => e.key === 'Enter' && handleSaveRegion()}
-                      placeholder={t('region_placeholder')}
-                      autoFocus
-                      className="px-2 py-1 bg-[#171923] border border-gray-800 rounded-lg text-white text-xs focus:border-[#8B5CF6] outline-none w-36"
-                    />
-                  ) : (
-                    <span className="text-xs text-gray-300">
-                      {user.region || t('add_region')}
-                    </span>
-                  )}
-                </div>
-                {isEditingRegion ? (
-                  <button
-                    onClick={handleSaveRegion}
-                    disabled={isSavingRegion}
-                    className="w-7 h-7 rounded-full bg-gradient-to-br from-[#FF7A1A] to-[#8B5CF6] flex items-center justify-center disabled:opacity-50 shrink-0"
+            {/* أزرار سريعة */}
+            <div className="grid grid-cols-4 gap-2 mb-5">
+              {[
+                { icon: <Radio className="w-5 h-5" />, label: t('go_live'), onClick: handleGoLive, colors: ['#FF7A1A', '#FF4670'] },
+                { icon: <Video className="w-5 h-5" />, label: t('upload_video'), onClick: handleUploadClick, colors: ['#38BDF8', '#8B5CF6'] },
+                { icon: <Crown className="w-5 h-5" />, label: t('vip_numbers'), onClick: handleVipStoreClick, colors: ['#F5B93E', '#FF7A1A'] },
+                { icon: <EyeOff className="w-5 h-5" />, label: t('incognito_toggle'), onClick: () => setIsSettingsOpen(true), colors: ['#8B5CF6', '#3C288C'] },
+              ].map((a) => (
+                <button key={a.label} onClick={a.onClick} className="flex flex-col items-center gap-1.5 py-3 px-1 bg-[#18181F] rounded-2xl">
+                  <span
+                    className="w-10 h-10 rounded-xl flex items-center justify-center text-white"
+                    style={{ background: `linear-gradient(135deg, ${a.colors[0]}, ${a.colors[1]})` }}
                   >
-                    {isSavingRegion ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
-                  </button>
-                ) : (
-                  <button onClick={handleStartEditRegion} className="p-1 rounded-full bg-white/5 shrink-0">
-                    <Pencil className="w-3 h-3 text-gray-400" />
-                  </button>
-                )}
-              </div>
-
-              {/* اختيار لغة التطبيق - الافتراضي لغة الجوال تلقائيًا */}
-              <JixLanguagePicker />
-
-              {/* محفظتي: الكوينز والأرباح */}
-              {user && (
-                <button
-                  onClick={() => setIsWalletOpen(true)}
-                  className="w-full flex items-center gap-3 px-4 py-3 mt-2 bg-white/5 rounded-2xl text-start"
-                >
-                  <Wallet className="w-4 h-4 text-[#F5B93E] shrink-0" />
-                  <span className="text-sm text-gray-300 flex-1">{t('wallet_title')}</span>
+                    {a.icon}
+                  </span>
+                  <span className="text-[10px] font-bold text-gray-200 leading-tight text-center line-clamp-2">{a.label}</span>
                 </button>
-              )}
-
-              {/* الدخول المخفي للبثوث - يظهر مقفل لين يوصل المستخدم للمستوى المطلوب */}
-              {user && <JixIncognitoToggle key={user.id} />}
-
-              {isAdmin && (
-                <button
-                  onClick={() => setIsAdminReportsOpen(true)}
-                  className="w-full flex items-center gap-3 px-4 py-3 mt-2 bg-white/5 rounded-2xl text-start"
-                >
-                  <ShieldAlert className="w-4 h-4 text-[#FF7A1A] shrink-0" />
-                  <span className="text-sm text-gray-300 flex-1">{t('admin_panel')}</span>
-                </button>
-              )}
-            </div>
-
-            <div className="grid grid-cols-3 gap-2 mb-5">
-              <button
-                onClick={handleGoLive}
-                className="flex flex-col items-center gap-1.5 py-3 bg-gradient-to-br from-[#FF7A1A] to-[#8B5CF6] rounded-xl"
-              >
-                <Radio className="w-5 h-5" />
-                <span className="text-[10px] font-bold">{t('go_live')}</span>
-              </button>
-              <button
-                onClick={handleVipStoreClick}
-                className="flex flex-col items-center gap-1.5 py-3 bg-white/5 rounded-xl"
-              >
-                <Crown className="w-5 h-5 text-[#F5B93E]" />
-                <span className="text-[10px] font-bold">{t('vip_numbers')}</span>
-              </button>
-              <button
-                onClick={handleUploadClick}
-                className="flex flex-col items-center gap-1.5 py-3 bg-white/5 rounded-xl"
-              >
-                <Video className="w-5 h-5" />
-                <span className="text-[10px] font-bold">{t('upload_video')}</span>
-              </button>
-            </div>
-
-            <button
-              onClick={handleLogout}
-              className="w-full py-3 bg-white/5 text-red-400 rounded-2xl font-bold text-sm flex items-center justify-center gap-2"
-            >
-              <LogOut className="w-4 h-4" /> {t('logout')}
-            </button>
-
-            <button
-              onClick={() => setIsDeleteAccountOpen(true)}
-              className="w-full mt-3 py-2 text-[11px] text-gray-500 underline"
-            >
-              {t('delete_account')}
-            </button>
-
-            <div className="mt-4">
-              <JixLegalLinks onOpen={setLegalDoc} />
+              ))}
             </div>
           </div>
         )}
@@ -1216,7 +1159,47 @@ function App() {
 
       <JixLegalModal doc={legalDoc} onClose={closeLegal} onSwitch={setLegalDoc} />
 
-      <JixWallet isOpen={isWalletOpen} onClose={() => setIsWalletOpen(false)} initialTab="earnings" />
+      <JixWallet
+        isOpen={isWalletOpen}
+        onClose={() => {
+          setIsWalletOpen(false);
+          setWalletRefreshKey((k) => k + 1);
+        }}
+        initialTab={walletTab}
+      />
+
+      {user && (
+        <JixNotificationsScreen
+          isOpen={isNotificationsOpen}
+          onClose={() => setIsNotificationsOpen(false)}
+          onOpenProfile={handleOpenProfile}
+          onOpenLive={(hostId) => {
+            setIsNotificationsOpen(false);
+            openLive(hostId);
+          }}
+          onRead={unread.clear}
+        />
+      )}
+
+      {user && (
+        <JixSettings
+          isOpen={isSettingsOpen}
+          onClose={() => setIsSettingsOpen(false)}
+          user={{ id: user.id, name: user.name, avatarUrl: user.avatarUrl, dateOfBirth: user.dateOfBirth, region: user.region }}
+          isAdmin={isAdmin}
+          onOpenWallet={() => openWallet('coins')}
+          onOpenAdmin={() => setIsAdminReportsOpen(true)}
+          onOpenLegal={setLegalDoc}
+          onLogout={() => {
+            setIsSettingsOpen(false);
+            handleLogout();
+          }}
+          onDeleteAccount={() => setIsDeleteAccountOpen(true)}
+          onSaveName={saveProfileName}
+          onSaveRegion={saveProfileRegion}
+          onSaveDob={saveProfileDob}
+        />
+      )}
 
       {/* لوحة البلاغات - لصاحب التطبيق فقط */}
       {isAdmin && (
