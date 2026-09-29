@@ -353,3 +353,59 @@ export const JixWallet: React.FC<{ isOpen: boolean; onClose: () => void; initial
     </div>
   );
 };
+
+// ============================================================
+// بطاقة المحفظة بصفحة البروفايل (الكوينز + الكنوز + زر الشحن)
+// ============================================================
+export const JixWalletCard: React.FC<{ onOpen: (tab: WalletTab) => void; refreshKey?: number }> = ({
+  onOpen,
+  refreshKey = 0,
+}) => {
+  const { t, lang } = useI18n();
+  const { wallet, refresh } = useMyWallet(true);
+
+  useEffect(() => {
+    if (refreshKey) refresh();
+  }, [refreshKey, refresh]);
+
+  const num = (n: number) => n.toLocaleString(lang);
+  const cash = wallet
+    ? (wallet.diamonds * wallet.diamond_usd).toLocaleString(lang, { style: 'currency', currency: 'USD' })
+    : '';
+
+  return (
+    <div className="p-[1.5px] rounded-3xl bg-gradient-to-r from-[#FF7A1A] to-[#8B5CF6] mb-4">
+      <div className="relative overflow-hidden rounded-[22px] bg-[#14121c] p-4">
+        <div className="pointer-events-none absolute -top-10 -end-10 w-40 h-40 rounded-full bg-[#FF7A1A]/20 blur-3xl" />
+        <button onClick={() => onOpen('earnings')} className="relative w-full flex items-center justify-between mb-3">
+          <span className="text-sm font-black text-white">{t('wallet_title')}</span>
+          <span className="text-[11px] text-gray-500">›</span>
+        </button>
+        <div className="relative flex items-end justify-between gap-3">
+          <button onClick={() => onOpen('coins')} className="text-start min-w-0">
+            <span className="flex items-center gap-1.5 text-xl font-black text-[#F5B93E]">
+              <Coins className="w-5 h-5 shrink-0" />
+              {wallet ? num(wallet.coins) : '…'}
+            </span>
+            <span className="block text-[10px] text-gray-500 mt-0.5">{t('wallet_tab_coins')}</span>
+          </button>
+          <button onClick={() => onOpen('earnings')} className="text-start min-w-0">
+            <span className="flex items-center gap-1.5 text-xl font-black text-[#C4B5FD]">
+              <Gem className="w-5 h-5 shrink-0" />
+              {wallet ? num(wallet.diamonds) : '…'}
+            </span>
+            <span className="block text-[10px] text-gray-500 mt-0.5">
+              {t('wallet_diamonds')} {cash && `≈ ${cash}`}
+            </span>
+          </button>
+          <button
+            onClick={() => onOpen('coins')}
+            className="shrink-0 px-4 py-2 rounded-full bg-gradient-to-r from-[#F5B93E] to-[#FF7A1A] text-xs font-black text-black"
+          >
+            {t('wallet_recharge')}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
