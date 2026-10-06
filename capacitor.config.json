@@ -1,0 +1,9 @@
+{
+  "appId": "com.jixapp.live",
+  "appName": "JIX",
+  "webDir": "dist",
+  "ios": {
+    "contentInset": "never",
+    "backgroundColor": "#0c0d12"
+  }
+}
