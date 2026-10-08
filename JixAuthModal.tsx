@@ -25,6 +25,31 @@ const calculateAge = (dob: string): number => {
   return age;
 };
 
+// تشخيص: يعرض سبب الخطأ بالتفصيل (نوعه + رمزه + فحص مفتاح Supabase)
+const checkEnv = (label: string, value: unknown, allowed: RegExp): string | null => {
+  const v = typeof value === 'string' ? value : '';
+  if (!v) return `${label}: فارغ`;
+  for (let i = 0; i < v.length; i++) {
+    if (!allowed.test(v[i])) {
+      return `${label}: حرف غير صالح في الموضع ${i + 1} من ${v.length} (رمز ${v.charCodeAt(i)})`;
+    }
+  }
+  return null;
+};
+
+const describeError = (err: unknown): string => {
+  const e = err as { name?: string; message?: string; status?: number; code?: string };
+  const parts = [`${e?.name ?? 'Error'}: ${e?.message ?? String(err)}`];
+  if (e?.status) parts.push(`status ${e.status}`);
+  if (e?.code) parts.push(`code ${e.code}`);
+  const keyIssue = checkEnv('KEY', import.meta.env.VITE_SUPABASE_ANON_KEY, /[A-Za-z0-9._-]/);
+  const urlIssue = checkEnv('URL', import.meta.env.VITE_SUPABASE_URL, /[A-Za-z0-9.:/_-]/);
+  if (keyIssue) parts.push(keyIssue);
+  if (urlIssue) parts.push(urlIssue);
+  if (!keyIssue && !urlIssue) parts.push('KEY/URL: OK');
+  return parts.join(' | ');
+};
+
 export const JixAuthModal: React.FC<JixAuthModalProps> = ({ isOpen, onClose, onSuccessLogin }) => {
   const { t } = useI18n();
   const [legalDoc, setLegalDoc] = useState<LegalDoc | null>(null);
@@ -94,7 +119,7 @@ export const JixAuthModal: React.FC<JixAuthModalProps> = ({ isOpen, onClose, onS
     setIsSubmitting(false);
 
     if (otpError) {
-      setError(/banned/i.test(otpError.message) ? t('account_suspended') : otpError.message);
+      setError(/banned/i.test(otpError.message) ? t('account_suspended') : describeError(otpError));
       return;
     }
 
@@ -115,7 +140,7 @@ export const JixAuthModal: React.FC<JixAuthModalProps> = ({ isOpen, onClose, onS
 
     if (verifyError) {
       setIsSubmitting(false);
-      setError(/banned/i.test(verifyError.message) ? t('account_suspended') : verifyError.message);
+      setError(/banned/i.test(verifyError.message) ? t('account_suspended') : describeError(verifyError));
       return;
     }
 
