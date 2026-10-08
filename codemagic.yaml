@@ -23,6 +23,9 @@ workflows:
         script: |
           npm install --no-save @capacitor/core@7 @capacitor/cli@7 @capacitor/ios@7
           npx cap add ios
+          cp icon.png ios/App/App/Assets.xcassets/AppIcon.appiconset/AppIcon-512@2x.png
+          sed -i '' 's/IPHONEOS_DEPLOYMENT_TARGET = 14.0/IPHONEOS_DEPLOYMENT_TARGET = 15.0/g' ios/App/App.xcodeproj/project.pbxproj
+          sed -i '' "s/platform :ios, '14.0'/platform :ios, '15.0'/" ios/App/Podfile
           npx cap sync ios
       - name: Camera and microphone permissions
         script: |
