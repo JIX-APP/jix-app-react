@@ -868,7 +868,7 @@ function App() {
         <h2 className="font-black text-lg mb-3 px-4">{t('messages')}</h2>
 
         {!user ? (
-          <div className="flex flex-col items-center justify-center py-16 text-center px-4">
+          <div className="flex-1 flex flex-col items-center justify-center pb-16 text-center px-4">
             <MessageCircle className="w-10 h-10 text-[#6B6B76] mb-3" />
             <p className="text-sm text-[#9A9A9E] mb-4">{t('login_to_see_messages')}</p>
             <button
@@ -892,7 +892,7 @@ function App() {
 
       <div className={`absolute inset-0 pt-6 pb-24 px-4 overflow-y-auto ${screen === 'Profile' ? '' : 'hidden'}`}>
         {!user ? (
-          <div className="flex flex-col items-center justify-center py-16 text-center">
+          <div className="h-full flex flex-col items-center justify-center pb-16 text-center">
             <User className="w-10 h-10 text-[#6B6B76] mb-3" />
             <p className="text-sm text-[#9A9A9E] mb-4">
               {t('login_to_see_profile')}
