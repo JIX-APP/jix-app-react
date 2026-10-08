@@ -3,7 +3,7 @@
   "appName": "JIX",
   "webDir": "dist",
   "ios": {
-    "contentInset": "never",
+    "contentInset": "always",
     "backgroundColor": "#0c0d12"
   },
   "plugins": {
