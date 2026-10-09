@@ -402,6 +402,37 @@ const WithdrawalsPanel: React.FC = () => {
   }, [load]);
 
   const usd = (n: number) => Number(n).toLocaleString(lang, { style: 'currency', currency: 'USD' });
+  const [exportMsg, setExportMsg] = useState<string | null>(null);
+
+  // ملف CSV (يفتح في Excel وNumbers): الاسم، رقم الحساب، الطريقة، بيانات الاستلام، المبلغ
+  const exportPending = async () => {
+    const cell = (v: unknown) => `"${String(v ?? '').replace(/"/g, '""').replace(/\s*\n\s*/g, ' ')}"`;
+    const header = ['Name', 'JIX ID', 'Method', 'Account details (name + IBAN / email)', 'Amount USD', 'Diamonds', 'Request date'];
+    const lines = rows.map((r) =>
+      [r.user_name, r.account_number, r.method, r.account_details, Number(r.amount_usd).toFixed(2), r.diamonds, new Date(r.created_at).toISOString().slice(0, 10)]
+        .map(cell)
+        .join(','),
+    );
+    const csv = '\ufeff' + [header.map(cell).join(','), ...lines].join('\n');
+    const fileName = `jix-payouts-${new Date().toISOString().slice(0, 10)}.csv`;
+    try {
+      const file = new File([csv], fileName, { type: 'text/csv' });
+      const nav = navigator as any;
+      if (nav.canShare?.({ files: [file] })) {
+        await nav.share({ files: [file], title: fileName });
+        setExportMsg(t('admin_withdraw_exported'));
+        return;
+      }
+    } catch (e: any) {
+      if (/abort|cancel/i.test(String(e?.name ?? e?.message ?? ''))) return;
+    }
+    try {
+      await navigator.clipboard.writeText(csv);
+      setExportMsg(t('admin_withdraw_copied'));
+    } catch {
+      setExportMsg(null);
+    }
+  };
 
   const process = async (row: WithdrawalAdminRow, action: 'paid' | 'rejected') => {
     let note: string | null = null;
@@ -437,6 +468,19 @@ const WithdrawalsPanel: React.FC = () => {
       </div>
 
       {error && <p className="text-xs text-red-400 text-center">{error}</p>}
+
+      {/* ملف واحد لكل طلبات السحب المعلّقة - تدفع للجميع دفعة واحدة من Paysera */}
+      {view === 'pending' && rows.length > 0 && (
+        <div className="space-y-1">
+          <button
+            onClick={exportPending}
+            className="w-full py-2.5 rounded-xl bg-[#8B5CF6]/20 border border-[#8B5CF6]/40 text-[#C4B5FD] text-xs font-black"
+          >
+            {t('admin_withdraw_export', { n: rows.length, total: usd(rows.reduce((sum, r) => sum + Number(r.amount_usd), 0)) })}
+          </button>
+          {exportMsg && <p className="text-[11px] text-center text-emerald-300">{exportMsg}</p>}
+        </div>
+      )}
 
       {isLoading ? (
         <div className="flex justify-center py-16">
