@@ -30,17 +30,59 @@ interface WithdrawalRow {
   created_at: string;
 }
 
-// باقات الشحن (تتفعّل مع ربط الدفع - لازم تطابق باقات السيرفر وقتها)
+// باقات الشحن - نفس باقات App Store Connect وجدول iap_products بالسيرفر
+// (عدد الكوينز الحقيقي يحدده السيرفر، وهنا للعرض فقط)
 const RECHARGE_PACKAGES = [
-  { coins: 100, usd: 0.99 },
-  { coins: 550, usd: 4.99 },
-  { coins: 1150, usd: 9.99 },
-  { coins: 6000, usd: 49.99 },
-  { coins: 12500, usd: 99.99 },
-  { coins: 65000, usd: 499.99 },
+  { id: 'com.jixapp.live.pack1', coins: 90, usd: 0.99 },
+  { id: 'com.jixapp.live.pack2', coins: 470, usd: 4.99 },
+  { id: 'com.jixapp.live.pack3', coins: 940, usd: 9.99 },
+  { id: 'com.jixapp.live.pack4', coins: 4700, usd: 49.99 },
+  { id: 'com.jixapp.live.pack5', coins: 9400, usd: 99.99 },
+  { id: 'com.jixapp.live.pack6', coins: 47000, usd: 499.99 },
 ];
 
-type Method = 'payoneer' | 'bank' | 'paypal';
+// ============================================================
+// الدفع عن طريق Apple (يشتغل فقط داخل تطبيق الآيفون)
+// الإضافة الأصلية تنضاف وقت البناء في Codemagic (@capgo/native-purchases)
+// ============================================================
+let storePluginCache: any = null;
+const getStorePlugin = (): any => {
+  const cap = (window as any).Capacitor;
+  if (!cap?.isNativePlatform?.() || cap.getPlatform?.() !== 'ios') return null;
+  if (!storePluginCache) {
+    try {
+      storePluginCache = cap.registerPlugin ? cap.registerPlugin('NativePurchases') : cap.Plugins?.NativePurchases;
+    } catch {
+      storePluginCache = null;
+    }
+  }
+  return storePluginCache;
+};
+
+// أي عملية دفعها المستخدم ولم يؤكدها السيرفر بعد (مثلاً انقطع الإنترنت) تنحفظ هنا وتنعاد تلقائيًا
+const PENDING_KEY = 'jix_pending_iap';
+const readPending = (): string[] => {
+  try {
+    return JSON.parse(localStorage.getItem(PENDING_KEY) || '[]');
+  } catch {
+    return [];
+  }
+};
+const writePending = (ids: string[]) => {
+  try {
+    localStorage.setItem(PENDING_KEY, JSON.stringify(Array.from(new Set(ids))));
+  } catch {
+    /* ignore */
+  }
+};
+
+const verifyTransaction = async (transactionId: string) => {
+  const { data, error } = await supabase.functions.invoke('verify-iap', { body: { transactionId } });
+  if (error) throw error;
+  return data as { ok?: boolean; credited?: boolean; coins_added?: number };
+};
+
+type Method = 'paysera' | 'bank' | 'payoneer' | 'paypal';
 
 export const useMyWallet = (enabled: boolean) => {
   const [wallet, setWallet] = useState<WalletInfo | null>(null);
@@ -71,6 +113,7 @@ const ERROR_KEYS: Record<string, string> = {
   invalid_details: 'wallet_err_invalid_details',
   amount_too_small: 'wallet_err_too_small',
   account_suspended: 'account_suspended',
+  monthly_limit: 'wallet_err_monthly_limit',
 };
 
 export const JixWallet: React.FC<{ isOpen: boolean; onClose: () => void; initialTab?: WalletTab }> = ({
@@ -85,9 +128,12 @@ export const JixWallet: React.FC<{ isOpen: boolean; onClose: () => void; initial
   const [isBusy, setIsBusy] = useState(false);
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
   const [showWithdrawForm, setShowWithdrawForm] = useState(false);
-  const [method, setMethod] = useState<Method>('payoneer');
+  const [method, setMethod] = useState<Method>('paysera');
   const [details, setDetails] = useState('');
   const [amount, setAmount] = useState('');
+  const [buyingId, setBuyingId] = useState<string | null>(null);
+  const [storePrices, setStorePrices] = useState<Record<string, string>>({});
+  const canBuy = !!getStorePlugin();
 
   const loadWithdrawals = useCallback(async () => {
     const { data } = await supabase.rpc('get_my_withdrawals');
@@ -101,6 +147,38 @@ export const JixWallet: React.FC<{ isOpen: boolean; onClose: () => void; initial
     setShowWithdrawForm(false);
     loadWithdrawals();
   }, [isOpen, initialTab, loadWithdrawals]);
+
+  // أسعار Apple الحقيقية بعملة بلد المستخدم + إعادة تأكيد أي عملية معلّقة
+  useEffect(() => {
+    if (!isOpen) return;
+    const store = getStorePlugin();
+    if (!store) return;
+    store
+      .getProducts({ productIdentifiers: RECHARGE_PACKAGES.map((p) => p.id), productType: 'inapp' })
+      .then((res: any) => {
+        const map: Record<string, string> = {};
+        for (const p of res?.products ?? []) {
+          if (p?.identifier && p?.priceString) map[p.identifier] = p.priceString;
+        }
+        setStorePrices(map);
+      })
+      .catch(() => {});
+    const pending = readPending();
+    if (pending.length) {
+      (async () => {
+        const left: string[] = [];
+        for (const id of pending) {
+          try {
+            await verifyTransaction(id);
+          } catch {
+            left.push(id);
+          }
+        }
+        writePending(left);
+        refresh();
+      })();
+    }
+  }, [isOpen, refresh]);
 
   if (!isOpen) return null;
 
@@ -145,6 +223,40 @@ export const JixWallet: React.FC<{ isOpen: boolean; onClose: () => void; initial
     setAmount('');
     refresh();
     loadWithdrawals();
+  };
+
+  const buyPackage = async (pkg: (typeof RECHARGE_PACKAGES)[number]) => {
+    if (isBusy || buyingId) return;
+    const store = getStorePlugin();
+    if (!store) {
+      setMessage({ ok: false, text: t('wallet_recharge_app_only') });
+      return;
+    }
+    setBuyingId(pkg.id);
+    setMessage(null);
+    try {
+      const { data: userData } = await supabase.auth.getUser();
+      const userId = userData?.user?.id;
+      const tx = await store.purchaseProduct({
+        productIdentifier: pkg.id,
+        productType: 'inapp',
+        quantity: 1,
+        ...(userId ? { appAccountToken: userId } : {}),
+      });
+      const transactionId = String(tx?.transactionId ?? '');
+      if (!transactionId) throw new Error('no_transaction');
+      writePending([...readPending(), transactionId]);
+      await verifyTransaction(transactionId);
+      writePending(readPending().filter((id) => id !== transactionId));
+      setMessage({ ok: true, text: t('wallet_recharge_done', { n: num(pkg.coins) }) });
+    } catch (e: any) {
+      const msg = String(e?.message ?? e ?? '');
+      if (/cancel/i.test(msg)) setMessage(null);
+      else setMessage({ ok: false, text: t('wallet_recharge_failed') });
+    } finally {
+      setBuyingId(null);
+      refresh();
+    }
   };
 
   const canWithdraw = !!wallet && wallet.diamonds >= wallet.min_withdraw_diamonds;
@@ -198,23 +310,34 @@ export const JixWallet: React.FC<{ isOpen: boolean; onClose: () => void; initial
               </p>
             </div>
 
-            {/* باقات الشحن */}
+            {message && (
+              <p className={`text-xs text-center ${message.ok ? 'text-emerald-300' : 'text-red-400'}`}>{message.text}</p>
+            )}
+
+            {/* باقات الشحن - الدفع عن طريق Apple */}
             <div>
               <p className="text-xs font-bold text-gray-400 mb-2">{t('wallet_recharge')}</p>
               <div className="grid grid-cols-3 gap-2">
                 {RECHARGE_PACKAGES.map((p) => (
                   <button
-                    key={p.coins}
-                    disabled
-                    className="relative flex flex-col items-center gap-1 py-3 rounded-2xl bg-white/5 border border-white/5 opacity-70"
+                    key={p.id}
+                    onClick={() => buyPackage(p)}
+                    disabled={!!buyingId}
+                    className={`relative flex flex-col items-center gap-1 py-3 rounded-2xl bg-white/5 border border-white/5 active:scale-95 transition ${
+                      canBuy ? '' : 'opacity-70'
+                    } disabled:opacity-50`}
                   >
-                    <Coins className="w-5 h-5 text-[#F5B93E]" />
+                    {buyingId === p.id ? (
+                      <Loader2 className="w-5 h-5 animate-spin text-[#F5B93E]" />
+                    ) : (
+                      <Coins className="w-5 h-5 text-[#F5B93E]" />
+                    )}
                     <span className="text-sm font-black text-white">{num(p.coins)}</span>
-                    <span className="text-[11px] text-gray-400">{usd(p.usd)}</span>
+                    <span className="text-[11px] text-gray-400">{storePrices[p.id] ?? usd(p.usd)}</span>
                   </button>
                 ))}
               </div>
-              <p className="mt-3 text-center text-[11px] text-gray-500">{t('wallet_recharge_soon')}</p>
+              {!canBuy && <p className="mt-3 text-center text-[11px] text-gray-500">{t('wallet_recharge_app_only')}</p>}
             </div>
           </>
         ) : (
@@ -272,8 +395,8 @@ export const JixWallet: React.FC<{ isOpen: boolean; onClose: () => void; initial
             {showWithdrawForm && canWithdraw && !hasPending && (
               <div className="rounded-2xl p-4 bg-white/[0.04] border border-white/10 space-y-3">
                 <p className="text-xs font-bold text-gray-300">{t('wallet_method')}</p>
-                <div className="grid grid-cols-3 gap-2">
-                  {(['payoneer', 'bank', 'paypal'] as Method[]).map((m) => (
+                <div className="grid grid-cols-2 gap-2">
+                  {(['paysera', 'bank', 'payoneer', 'paypal'] as Method[]).map((m) => (
                     <button
                       key={m}
                       onClick={() => setMethod(m)}
@@ -289,7 +412,7 @@ export const JixWallet: React.FC<{ isOpen: boolean; onClose: () => void; initial
                   value={details}
                   onChange={(e) => setDetails(e.target.value.slice(0, 300))}
                   placeholder={t(`wallet_details_${method}`)}
-                  rows={method === 'bank' ? 3 : 1}
+                  rows={method === 'bank' || method === 'paysera' ? 3 : 1}
                   className="w-full px-3 py-2.5 bg-[#171923] border border-gray-800 rounded-xl text-white text-sm focus:border-[#8B5CF6] outline-none resize-none"
                 />
                 <input
@@ -303,6 +426,7 @@ export const JixWallet: React.FC<{ isOpen: boolean; onClose: () => void; initial
                 <p className="text-[11px] text-gray-400">
                   = {usd(Math.floor(Number(amount || wallet.diamonds)) * wallet.diamond_usd)}
                 </p>
+                <p className="text-[11px] text-amber-300/80">{t('wallet_withdraw_monthly_note')}</p>
                 <button
                   onClick={submitWithdraw}
                   disabled={isBusy || details.trim().length < 5}
