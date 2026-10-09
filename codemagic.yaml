@@ -21,7 +21,7 @@ workflows:
         script: npx vite build
       - name: Add Capacitor iOS
         script: |
-          npm install --no-save @capacitor/core@7 @capacitor/cli@7 @capacitor/ios@7
+          npm install @capacitor/core@7 @capacitor/cli@7 @capacitor/ios@7 @capgo/native-purchases@7 || npm install @capacitor/core@7 @capacitor/cli@7 @capacitor/ios@7 @capgo/native-purchases --legacy-peer-deps
           npx cap add ios
           cp icon.png ios/App/App/Assets.xcassets/AppIcon.appiconset/AppIcon-512@2x.png
           sed -i '' 's/IPHONEOS_DEPLOYMENT_TARGET = 14.0/IPHONEOS_DEPLOYMENT_TARGET = 15.0/g' ios/App/App.xcodeproj/project.pbxproj
