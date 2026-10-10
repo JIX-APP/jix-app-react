@@ -26,13 +26,14 @@ workflows:
           cp icon.png ios/App/App/Assets.xcassets/AppIcon.appiconset/AppIcon-512@2x.png
           sed -i '' 's/IPHONEOS_DEPLOYMENT_TARGET = 14.0/IPHONEOS_DEPLOYMENT_TARGET = 15.0/g' ios/App/App.xcodeproj/project.pbxproj
           sed -i '' "s/platform :ios, '14.0'/platform :ios, '15.0'/" ios/App/Podfile
+          sed -i '' 's/TARGETED_DEVICE_FAMILY = "1,2"/TARGETED_DEVICE_FAMILY = 1/g' ios/App/App.xcodeproj/project.pbxproj
           npx cap sync ios
       - name: Camera and microphone permissions
         script: |
           PLIST=ios/App/App/Info.plist
-          /usr/libexec/PlistBuddy -c "Add :NSCameraUsageDescription string 'JIX يحتاج الكاميرا للبث المباشر وتصوير الفيديوهات'" $PLIST
-          /usr/libexec/PlistBuddy -c "Add :NSMicrophoneUsageDescription string 'JIX يحتاج الميكروفون للبث المباشر والمكالمات'" $PLIST
-          /usr/libexec/PlistBuddy -c "Add :NSPhotoLibraryUsageDescription string 'JIX يحتاج الصور لاختيار صورة الحساب ورفع الفيديوهات'" $PLIST
+          /usr/libexec/PlistBuddy -c "Add :NSCameraUsageDescription string 'JIX uses the camera so you can go live and record videos. / JIX يحتاج الكاميرا للبث المباشر وتصوير الفيديوهات'" $PLIST
+          /usr/libexec/PlistBuddy -c "Add :NSMicrophoneUsageDescription string 'JIX uses the microphone for live streams and calls. / JIX يحتاج الميكروفون للبث المباشر والمكالمات'" $PLIST
+          /usr/libexec/PlistBuddy -c "Add :NSPhotoLibraryUsageDescription string 'JIX accesses your photos so you can choose a profile picture and upload videos. / JIX يحتاج الصور لاختيار صورة الحساب ورفع الفيديوهات'" $PLIST
           /usr/libexec/PlistBuddy -c "Add :ITSAppUsesNonExemptEncryption bool false" $PLIST
       - name: Code signing
         script: xcode-project use-profiles
