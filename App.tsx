@@ -225,6 +225,7 @@ function App() {
       const { data } = await supabase
         .from('live_streams')
         .select('*')
+        .gt('last_seen_at', new Date(Date.now() - 90 * 1000).toISOString())
         .order('started_at', { ascending: false });
       setLiveStreams(data || []);
       setIsLoadingLive(false);
@@ -239,7 +240,11 @@ function App() {
       })
       .subscribe();
 
+    // تحديث دوري حتى يختفي أي بث توقفت نبضته
+    const refresh = window.setInterval(fetchLiveStreams, 60 * 1000);
+
     return () => {
+      window.clearInterval(refresh);
       supabase.removeChannel(channel);
     };
   }, []);
