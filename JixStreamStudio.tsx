@@ -91,6 +91,16 @@ export const JixStreamStudio: React.FC<JixStreamStudioProps> = ({ isOpen, onClos
   const [giftToast, setGiftToast] = useState<GiftToast | null>(null);
   const [coinsEarnedThisStream, setCoinsEarnedThisStream] = useState(0);
   const [liveId, setLiveId] = useState<string | null>(null);
+
+  // نبضة كل 30 ثانية: تثبت أن البث ما زال شغالاً. لو أُغلق التطبيق فجأة
+  // تتوقف النبضة، فيختفي البث من القائمة تلقائياً بعد 90 ثانية
+  useEffect(() => {
+    if (!liveId) return;
+    const beat = () => { supabase.rpc('live_heartbeat').then(() => {}); };
+    beat();
+    const interval = window.setInterval(beat, 30 * 1000);
+    return () => window.clearInterval(interval);
+  }, [liveId]);
   const moderationChannelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
   const [hostUserId, setHostUserId] = useState<string | null>(null);
   const [isViewersOpen, setIsViewersOpen] = useState(false);
