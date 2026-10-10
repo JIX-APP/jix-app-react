@@ -13,6 +13,10 @@ interface JixAuthModalProps {
 
 type Step = 'form' | 'otp';
 
+// حساب مراجع Apple: لا يُرسل له كود؛ الأرقام الستة التي يكتبها = كلمة السر المحفوظة في Supabase
+const REVIEW_EMAIL = 'review@jixapp.live';
+const isReviewer = (e: string) => e.trim().toLowerCase() === REVIEW_EMAIL;
+
 // حساب العمر بدقة من تاريخ الميلاد (يراعي الشهر واليوم مو بس فرق السنوات)
 const calculateAge = (dob: string): number => {
   const birthDate = new Date(dob);
@@ -106,6 +110,11 @@ export const JixAuthModal: React.FC<JixAuthModalProps> = ({ isOpen, onClose, onS
       return;
     }
 
+    if (isReviewer(identifier)) {
+      setStep('otp');
+      return;
+    }
+
     setIsSubmitting(true);
 
     const { error: otpError } = await supabase.auth.signInWithOtp({
@@ -132,11 +141,9 @@ export const JixAuthModal: React.FC<JixAuthModalProps> = ({ isOpen, onClose, onS
     setError(null);
     setIsSubmitting(true);
 
-    const { data, error: verifyError } = await supabase.auth.verifyOtp({
-      email: identifier,
-      token: otp,
-      type: 'email',
-    });
+    const { data, error: verifyError } = isReviewer(identifier)
+      ? await supabase.auth.signInWithPassword({ email: identifier, password: otp })
+      : await supabase.auth.verifyOtp({ email: identifier, token: otp, type: 'email' });
 
     if (verifyError) {
       setIsSubmitting(false);
