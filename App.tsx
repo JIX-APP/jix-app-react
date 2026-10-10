@@ -691,8 +691,8 @@ function App() {
 
   return (
     <JixPresenceProvider value={{ liveByUser, storyUserIds, openLive, refreshStories: fetchStoryUsers }}>
-    <div className="h-[100dvh] max-w-[430px] mx-auto relative bg-[#0E0E12] text-white overflow-hidden">
-      <JixLiveNotifier currentUserId={user?.id ?? null} />
+    <div className={`h-[100dvh] max-w-[430px] mx-auto relative overflow-hidden ${screen === 'Home' ? 'bg-[#0E0E12] text-white' : 'jix-light bg-white'}`}>
+      <div className="jix-dark contents"><JixLiveNotifier currentUserId={user?.id ?? null} /></div>
       {screen === 'Home' && (
         <header className="absolute top-0 inset-x-0 z-30 flex flex-col bg-gradient-to-b from-black/60 to-transparent">
           <div className="flex items-center justify-between px-4 pt-4 pb-2">
@@ -1060,7 +1060,7 @@ function App() {
                 onChange={(e) => setDeleteConfirmText(e.target.value)}
                 autoCapitalize="characters"
                 dir="ltr"
-                className="w-full px-4 py-2.5 bg-black/40 border border-white/10 rounded-xl text-white text-sm outline-none focus:border-red-500 mb-4"
+                className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-white text-sm outline-none focus:border-red-500 mb-4"
               />
               <div className="flex gap-2">
                 <button
@@ -1087,7 +1087,7 @@ function App() {
         )}
       </div>
 
-      <nav className="absolute bottom-0 inset-x-0 z-30 bg-black/40 backdrop-blur border-t border-white/10 flex items-center justify-around py-2.5">
+      <nav className={`absolute bottom-0 inset-x-0 z-30 backdrop-blur border-t flex items-center justify-around py-2.5 ${screen === 'Home' ? 'bg-black/40 border-white/10' : 'jix-nav-light'}`}>
         <button
           onClick={() => setScreen('Home')}
           className={`flex flex-col items-center gap-1 ${screen === 'Home' ? 'text-white' : 'text-[#B0B0B6]'}`}
@@ -1124,179 +1124,211 @@ function App() {
         </button>
       </nav>
 
-      <JixAuthModal isOpen={isAuthOpen} onClose={() => setIsAuthOpen(false)} onSuccessLogin={handleLoginSuccess} />
+      <div className="jix-light contents"><JixAuthModal isOpen={isAuthOpen} onClose={() => setIsAuthOpen(false)} onSuccessLogin={handleLoginSuccess} /></div>
 
-      <JixUploadVideo
-        isOpen={isUploadOpen}
-        onClose={() => setIsUploadOpen(false)}
-        onUploaded={() => {
-          setVideoFeedKey((k) => k + 1);
-          setScreen('Home');
-        }}
-      />
+      <div className="jix-light contents">
+        <JixUploadVideo
+          isOpen={isUploadOpen}
+          onClose={() => setIsUploadOpen(false)}
+          onUploaded={() => {
+            setVideoFeedKey((k) => k + 1);
+            setScreen('Home');
+          }}
+        />
+      </div>
 
       {user && (
-        <JixStreamStudio
-          isOpen={isStudioOpen}
-          onClose={() => setIsStudioOpen(false)}
-          currentUser={{ name: user.name, avatar: user.avatarUrl || user.avatar }}
-        />
+        <div className="jix-dark contents">
+          <JixStreamStudio
+            isOpen={isStudioOpen}
+            onClose={() => setIsStudioOpen(false)}
+            currentUser={{ name: user.name, avatar: user.avatarUrl || user.avatar }}
+          />
+        </div>
       )}
 
       {watchingStream && (
-        <JixWatchStream
-          isOpen={!!watchingStream}
-          onClose={() => setWatchingStream(null)}
-          liveId={watchingStream.id}
-          channelName={watchingStream.channel_name}
-          hostUsername={watchingStream.username}
-          hostId={watchingStream.user_id}
+        <div className="jix-dark contents">
+          <JixWatchStream
+            isOpen={!!watchingStream}
+            onClose={() => setWatchingStream(null)}
+            liveId={watchingStream.id}
+            channelName={watchingStream.channel_name}
+            hostUsername={watchingStream.username}
+            hostId={watchingStream.user_id}
+            currentUserId={user?.id ?? null}
+            onOpenProfile={handleOpenProfile}
+          />
+        </div>
+      )}
+
+      <div className="jix-light contents">
+        <JixVipStore
+          isOpen={isVipStoreOpen}
+          onClose={() => setIsVipStoreOpen(false)}
           currentUserId={user?.id ?? null}
-          onOpenProfile={handleOpenProfile}
         />
-      )}
+      </div>
 
-      <JixVipStore
-        isOpen={isVipStoreOpen}
-        onClose={() => setIsVipStoreOpen(false)}
-        currentUserId={user?.id ?? null}
-      />
+      <div className="jix-light contents"><JixLegalModal doc={legalDoc} onClose={closeLegal} onSwitch={setLegalDoc} /></div>
 
-      <JixLegalModal doc={legalDoc} onClose={closeLegal} onSwitch={setLegalDoc} />
-
-      <JixWallet
-        isOpen={isWalletOpen}
-        onClose={() => {
-          setIsWalletOpen(false);
-          setWalletRefreshKey((k) => k + 1);
-        }}
-        initialTab={walletTab}
-      />
+      <div className="jix-light contents">
+        <JixWallet
+          isOpen={isWalletOpen}
+          onClose={() => {
+            setIsWalletOpen(false);
+            setWalletRefreshKey((k) => k + 1);
+          }}
+          initialTab={walletTab}
+        />
+      </div>
 
       {user && (
-        <JixNotificationsScreen
-          isOpen={isNotificationsOpen}
-          onClose={() => setIsNotificationsOpen(false)}
-          onOpenProfile={handleOpenProfile}
-          onOpenLive={(hostId) => {
-            setIsNotificationsOpen(false);
-            openLive(hostId);
-          }}
-          onRead={unread.clear}
-        />
+        <div className="jix-light contents">
+          <JixNotificationsScreen
+            isOpen={isNotificationsOpen}
+            onClose={() => setIsNotificationsOpen(false)}
+            onOpenProfile={handleOpenProfile}
+            onOpenLive={(hostId) => {
+              setIsNotificationsOpen(false);
+              openLive(hostId);
+            }}
+            onRead={unread.clear}
+          />
+        </div>
       )}
 
       {user && (
-        <JixSettings
-          isOpen={isSettingsOpen}
-          onClose={() => setIsSettingsOpen(false)}
-          user={{ id: user.id, name: user.name, avatarUrl: user.avatarUrl, dateOfBirth: user.dateOfBirth, region: user.region }}
-          isAdmin={isAdmin}
-          onOpenWallet={() => openWallet('coins')}
-          onOpenAdmin={() => setIsAdminReportsOpen(true)}
-          onOpenLegal={setLegalDoc}
-          onLogout={() => {
-            setIsSettingsOpen(false);
-            handleLogout();
-          }}
-          onDeleteAccount={() => setIsDeleteAccountOpen(true)}
-          onSaveName={saveProfileName}
-          onSaveRegion={saveProfileRegion}
-          onSaveDob={saveProfileDob}
-        />
+        <div className="jix-light contents">
+          <JixSettings
+            isOpen={isSettingsOpen}
+            onClose={() => setIsSettingsOpen(false)}
+            user={{ id: user.id, name: user.name, avatarUrl: user.avatarUrl, dateOfBirth: user.dateOfBirth, region: user.region }}
+            isAdmin={isAdmin}
+            onOpenWallet={() => openWallet('coins')}
+            onOpenAdmin={() => setIsAdminReportsOpen(true)}
+            onOpenLegal={setLegalDoc}
+            onLogout={() => {
+              setIsSettingsOpen(false);
+              handleLogout();
+            }}
+            onDeleteAccount={() => setIsDeleteAccountOpen(true)}
+            onSaveName={saveProfileName}
+            onSaveRegion={saveProfileRegion}
+            onSaveDob={saveProfileDob}
+          />
+        </div>
       )}
 
       {/* لوحة البلاغات - لصاحب التطبيق فقط */}
       {isAdmin && (
-        <JixAdminReports
-          isOpen={isAdminReportsOpen}
-          onClose={() => setIsAdminReportsOpen(false)}
-          onOpenProfile={handleOpenProfile}
-        />
+        <div className="jix-light contents">
+          <JixAdminReports
+            isOpen={isAdminReportsOpen}
+            onClose={() => setIsAdminReportsOpen(false)}
+            onOpenProfile={handleOpenProfile}
+          />
+        </div>
       )}
 
       {/* صفحة بروفايل مستخدم آخر - تفتح فوق كل شي */}
       {viewingProfileUserId && (
-        <JixUserProfile
-          isOpen={!!viewingProfileUserId}
-          onClose={() => setViewingProfileUserId(null)}
-          userId={viewingProfileUserId}
-          currentUserId={user?.id ?? null}
-          onOpenChat={handleOpenChatWithUser}
-          onOpenProfile={handleOpenProfile}
-        />
+        <div className="jix-light contents">
+          <JixUserProfile
+            isOpen={!!viewingProfileUserId}
+            onClose={() => setViewingProfileUserId(null)}
+            userId={viewingProfileUserId}
+            currentUserId={user?.id ?? null}
+            onOpenChat={handleOpenChatWithUser}
+            onOpenProfile={handleOpenProfile}
+          />
+        </div>
       )}
 
-      <JixPKChallengeNotification
-        currentUserId={user?.id ?? null}
-        onAccepted={(battleId) => setPkBattleId(battleId)}
-      />
+      <div className="jix-dark contents">
+        <JixPKChallengeNotification
+          currentUserId={user?.id ?? null}
+          onAccepted={(battleId) => setPkBattleId(battleId)}
+        />
+      </div>
 
-      <JixStoryUpload
-        isOpen={isStoryUploadOpen}
-        onClose={() => setIsStoryUploadOpen(false)}
-        onUploaded={() => {
-          setIsStoryUploadOpen(false);
-          setStoryRefreshKey((k) => k + 1);
-        }}
-      />
+      <div className="jix-dark contents">
+        <JixStoryUpload
+          isOpen={isStoryUploadOpen}
+          onClose={() => setIsStoryUploadOpen(false)}
+          onUploaded={() => {
+            setIsStoryUploadOpen(false);
+            setStoryRefreshKey((k) => k + 1);
+          }}
+        />
+      </div>
 
       {/* شاشة محادثة خاصة مفتوحة - تفتح فوق كل شي */}
       {openConversation && user && (
-        <JixDMConversation
-          conversationId={openConversation.conversationId}
-          currentUserId={user.id}
-          otherUserId={openConversation.otherUserId}
-          otherUserName={openConversation.otherUserName}
-          onBack={() => setOpenConversation(null)}
-          onStartCall={handleStartCall}
-        />
+        <div className="jix-light contents">
+          <JixDMConversation
+            conversationId={openConversation.conversationId}
+            currentUserId={user.id}
+            otherUserId={openConversation.otherUserId}
+            otherUserName={openConversation.otherUserName}
+            onBack={() => setOpenConversation(null)}
+            onStartCall={handleStartCall}
+          />
+        </div>
       )}
 
       {/* إشعار مكالمة واردة - يظهر بأي مكان بالتطبيق */}
-      <JixDMCallNotification
-        currentUserId={user?.id ?? null}
-        onAccepted={(call) =>
-          setActiveCall({
-            callId: call.callId,
-            agoraChannel: call.agoraChannel,
-            callType: call.callType,
-            otherUserName: call.callerName,
-            isIncoming: true,
-          })
-        }
-      />
+      <div className="jix-dark contents">
+        <JixDMCallNotification
+          currentUserId={user?.id ?? null}
+          onAccepted={(call) =>
+            setActiveCall({
+              callId: call.callId,
+              agoraChannel: call.agoraChannel,
+              callType: call.callType,
+              otherUserName: call.callerName,
+              isIncoming: true,
+            })
+          }
+        />
+      </div>
 
       {/* شاشة المكالمة النشطة - صوتية أو مرئية */}
       {activeCall && user && (
-        <JixDMCall
-          callId={activeCall.callId}
-          agoraChannel={activeCall.agoraChannel}
-          callType={activeCall.callType}
-          otherUserName={activeCall.otherUserName}
-          currentUserId={user.id}
-          isIncoming={activeCall.isIncoming}
-          onEnd={() => setActiveCall(null)}
-        />
+        <div className="jix-dark contents">
+          <JixDMCall
+            callId={activeCall.callId}
+            agoraChannel={activeCall.agoraChannel}
+            callType={activeCall.callType}
+            otherUserName={activeCall.otherUserName}
+            currentUserId={user.id}
+            isIncoming={activeCall.isIncoming}
+            onEnd={() => setActiveCall(null)}
+          />
+        </div>
       )}
 
       {pkBattleId && pkWinnerName === undefined && (
-        <JixPKBattleView
-          battleId={pkBattleId}
-          hostAName={pkHostAName}
-          hostBName={pkHostBName}
-          onBattleEnded={(winner) => setPkWinnerName(winner)}
-        />
+        <div className="jix-dark contents">
+          <JixPKBattleView
+            battleId={pkBattleId}
+            hostAName={pkHostAName}
+            hostBName={pkHostBName}
+            onBattleEnded={(winner) => setPkWinnerName(winner)}
+          />
+        </div>
       )}
 
       {pkBattleId && pkWinnerName !== undefined && (
-        <JixPKResultOverlay
-          winnerName={pkWinnerName}
-          onClose={() => {
-            setPkBattleId(null);
-            setPkWinnerName(undefined);
-          }}
-        />
+        <div className="jix-dark contents">
+          <JixPKResultOverlay
+            winnerName={pkWinnerName}
+            onClose={() => {
+              setPkBattleId(null);
+              setPkWinnerName(undefined);
+            }}
+          />
+        </div>
       )}
     </div>
     </JixPresenceProvider>
